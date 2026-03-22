@@ -21,4 +21,6 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
+UserSchema.index({ name: 'text', email: 'text' });
+
 export const User = mongoose.models.users_prediction || mongoose.model<IUser>('users_prediction', UserSchema);

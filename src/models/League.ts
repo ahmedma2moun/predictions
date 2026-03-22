@@ -23,4 +23,6 @@ const LeagueSchema = new Schema<ILeague>(
   { timestamps: true }
 );
 
+LeagueSchema.index({ name: 'text', country: 'text' });
+
 export const League = mongoose.models.League || mongoose.model<ILeague>('League', LeagueSchema);

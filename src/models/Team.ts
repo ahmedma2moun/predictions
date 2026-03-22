@@ -23,4 +23,6 @@ const TeamSchema = new Schema<ITeam>(
   { timestamps: true }
 );
 
+TeamSchema.index({ name: 'text' });
+
 export const Team = mongoose.models.Team || mongoose.model<ITeam>('Team', TeamSchema);
