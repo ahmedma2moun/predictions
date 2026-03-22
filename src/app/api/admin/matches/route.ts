@@ -212,8 +212,11 @@ export async function POST(req: NextRequest) {
 
   let inserted = 0, skipped = 0;
   for (const league of leagues) {
+    try {
     const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
-    const fixtures = filterByActiveTeams(allFixtures, activeTeamsByLeague.get(league.externalId));
+    const activeTeamIds = activeTeamsByLeague.get(league.externalId);
+    const fixtures = filterByActiveTeams(allFixtures, activeTeamIds);
+    console.log(`[admin/matches] league=${league.name} externalId=${league.externalId} season=${league.season} from=${from} to=${to} allFixtures=${allFixtures.length} activeTeams=${activeTeamIds?.size ?? 'none'} filtered=${fixtures.length}`);
 
     const ops = fixtures.map(f => ({
       updateOne: {
@@ -238,6 +241,9 @@ export async function POST(req: NextRequest) {
       const result = await Match.bulkWrite(ops);
       inserted += result.upsertedCount;
       skipped += result.matchedCount;
+    }
+    } catch (e) {
+      console.error(`[admin/matches] ${action} error league ${league.externalId}:`, e);
     }
   }
 
