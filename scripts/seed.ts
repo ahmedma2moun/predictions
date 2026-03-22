@@ -15,7 +15,7 @@ const ScoringRuleSchema = new mongoose.Schema({
   points: Number, priority: Number, isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
-const User = mongoose.models.User || mongoose.model('User', UserSchema);
+const User = mongoose.models.users_prediction || mongoose.model('users_prediction', UserSchema);
 const ScoringRule = mongoose.models.ScoringRule || mongoose.model('ScoringRule', ScoringRuleSchema);
 
 async function seed() {
