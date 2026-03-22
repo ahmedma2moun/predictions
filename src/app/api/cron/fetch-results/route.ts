@@ -23,16 +23,24 @@ export async function GET(req: NextRequest) {
   const rules = await ScoringRule.find({ isActive: true }).lean();
   let updated = 0, scored = 0, errors = 0;
 
+  console.log(`[cron/fetch-results] Starting — ${activeLeagues.length} active leagues, date: ${dateStr}`);
+
   for (const league of activeLeagues) {
     try {
       const fixtures = await fetchFixtures({ league: league.externalId, season: league.season, date: dateStr });
+      const finished = fixtures.filter(f => mapFixtureStatus(f.fixture.status.short) === 'finished');
+      console.log(`[cron/fetch-results] ${league.name}: ${fixtures.length} fixtures, ${finished.length} finished`);
+
       for (const f of fixtures) {
         const status = mapFixtureStatus(f.fixture.status.short);
         if (status !== 'finished') continue;
 
         const homeScore = f.score.fulltime.home ?? f.goals.home;
         const awayScore = f.score.fulltime.away ?? f.goals.away;
-        if (homeScore === null || awayScore === null) continue;
+        if (homeScore === null || awayScore === null) {
+          console.warn(`[cron/fetch-results] Skipping fixture ${f.fixture.id} — scores not available yet`);
+          continue;
+        }
 
         const winner = homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
         const match = await Match.findOneAndUpdate(
@@ -40,11 +48,19 @@ export async function GET(req: NextRequest) {
           { status: 'finished', result: { homeScore, awayScore, winner } },
           { new: true }
         );
-        if (!match) continue;
+        if (!match) {
+          console.warn(`[cron/fetch-results] Fixture ${f.fixture.id} not found in DB — skipping`);
+          continue;
+        }
         updated++;
+        console.log(`[cron/fetch-results] Result saved: ${match.homeTeam.name} ${homeScore}–${awayScore} ${match.awayTeam.name}`);
 
-        if (match.scoresProcessed) continue;
+        if (match.scoresProcessed) {
+          console.log(`[cron/fetch-results] Match ${match._id} already scored — skipping`);
+          continue;
+        }
         const predictions = await Prediction.find({ matchId: match._id });
+        console.log(`[cron/fetch-results] Scoring ${predictions.length} predictions for match ${match._id}`);
         for (const pred of predictions) {
           const { totalPoints, breakdown } = calculateScore(
             { homeScore: pred.homeScore, awayScore: pred.awayScore },
@@ -60,10 +76,12 @@ export async function GET(req: NextRequest) {
         await match.save();
       }
     } catch (e) {
-      console.error(`Error fetching results for league ${league.externalId}:`, e);
+      console.error(`[cron/fetch-results] ERROR league ${league.name} (${league.externalId}):`, e);
       errors++;
     }
   }
 
-  return NextResponse.json({ updated, scored, errors, timestamp: new Date().toISOString() });
+  const summary = { updated, scored, errors, timestamp: new Date().toISOString() };
+  console.log('[cron/fetch-results] Done —', JSON.stringify(summary));
+  return NextResponse.json(summary);
 }

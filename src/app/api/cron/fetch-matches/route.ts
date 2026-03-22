@@ -21,9 +21,12 @@ export async function GET(req: NextRequest) {
   const leagues = await League.find({ isActive: true });
   let inserted = 0, skipped = 0, errors = 0;
 
+  console.log(`[cron/fetch-matches] Starting — ${leagues.length} active leagues, window: ${from} → ${to}`);
+
   for (const league of leagues) {
     try {
       const fixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
+      console.log(`[cron/fetch-matches] ${league.name}: ${fixtures.length} fixtures returned from API`);
       const ops = fixtures.map(f => ({
         updateOne: {
           filter: { externalId: f.fixture.id },
@@ -47,12 +50,15 @@ export async function GET(req: NextRequest) {
         const result = await Match.bulkWrite(ops);
         inserted += result.upsertedCount;
         skipped += result.matchedCount;
+        console.log(`[cron/fetch-matches] ${league.name}: inserted=${result.upsertedCount}, skipped=${result.matchedCount}`);
       }
     } catch (e) {
-      console.error(`Error fetching league ${league.externalId}:`, e);
+      console.error(`[cron/fetch-matches] ERROR league ${league.name} (${league.externalId}):`, e);
       errors++;
     }
   }
 
-  return NextResponse.json({ inserted, skipped, errors, timestamp: new Date().toISOString() });
+  const summary = { inserted, skipped, errors, timestamp: new Date().toISOString() };
+  console.log('[cron/fetch-matches] Done —', JSON.stringify(summary));
+  return NextResponse.json(summary);
 }
