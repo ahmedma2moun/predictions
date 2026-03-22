@@ -10,6 +10,7 @@ export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
+  const [fetchingMonth, setFetchingMonth] = useState(false);
 
   async function loadMatches() {
     const r = await fetch("/api/admin/matches");
@@ -29,13 +30,25 @@ export default function AdminMatchesPage() {
     setFetching(false);
   }
 
+  async function fetchNextMonth() {
+    setFetchingMonth(true);
+    const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch-month" }) });
+    const data = await r.json();
+    toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
+    await loadMatches();
+    setFetchingMonth(false);
+  }
+
   const statusColors: Record<string, any> = { scheduled: "outline", live: "destructive", finished: "secondary", postponed: "secondary", cancelled: "secondary" };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Matches</h2>
-        <Button onClick={fetchMatches} disabled={fetching}>{fetching ? "Fetching..." : "Fetch This Week"}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchNextMonth} disabled={fetchingMonth}>{fetchingMonth ? "Fetching..." : "Fetch Next Month"}</Button>
+          <Button onClick={fetchMatches} disabled={fetching}>{fetching ? "Fetching..." : "Fetch This Week"}</Button>
+        </div>
       </div>
       <Card>
         <CardContent className="pt-4 space-y-2">

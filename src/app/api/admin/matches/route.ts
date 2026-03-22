@@ -36,12 +36,20 @@ export async function POST(req: NextRequest) {
   await connectDB();
   const { action, leagueId } = await req.json();
 
-  if (action !== 'fetch') return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  if (action !== 'fetch' && action !== 'fetch-month') return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 
-  const fridayStart = getFridayStart();
-  const nextFriday = addDays(fridayStart, 7);
-  const from = format(fridayStart, 'yyyy-MM-dd');
-  const to = format(nextFriday, 'yyyy-MM-dd');
+  let from: string, to: string, fridayStart: Date;
+  if (action === 'fetch-month') {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    fridayStart = today;
+    from = format(today, 'yyyy-MM-dd');
+    to = format(addDays(today, 30), 'yyyy-MM-dd');
+  } else {
+    fridayStart = getFridayStart();
+    from = format(fridayStart, 'yyyy-MM-dd');
+    to = format(addDays(fridayStart, 7), 'yyyy-MM-dd');
+  }
 
   let leagues;
   if (leagueId) {
