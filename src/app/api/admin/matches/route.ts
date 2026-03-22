@@ -31,7 +31,7 @@ async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
 }
 
 function filterByActiveTeams(fixtures: any[], activeTeamIds: Set<number> | undefined) {
-  if (!activeTeamIds) return [];
+  if (!activeTeamIds || activeTeamIds.size === 0) return fixtures;
   return fixtures.filter(f =>
     activeTeamIds.has(f.teams.home.id) && activeTeamIds.has(f.teams.away.id)
   );
