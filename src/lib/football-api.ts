@@ -1,6 +1,6 @@
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY!;
 const RAPIDAPI_HOST = 'api-football-v1.p.rapidapi.com';
-const BASE_URL = `https://${RAPIDAPI_HOST}/v3`;
+const BASE_URL = 'https://v3.football.api-sports.io';
 
 const headers = {
   'x-rapidapi-host': RAPIDAPI_HOST,
