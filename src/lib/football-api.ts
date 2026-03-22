@@ -8,6 +8,7 @@ const headers = {
 };
 
 async function apiGet<T>(endpoint: string, params?: Record<string, string | number>): Promise<T> {
+  console.log('[football-api] RAPIDAPI_KEY:', RAPIDAPI_KEY);
   const url = new URL(`${BASE_URL}${endpoint}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
