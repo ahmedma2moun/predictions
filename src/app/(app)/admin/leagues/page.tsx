@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 export default function AdminLeaguesPage() {
   const [leagues, setLeagues] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
 
@@ -34,6 +35,10 @@ export default function AdminLeaguesPage() {
     if (isActive) toast.success("League activated");
   }
 
+  const filtered = leagues.filter(l =>
+    `${l.name} ${l.country}`.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -42,12 +47,19 @@ export default function AdminLeaguesPage() {
           {fetching ? "Fetching..." : "Fetch from API"}
         </Button>
       </div>
+      <input
+        type="text"
+        placeholder="Search leagues..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+      />
       <Card>
         <CardContent className="pt-4 space-y-2">
-          {loading ? <p className="text-muted-foreground">Loading...</p> : leagues.length === 0 ? (
-            <p className="text-muted-foreground">No leagues. Click "Fetch from API" to load leagues.</p>
+          {loading ? <p className="text-muted-foreground">Loading...</p> : filtered.length === 0 ? (
+            <p className="text-muted-foreground">{leagues.length === 0 ? 'No leagues. Click "Fetch from API" to load leagues.' : "No leagues match your search."}</p>
           ) : (
-            leagues.map(league => (
+            filtered.map(league => (
               <div key={league._id} className="flex items-center justify-between p-3 rounded-lg bg-accent">
                 <div className="flex items-center gap-3">
                   {league.logo && <img src={league.logo} alt="" className="h-6 w-6 object-contain" />}
