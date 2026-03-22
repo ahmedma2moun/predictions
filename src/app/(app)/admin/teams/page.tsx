@@ -42,19 +42,24 @@ export default function AdminTeamsPage() {
       body: JSON.stringify({ leagueId: selectedLeagueId }),
     });
     const data = await r.json();
-    toast.success(`Synced ${data.synced} teams`);
-    await loadTeams(selectedLeagueId);
+    setTeams(data.sort((a: any, b: any) => a.name.localeCompare(b.name)));
+    toast.success(`Loaded ${data.length} teams from API`);
     setFetching(false);
   }
 
-  async function toggleTeam(id: string, isActive: boolean) {
-    await fetch("/api/admin/teams", {
+  async function toggleTeam(team: any, isActive: boolean) {
+    const r = await fetch("/api/admin/teams", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, isActive }),
+      body: JSON.stringify({ ...team, isActive }),
     });
-    setTeams(prev => prev.map(t => t._id === id ? { ...t, isActive } : t));
-    toast.success(isActive ? "Team activated" : "Team deactivated");
+    const data = await r.json();
+    setTeams(prev => prev.map(t =>
+      t.externalId === team.externalId
+        ? { ...t, isActive, _id: isActive ? data._id : null }
+        : t
+    ));
+    toast.success(isActive ? "Team activated" : "Team removed");
   }
 
   const filtered = teams.filter(t =>
@@ -79,15 +84,13 @@ export default function AdminTeamsPage() {
           <option key={l._id} value={l._id}>{l.name} ({l.country} · {l.season})</option>
         ))}
       </select>
-      {selectedLeagueId && (
-        <input
-          type="text"
-          placeholder="Search teams..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
-      )}
+      <input
+        type="text"
+        placeholder="Search teams..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+      />
       <Card>
         <CardContent className="pt-4 space-y-2">
           {!selectedLeagueId ? (
@@ -95,15 +98,19 @@ export default function AdminTeamsPage() {
           ) : loading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : filtered.length === 0 ? (
-            <p className="text-muted-foreground">{teams.length === 0 ? 'No teams found. Click "Fetch from API" to load teams.' : "No teams match your search."}</p>
+            <p className="text-muted-foreground">
+              {teams.length === 0
+                ? 'No teams. Click "Fetch from API" to load all teams for this league.'
+                : "No teams match your search."}
+            </p>
           ) : (
             filtered.map(team => (
-              <div key={team._id} className="flex items-center justify-between p-3 rounded-lg bg-accent">
+              <div key={team.externalId} className="flex items-center justify-between p-3 rounded-lg bg-accent">
                 <div className="flex items-center gap-3">
                   {team.logo && <img src={team.logo} alt="" className="h-6 w-6 object-contain" />}
                   <p className="font-medium text-sm">{team.name}</p>
                 </div>
-                <Switch checked={team.isActive} onCheckedChange={v => toggleTeam(team._id, v)} />
+                <Switch checked={!!team.isActive} onCheckedChange={v => toggleTeam(team, v)} />
               </div>
             ))
           )}

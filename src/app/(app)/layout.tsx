@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <SessionProvider>
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="md:pt-16 pb-20 md:pb-0">
+        <main className="pt-12 md:pt-16 pb-20 md:pb-0">
           {children}
         </main>
       </div>

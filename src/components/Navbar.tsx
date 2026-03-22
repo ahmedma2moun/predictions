@@ -20,7 +20,7 @@ export function Navbar() {
 
   return (
     <>
-      {/* Top nav — desktop */}
+      {/* Top bar — desktop */}
       <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 bg-card border-b border-border items-center px-6 gap-6">
         <Link href="/dashboard" className="font-bold text-lg flex items-center gap-2">
           ⚽ Predictions
@@ -64,6 +64,22 @@ export function Navbar() {
         </div>
       </nav>
 
+      {/* Top bar — mobile */}
+      <nav className="md:hidden fixed top-0 left-0 right-0 z-50 h-12 bg-card border-b border-border flex items-center justify-between px-4">
+        <Link href="/dashboard" className="font-bold text-sm flex items-center gap-1.5">
+          ⚽ Predictions
+        </Link>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <p className="text-xs font-medium leading-none">{session?.user?.name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{isAdmin ? "Admin" : "Player"}</p>
+          </div>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => signOut({ callbackUrl: "/login" })}>
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
+      </nav>
+
       {/* Bottom nav — mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 bg-card border-t border-border flex items-center">
         {navItems.map(item => (
@@ -81,6 +97,20 @@ export function Navbar() {
             {item.label}
           </Link>
         ))}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
+              pathname.startsWith("/admin")
+                ? "text-primary"
+                : "text-muted-foreground"
+            )}
+          >
+            <Settings className="h-5 w-5" />
+            Admin
+          </Link>
+        )}
       </nav>
     </>
   );

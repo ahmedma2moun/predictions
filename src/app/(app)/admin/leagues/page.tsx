@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function AdminLeaguesPage() {
@@ -12,27 +11,38 @@ export default function AdminLeaguesPage() {
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
 
-  async function loadLeagues() {
-    const r = await fetch("/api/admin/leagues");
-    setLeagues(await r.json());
-    setLoading(false);
-  }
-
-  useEffect(() => { loadLeagues(); }, []);
+  useEffect(() => {
+    fetch("/api/admin/leagues")
+      .then(r => r.json())
+      .then(data => { setLeagues(data); setLoading(false); });
+  }, []);
 
   async function fetchFromApi() {
     setFetching(true);
-    const r = await fetch("/api/admin/leagues", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch" }) });
+    const r = await fetch("/api/admin/leagues", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "fetch" }),
+    });
     const data = await r.json();
-    toast.success(`Synced ${data.synced} leagues`);
-    await loadLeagues();
+    setLeagues(data.sort((a: any, b: any) => a.name.localeCompare(b.name)));
+    toast.success(`Loaded ${data.length} leagues from API`);
     setFetching(false);
   }
 
-  async function toggleLeague(id: string, isActive: boolean) {
-    await fetch("/api/admin/leagues", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, isActive }) });
-    setLeagues(prev => prev.map(l => l._id === id ? { ...l, isActive } : l));
-    if (isActive) toast.success("League activated");
+  async function toggleLeague(league: any, isActive: boolean) {
+    const r = await fetch("/api/admin/leagues", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...league, isActive }),
+    });
+    const data = await r.json();
+    setLeagues(prev => prev.map(l =>
+      l.externalId === league.externalId
+        ? { ...l, isActive, _id: isActive ? data._id : null }
+        : l
+    ));
+    toast.success(isActive ? "League activated" : "League removed");
   }
 
   const filtered = leagues.filter(l =>
@@ -56,11 +66,17 @@ export default function AdminLeaguesPage() {
       />
       <Card>
         <CardContent className="pt-4 space-y-2">
-          {loading ? <p className="text-muted-foreground">Loading...</p> : filtered.length === 0 ? (
-            <p className="text-muted-foreground">{leagues.length === 0 ? 'No leagues. Click "Fetch from API" to load leagues.' : "No leagues match your search."}</p>
+          {loading ? (
+            <p className="text-muted-foreground">Loading...</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-muted-foreground">
+              {leagues.length === 0
+                ? 'No leagues. Click "Fetch from API" to load all available leagues.'
+                : "No leagues match your search."}
+            </p>
           ) : (
             filtered.map(league => (
-              <div key={league._id} className="flex items-center justify-between p-3 rounded-lg bg-accent">
+              <div key={league.externalId} className="flex items-center justify-between p-3 rounded-lg bg-accent">
                 <div className="flex items-center gap-3">
                   {league.logo && <img src={league.logo} alt="" className="h-6 w-6 object-contain" />}
                   <div>
@@ -68,7 +84,7 @@ export default function AdminLeaguesPage() {
                     <p className="text-xs text-muted-foreground">{league.country} · {league.season}</p>
                   </div>
                 </div>
-                <Switch checked={league.isActive} onCheckedChange={v => toggleLeague(league._id, v)} />
+                <Switch checked={!!league.isActive} onCheckedChange={v => toggleLeague(league, v)} />
               </div>
             ))
           )}
