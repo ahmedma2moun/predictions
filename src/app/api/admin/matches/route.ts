@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/db';
 import { Match } from '@/models/Match';
 import { League } from '@/models/League';
+import { Team } from '@/models/Team';
 import { Prediction } from '@/models/Prediction';
 import { ScoringRule } from '@/models/ScoringRule';
 import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
@@ -17,6 +18,23 @@ function getFridayStart(): Date {
   friday.setUTCDate(now.getUTCDate() - diff);
   friday.setUTCHours(0, 0, 0, 0);
   return friday;
+}
+
+async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
+  const teams = await Team.find({ isActive: true }, { externalId: 1, externalLeagueId: 1 }).lean();
+  const map = new Map<number, Set<number>>();
+  for (const t of teams) {
+    if (!map.has(t.externalLeagueId)) map.set(t.externalLeagueId, new Set());
+    map.get(t.externalLeagueId)!.add(t.externalId);
+  }
+  return map;
+}
+
+function filterByActiveTeams(fixtures: any[], activeTeamIds: Set<number> | undefined) {
+  if (!activeTeamIds) return [];
+  return fixtures.filter(f =>
+    activeTeamIds.has(f.teams.home.id) && activeTeamIds.has(f.teams.away.id)
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -49,7 +67,6 @@ export async function POST(req: NextRequest) {
 
     if (pendingMatches.length === 0) return NextResponse.json({ updated: 0, scored: 0 });
 
-    // Group by externalLeagueId to minimise API calls (one call per league)
     const byLeague = new Map<number, typeof pendingMatches>();
     for (const m of pendingMatches) {
       if (!byLeague.has(m.externalLeagueId)) byLeague.set(m.externalLeagueId, []);
@@ -124,12 +141,16 @@ export async function POST(req: NextRequest) {
     const from = format(weekAgo, 'yyyy-MM-dd');
     const to   = format(today,   'yyyy-MM-dd');
 
-    const leagues = await League.find({ isActive: true }).lean();
+    const [leagues, activeTeamsByLeague] = await Promise.all([
+      League.find({ isActive: true }).lean(),
+      getActiveTeamsByLeague(),
+    ]);
     let inserted = 0;
 
     for (const league of leagues) {
       try {
-        const fixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
+        const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
+        const fixtures = filterByActiveTeams(allFixtures, activeTeamsByLeague.get(league.externalId));
 
         const ops = fixtures.map(f => {
           const status     = mapFixtureStatus(f.fixture.status.short);
@@ -182,21 +203,26 @@ export async function POST(req: NextRequest) {
     to = format(addDays(fridayStart, 7), 'yyyy-MM-dd');
   }
 
-  const leagues = leagueId
-    ? [await League.findById(leagueId)].filter(Boolean)
-    : await League.find({ isActive: true });
+  const [leagues, activeTeamsByLeague] = await Promise.all([
+    leagueId
+      ? League.findById(leagueId).then(l => (l ? [l] : []))
+      : League.find({ isActive: true }),
+    getActiveTeamsByLeague(),
+  ]);
 
   let inserted = 0, skipped = 0;
   for (const league of leagues) {
-    const fixtures = await fetchFixtures({ league: league!.externalId, season: league!.season, from, to });
+    const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
+    const fixtures = filterByActiveTeams(allFixtures, activeTeamsByLeague.get(league.externalId));
+
     const ops = fixtures.map(f => ({
       updateOne: {
         filter: { externalId: f.fixture.id },
         update: {
           $setOnInsert: {
             externalId: f.fixture.id,
-            leagueId: league!._id,
-            externalLeagueId: league!.externalId,
+            leagueId: league._id,
+            externalLeagueId: league.externalId,
             homeTeam: { externalId: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
             awayTeam: { externalId: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
             kickoffTime: new Date(f.fixture.date),
