@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/fetch-matches",
+      "schedule": "59 21 * * 5"
+    },
+    {
+      "path": "/api/cron/fetch-results",
+      "schedule": "0 23 * * *"
+    }
+  ]
+}
