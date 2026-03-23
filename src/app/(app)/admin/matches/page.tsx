@@ -29,6 +29,7 @@ export default function AdminMatchesPage() {
     setFetching(true);
     const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch" }) });
     const data = await r.json();
+    console.table(data.debug);
     toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
     await loadMatches();
     setFetching(false);
@@ -38,6 +39,7 @@ export default function AdminMatchesPage() {
     setFetchingMonth(true);
     const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch-month" }) });
     const data = await r.json();
+    console.table(data.debug);
     toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
     await loadMatches();
     setFetchingMonth(false);

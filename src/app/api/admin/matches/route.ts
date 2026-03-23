@@ -211,41 +211,42 @@ export async function POST(req: NextRequest) {
   ]);
 
   let inserted = 0, skipped = 0;
+  const debug: any[] = [];
   for (const league of leagues) {
     try {
-    const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
-    const activeTeamIds = activeTeamsByLeague.get(league.externalId);
-    const fixtures = filterByActiveTeams(allFixtures, activeTeamIds);
-    console.log(`[admin/matches] league=${league.name} externalId=${league.externalId} season=${league.season} from=${from} to=${to} allFixtures=${allFixtures.length} activeTeams=${activeTeamIds?.size ?? 'none'} filtered=${fixtures.length}`);
+      const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
+      const activeTeamIds = activeTeamsByLeague.get(league.externalId);
+      const fixtures = filterByActiveTeams(allFixtures, activeTeamIds);
+      debug.push({ league: league.name, externalId: league.externalId, season: league.season, from, to, allFixtures: allFixtures.length, activeTeams: activeTeamIds?.size ?? 'none', filtered: fixtures.length });
 
-    const ops = fixtures.map(f => ({
-      updateOne: {
-        filter: { externalId: f.fixture.id },
-        update: {
-          $setOnInsert: {
-            externalId: f.fixture.id,
-            leagueId: league._id,
-            externalLeagueId: league.externalId,
-            homeTeam: { externalId: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
-            awayTeam: { externalId: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
-            kickoffTime: new Date(f.fixture.date),
-            status: mapFixtureStatus(f.fixture.status.short),
-            scoresProcessed: false,
-            weekStart: fridayStart,
+      const ops = fixtures.map(f => ({
+        updateOne: {
+          filter: { externalId: f.fixture.id },
+          update: {
+            $setOnInsert: {
+              externalId: f.fixture.id,
+              leagueId: league._id,
+              externalLeagueId: league.externalId,
+              homeTeam: { externalId: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
+              awayTeam: { externalId: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
+              kickoffTime: new Date(f.fixture.date),
+              status: mapFixtureStatus(f.fixture.status.short),
+              scoresProcessed: false,
+              weekStart: fridayStart,
+            },
           },
+          upsert: true,
         },
-        upsert: true,
-      },
-    }));
-    if (ops.length > 0) {
-      const result = await Match.bulkWrite(ops);
-      inserted += result.upsertedCount;
-      skipped += result.matchedCount;
-    }
-    } catch (e) {
-      console.error(`[admin/matches] ${action} error league ${league.externalId}:`, e);
+      }));
+      if (ops.length > 0) {
+        const result = await Match.bulkWrite(ops);
+        inserted += result.upsertedCount;
+        skipped += result.matchedCount;
+      }
+    } catch (e: any) {
+      debug.push({ league: league.name, externalId: league.externalId, error: e?.message ?? String(e) });
     }
   }
 
-  return NextResponse.json({ inserted, skipped });
+  return NextResponse.json({ inserted, skipped, debug });
 }
