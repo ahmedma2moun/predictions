@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/matches", label: "Matches", icon: Calendar },
-  { href: "/predictions", label: "My Picks", icon: TrendingUp },
+  { href: "/predictions", label: "My Picks", icon: TrendingUp, adminHidden: true },
   { href: "/leaderboard", label: "Leaders", icon: Trophy },
 ];
 
@@ -26,7 +26,7 @@ export function Navbar() {
           ⚽ Predictions
         </Link>
         <div className="flex items-center gap-1 flex-1">
-          {navItems.map(item => (
+          {navItems.filter(item => !(isAdmin && item.adminHidden)).map(item => (
             <Link
               key={item.href}
               href={item.href}
@@ -82,7 +82,7 @@ export function Navbar() {
 
       {/* Bottom nav — mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 bg-card border-t border-border flex items-center">
-        {navItems.map(item => (
+        {navItems.filter(item => !(isAdmin && item.adminHidden)).map(item => (
           <Link
             key={item.href}
             href={item.href}
