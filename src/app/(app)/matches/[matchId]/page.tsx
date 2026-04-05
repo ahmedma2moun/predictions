@@ -40,6 +40,7 @@ export default function MatchPredictionPage() {
   const { matchId } = useParams();
   const router = useRouter();
   const [match, setMatch] = useState<any>(null);
+  const [allPredictions, setAllPredictions] = useState<any[] | null>(null);
   const [homeScore, setHomeScore] = useState(0);
   const [awayScore, setAwayScore] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,7 @@ export default function MatchPredictionPage() {
       .then(r => r.json())
       .then(data => {
         setMatch(data);
+        setAllPredictions(data.allPredictions ?? null);
         if (data.prediction) {
           setHomeScore(data.prediction.homeScore);
           setAwayScore(data.prediction.awayScore);
@@ -62,10 +64,11 @@ export default function MatchPredictionPage() {
   if (!match) return <div className="p-4">Match not found</div>;
 
   const locked = isMatchLocked(match.kickoffTime);
+  const isAdmin = match.isAdmin as boolean;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (locked) return;
+    if (locked || isAdmin) return;
     setSaving(true);
     const res = await fetch("/api/predictions", {
       method: "POST",
@@ -93,7 +96,7 @@ export default function MatchPredictionPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Predict Score</CardTitle>
+            <CardTitle className="text-lg">{isAdmin ? "Match Details" : "Predict Score"}</CardTitle>
             <Badge variant={match.status === "live" ? "destructive" : locked ? "secondary" : "outline"}>
               {locked ? <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Locked</span> : match.status.toUpperCase()}
             </Badge>
@@ -101,22 +104,22 @@ export default function MatchPredictionPage() {
           <p className="text-sm text-muted-foreground">{formatKickoff(match.kickoffTime)}</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-6">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 flex flex-col items-center gap-3">
                 {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="h-16 w-16 object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.homeTeam.name}</p>
-                <ScoreInput value={homeScore} onChange={setHomeScore} disabled={locked} />
+                {!isAdmin && <ScoreInput value={homeScore} onChange={setHomeScore} disabled={locked} />}
               </div>
               <div className="text-muted-foreground font-bold text-xl">–</div>
               <div className="flex-1 flex flex-col items-center gap-3">
                 {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="h-16 w-16 object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.awayTeam.name}</p>
-                <ScoreInput value={awayScore} onChange={setAwayScore} disabled={locked} />
+                {!isAdmin && <ScoreInput value={awayScore} onChange={setAwayScore} disabled={locked} />}
               </div>
             </div>
 
-            {!locked && (
+            {!isAdmin && !locked && (
               <div className="text-center text-sm text-muted-foreground">
                 Predicted outcome: <span className="text-foreground font-medium">{winner}</span>
               </div>
@@ -126,7 +129,7 @@ export default function MatchPredictionPage() {
               <div className="bg-accent rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Final Result</p>
                 <p className="text-2xl font-bold">{match.result.homeScore} – {match.result.awayScore}</p>
-                {match.prediction && (
+                {!isAdmin && match.prediction && (
                   <p className="text-sm mt-1">
                     <span className="text-yellow-500 font-bold">+{match.prediction.pointsAwarded} pts</span>
                   </p>
@@ -134,16 +137,64 @@ export default function MatchPredictionPage() {
               </div>
             )}
 
-            {!locked ? (
-              <Button type="submit" className="w-full" disabled={saving}>
-                {saving ? "Saving..." : match.prediction ? "Update Prediction" : "Save Prediction"}
-              </Button>
-            ) : (
-              <p className="text-center text-sm text-muted-foreground">Predictions are locked for this match</p>
+            {!isAdmin && (
+              !locked ? (
+                <form onSubmit={handleSubmit}>
+                  <Button type="submit" className="w-full" disabled={saving}>
+                    {saving ? "Saving..." : match.prediction ? "Update Prediction" : "Save Prediction"}
+                  </Button>
+                </form>
+              ) : (
+                <p className="text-center text-sm text-muted-foreground">Predictions are locked for this match</p>
+              )
             )}
-          </form>
+          </div>
         </CardContent>
       </Card>
+
+      {(locked || isAdmin) && allPredictions && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">All Predictions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {allPredictions.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No predictions submitted.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Player</th>
+                    <th className="text-center px-4 py-2 font-medium text-muted-foreground">Prediction</th>
+                    {match.result && (
+                      <th className="text-right px-4 py-2 font-medium text-muted-foreground">Pts</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allPredictions.map((p: any) => (
+                    <tr key={p.userId} className="border-b last:border-0">
+                      <td className="px-4 py-3 font-medium">{p.userName}</td>
+                      <td className="px-4 py-3 text-center tabular-nums">
+                        {p.homeScore} – {p.awayScore}
+                      </td>
+                      {match.result && (
+                        <td className="px-4 py-3 text-right">
+                          {p.pointsAwarded > 0 ? (
+                            <span className="text-yellow-500 font-bold">+{p.pointsAwarded}</span>
+                          ) : (
+                            <span className="text-muted-foreground">0</span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

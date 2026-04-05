@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { serializeMatch } from '@/models/Match';
+import { isMatchLocked } from '@/lib/utils';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
   const session = await auth();
@@ -12,10 +13,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ matc
   if (!match) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const userId = Number((session.user as any).id);
-  const prediction = await prisma.prediction.findFirst({ where: { userId, matchId: match.id } });
+  const isAdmin = (session.user as any).role === 'admin';
+
+  const prediction = isAdmin
+    ? null
+    : await prisma.prediction.findFirst({ where: { userId, matchId: match.id } });
+
+  let allPredictions = null;
+  if (isAdmin || isMatchLocked(match.kickoffTime)) {
+    const rows = await prisma.prediction.findMany({
+      where: { matchId: match.id },
+      include: { user: { select: { id: true, name: true } } },
+      orderBy: { pointsAwarded: 'desc' },
+    });
+    allPredictions = rows.map(p => ({
+      userId: p.userId,
+      userName: p.user.name,
+      homeScore: p.homeScore,
+      awayScore: p.awayScore,
+      pointsAwarded: p.pointsAwarded,
+    }));
+  }
 
   return NextResponse.json({
     ...serializeMatch(match),
+    isAdmin,
     prediction: prediction
       ? {
           homeScore: prediction.homeScore,
@@ -24,5 +46,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ matc
           pointsAwarded: prediction.pointsAwarded,
         }
       : null,
+    allPredictions,
   });
 }
