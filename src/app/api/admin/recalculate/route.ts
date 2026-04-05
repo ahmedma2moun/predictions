@@ -30,7 +30,7 @@ export async function POST() {
     await prisma.$transaction(
       predictions.flatMap(pred => {
         const match = matchMap.get(pred.matchId);
-        if (!match?.resultHomeScore === null) return [];
+        if (!match || match.resultHomeScore === null || match.resultAwayScore === null || match.resultWinner === null) return [];
         const { totalPoints, breakdown } = calculateScore(
           { homeScore: pred.homeScore, awayScore: pred.awayScore },
           {
