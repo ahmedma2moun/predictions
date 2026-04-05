@@ -1,40 +1,53 @@
 import { auth } from "@/lib/auth";
-import { connectDB } from "@/lib/db";
-import { Match } from "@/models/Match";
-import { Prediction } from "@/models/Prediction";
-import { User } from "@/models/User";
+import { prisma } from "@/lib/prisma";
+import { serializeMatch } from "@/models/Match";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { formatKickoff, isMatchLocked } from "@/lib/utils";
+import { formatKickoff } from "@/lib/utils";
 import { Calendar, Trophy, TrendingUp, Users } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await auth();
-  const userId = (session!.user as any).id;
+  const userId = Number((session!.user as any).id);
   const isAdmin = (session!.user as any).role === "admin";
 
-  await connectDB();
-
-  const [upcomingMatches, userPredictions, leaderboardTop, totalUsers] = await Promise.all([
-    Match.find({ status: { $in: ["scheduled", "live"] } }).sort({ kickoffTime: 1 }).limit(5).lean(),
-    Prediction.find({ userId }).populate("matchId").sort({ createdAt: -1 }).limit(5).lean(),
-    Prediction.aggregate([
-      { $group: { _id: "$userId", totalPoints: { $sum: "$pointsAwarded" } } },
-      { $sort: { totalPoints: -1 } },
-      { $limit: 5 },
-    ]),
-    isAdmin ? User.countDocuments() : Promise.resolve(null),
+  const [upcomingMatches, userPredictions, leaderboardTop, totalUsers, myStats] = await Promise.all([
+    prisma.match.findMany({
+      where: { status: { in: ['scheduled', 'live'] } },
+      orderBy: { kickoffTime: 'asc' },
+      take: 5,
+    }),
+    prisma.prediction.findMany({
+      where: { userId },
+      include: { match: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+    prisma.$queryRaw<Array<{ userId: number; totalPoints: bigint }>>`
+      SELECT "userId", SUM("pointsAwarded") AS "totalPoints"
+      FROM "Prediction"
+      GROUP BY "userId"
+      ORDER BY "totalPoints" DESC
+      LIMIT 5
+    `,
+    isAdmin ? prisma.user.count() : Promise.resolve(null),
+    prisma.$queryRaw<Array<{ total: bigint; count: bigint }>>`
+      SELECT SUM("pointsAwarded") AS total, COUNT(*) AS count
+      FROM "Prediction"
+      WHERE "userId" = ${userId}
+    `,
   ]);
 
-  const userIds = leaderboardTop.map((l: any) => l._id);
-  const topUsers = await User.find({ _id: { $in: userIds } }, "name").lean();
-  const userNameMap = new Map(topUsers.map(u => [u._id.toString(), u.name]));
+  const topUserIds = leaderboardTop.map(l => Number(l.userId));
+  const topUsers = await prisma.user.findMany({
+    where: { id: { in: topUserIds } },
+    select: { id: true, name: true },
+  });
+  const userNameMap = new Map(topUsers.map(u => [u.id, u.name]));
 
-  const myStats = await Prediction.aggregate([
-    { $match: { userId: { $oid: userId } } },
-    { $group: { _id: null, total: { $sum: "$pointsAwarded" }, count: { $sum: 1 } } },
-  ]).catch(() => []);
+  const myTotal = Number(myStats[0]?.total ?? 0);
+  const myCount = Number(myStats[0]?.count ?? 0);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
@@ -48,7 +61,7 @@ export default async function DashboardPage() {
               <Trophy className="h-4 w-4 text-yellow-500" />
               <span className="text-sm text-muted-foreground">My Points</span>
             </div>
-            <p className="text-2xl font-bold mt-1">{myStats[0]?.total ?? 0}</p>
+            <p className="text-2xl font-bold mt-1">{myTotal}</p>
           </CardContent>
         </Card>
         <Card>
@@ -57,7 +70,7 @@ export default async function DashboardPage() {
               <TrendingUp className="h-4 w-4 text-blue-500" />
               <span className="text-sm text-muted-foreground">Predictions</span>
             </div>
-            <p className="text-2xl font-bold mt-1">{myStats[0]?.count ?? 0}</p>
+            <p className="text-2xl font-bold mt-1">{myCount}</p>
           </CardContent>
         </Card>
         <Card>
@@ -94,19 +107,22 @@ export default async function DashboardPage() {
           {upcomingMatches.length === 0 ? (
             <p className="text-muted-foreground text-sm">No upcoming matches</p>
           ) : (
-            upcomingMatches.map((match: any) => (
-              <Link key={match._id.toString()} href={`/matches/${match._id}`} className="block">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-accent hover:bg-accent/80 transition-colors">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{match.homeTeam.name} vs {match.awayTeam.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatKickoff(match.kickoffTime)}</p>
+            upcomingMatches.map(match => {
+              const s = serializeMatch(match);
+              return (
+                <Link key={s._id} href={`/matches/${s._id}`} className="block">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-accent hover:bg-accent/80 transition-colors">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{s.homeTeam.name} vs {s.awayTeam.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatKickoff(match.kickoffTime)}</p>
+                    </div>
+                    <Badge variant={match.status === "live" ? "destructive" : "secondary"}>
+                      {match.status === "live" ? "LIVE" : formatKickoff(match.kickoffTime).split(",")[0]}
+                    </Badge>
                   </div>
-                  <Badge variant={match.status === "live" ? "destructive" : "secondary"}>
-                    {match.status === "live" ? "LIVE" : formatKickoff(match.kickoffTime).split(",")[0]}
-                  </Badge>
-                </div>
-              </Link>
-            ))
+                </Link>
+              );
+            })
           )}
         </CardContent>
       </Card>
@@ -124,13 +140,13 @@ export default async function DashboardPage() {
             <p className="text-muted-foreground text-sm">No scores yet</p>
           ) : (
             <div className="space-y-2">
-              {leaderboardTop.map((entry: any, idx: number) => (
-                <div key={entry._id.toString()} className="flex items-center justify-between p-2 rounded-lg">
+              {leaderboardTop.map((entry, idx) => (
+                <div key={Number(entry.userId)} className="flex items-center justify-between p-2 rounded-lg">
                   <div className="flex items-center gap-3">
                     <span className="text-muted-foreground text-sm w-5">{idx + 1}</span>
-                    <span className="font-medium text-sm">{userNameMap.get(entry._id.toString()) ?? "Unknown"}</span>
+                    <span className="font-medium text-sm">{userNameMap.get(Number(entry.userId)) ?? "Unknown"}</span>
                   </div>
-                  <Badge variant="outline">{entry.totalPoints} pts</Badge>
+                  <Badge variant="outline">{Number(entry.totalPoints)} pts</Badge>
                 </div>
               ))}
             </div>

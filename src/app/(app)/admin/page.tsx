@@ -1,23 +1,19 @@
 import { auth } from "@/lib/auth";
-import { connectDB } from "@/lib/db";
-import { User } from "@/models/User";
-import { Match } from "@/models/Match";
-import { Prediction } from "@/models/Prediction";
-import { League } from "@/models/League";
+import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default async function AdminDashboardPage() {
-  await connectDB();
+  await auth();
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
   const [totalUsers, activeLeagues, upcomingMatches, predictionsToday] = await Promise.all([
-    User.countDocuments(),
-    League.countDocuments({ isActive: true }),
-    Match.countDocuments({ status: { $in: ["scheduled", "live"] } }),
-    Prediction.countDocuments({ createdAt: { $gte: today } }),
+    prisma.user.count(),
+    prisma.league.count({ where: { isActive: true } }),
+    prisma.match.count({ where: { status: { in: ['scheduled', 'live'] } } }),
+    prisma.prediction.count({ where: { createdAt: { gte: today } } }),
   ]);
 
   return (
