@@ -28,12 +28,17 @@ export async function GET(req: NextRequest) {
     take: 100,
   });
 
+  const isAdmin = (session.user as any).role === 'admin';
   const userId = Number((session.user as any).id);
   const matchIds = matches.map(m => m.id);
-  const predictions = await prisma.prediction.findMany({
-    where: { userId, matchId: { in: matchIds } },
-  });
-  const predMap = new Map(predictions.map(p => [p.matchId, p]));
+
+  const predMap = new Map<number, any>();
+  if (!isAdmin && matchIds.length > 0) {
+    const predictions = await prisma.prediction.findMany({
+      where: { userId, matchId: { in: matchIds } },
+    });
+    predictions.forEach(p => predMap.set(p.matchId, p));
+  }
 
   const result = matches.map(m => ({
     ...serializeMatch(m),
