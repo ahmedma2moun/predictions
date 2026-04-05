@@ -1,32 +1,19 @@
 import 'dotenv/config';
-import mongoose from 'mongoose';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/football-predictions';
-
-// Inline models to avoid Next.js module issues
-const UserSchema = new mongoose.Schema({
-  name: String, email: { type: String, unique: true }, password: String,
-  role: { type: String, default: 'user' }, avatarUrl: String,
-}, { timestamps: true });
-
-const ScoringRuleSchema = new mongoose.Schema({
-  name: String, description: String, key: { type: String, unique: true },
-  points: Number, priority: Number, isActive: { type: Boolean, default: true },
-}, { timestamps: true });
-
-const User = mongoose.models.users_prediction || mongoose.model('users_prediction', UserSchema);
-const ScoringRule = mongoose.models.ScoringRule || mongoose.model('ScoringRule', ScoringRuleSchema);
+const prisma = new PrismaClient();
 
 async function seed() {
-  await mongoose.connect(MONGODB_URI);
-  console.log('Connected to MongoDB');
+  console.log('Connected to PostgreSQL via Prisma');
 
   // Create admin user
-  const existingAdmin = await User.findOne({ email: 'admin@predictions.app' });
-  if (!existingAdmin) {
+  const existing = await prisma.user.findUnique({ where: { email: 'admin@predictions.app' } });
+  if (!existing) {
     const hashed = await bcrypt.hash('changeme123', 12);
-    await User.create({ name: 'Admin', email: 'admin@predictions.app', password: hashed, role: 'admin' });
+    await prisma.user.create({
+      data: { name: 'Admin', email: 'admin@predictions.app', password: hashed, role: 'admin' },
+    });
     console.log('Admin user created');
   } else {
     console.log('Admin user already exists');
@@ -41,11 +28,15 @@ async function seed() {
   ];
 
   for (const rule of rules) {
-    await ScoringRule.updateOne({ key: rule.key }, { $setOnInsert: rule }, { upsert: true });
+    await prisma.scoringRule.upsert({
+      where: { key: rule.key },
+      create: rule,
+      update: {},
+    });
   }
   console.log('Scoring rules seeded');
 
-  await mongoose.disconnect();
+  await prisma.$disconnect();
   console.log('Done');
 }
 

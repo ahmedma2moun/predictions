@@ -1,43 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { connectDB } from '@/lib/db';
-import { Team } from '@/models/Team';
-import { League } from '@/models/League';
-import { fetchTeams } from '@/lib/football-api';
+import { prisma } from '@/lib/prisma';
+import { fetchTeams, type APITeam } from '@/lib/football-api';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  await connectDB();
+
   const { searchParams } = new URL(req.url);
   const leagueId = searchParams.get('leagueId');
-  const filter = leagueId ? { leagueId } : {};
-  const teams = await Team.find(filter).sort({ name: 1 }).lean();
-  return NextResponse.json(teams.map(t => ({ ...t, _id: t._id.toString(), leagueId: t.leagueId?.toString() })));
+  const where = leagueId ? { leagueId: Number(leagueId) } : {};
+
+  const teams = await prisma.team.findMany({ where, orderBy: { name: 'asc' } });
+  return NextResponse.json(teams.map(t => ({ ...t, _id: t.id.toString(), leagueId: t.leagueId.toString() })));
 }
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  await connectDB();
   const { leagueId } = await req.json();
-  const league = await League.findById(leagueId);
+  const league = await prisma.league.findUnique({ where: { id: Number(leagueId) } });
   if (!league) return NextResponse.json({ error: 'League not found' }, { status: 404 });
 
   const [apiTeams, dbTeams] = await Promise.all([
     fetchTeams(league.externalId, league.season),
-    Team.find({ leagueId: league._id }).lean(),
+    prisma.team.findMany({ where: { leagueId: league.id } }),
   ]);
 
   const activeSet = new Set(dbTeams.map(t => t.externalId));
-  const dbMap = new Map(dbTeams.map(t => [t.externalId, t._id.toString()]));
+  const dbMap = new Map(dbTeams.map(t => [t.externalId, t.id.toString()]));
 
-  const result = apiTeams.map(t => ({
+  const result = apiTeams.map((t: APITeam) => ({
     externalId: t.team.id,
     name: t.team.name,
     logo: t.team.logo,
-    leagueId: league._id.toString(),
+    leagueId: league.id.toString(),
     externalLeagueId: league.externalId,
     isActive: activeSet.has(t.team.id),
     _id: dbMap.get(t.team.id) ?? null,
@@ -50,18 +48,17 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  await connectDB();
   const { externalId, name, logo, leagueId, externalLeagueId, isActive } = await req.json();
 
   if (isActive) {
-    const doc = await Team.findOneAndUpdate(
-      { externalId },
-      { externalId, name, logo, leagueId, externalLeagueId, isActive: true },
-      { upsert: true, new: true }
-    );
-    return NextResponse.json({ ...doc.toObject(), _id: doc._id.toString() });
+    const doc = await prisma.team.upsert({
+      where: { externalId },
+      create: { externalId, name, logo, leagueId: Number(leagueId), externalLeagueId, isActive: true },
+      update: { name, logo, leagueId: Number(leagueId), externalLeagueId, isActive: true },
+    });
+    return NextResponse.json({ ...doc, _id: doc.id.toString(), leagueId: doc.leagueId.toString() });
   } else {
-    await Team.findOneAndDelete({ externalId });
+    await prisma.team.delete({ where: { externalId } }).catch(() => null);
     return NextResponse.json({ success: true });
   }
 }

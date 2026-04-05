@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { connectDB } from '@/lib/db';
-import { Match } from '@/models/Match';
-import { Prediction } from '@/models/Prediction';
+import { prisma } from '@/lib/prisma';
+import { serializeMatch } from '@/models/Match';
 import { getWinner } from '@/lib/utils';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  await connectDB();
-  const userId = (session.user as any).id;
-  const predictions = await Prediction.find({ userId })
-    .populate('matchId')
-    .sort({ createdAt: -1 })
-    .limit(100)
-    .lean();
+  const userId = Number((session.user as any).id);
+  const predictions = await prisma.prediction.findMany({
+    where: { userId },
+    include: { match: true },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
 
   return NextResponse.json(predictions.map(p => ({
     ...p,
-    _id: p._id.toString(),
+    _id: p.id.toString(),
     userId: p.userId.toString(),
-    matchId: p.matchId,
+    matchId: serializeMatch(p.match),
   })));
 }
 
@@ -29,7 +28,6 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  await connectDB();
   const body = await req.json();
   const { matchId, homeScore, awayScore } = body;
 
@@ -37,20 +35,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid scores' }, { status: 400 });
   }
 
-  const match = await Match.findById(matchId);
+  const match = await prisma.match.findUnique({ where: { id: Number(matchId) } });
   if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
   if (new Date() >= match.kickoffTime) {
     return NextResponse.json({ error: 'Cannot predict after match has started' }, { status: 400 });
   }
 
-  const userId = (session.user as any).id;
+  const userId = Number((session.user as any).id);
   const predictedWinner = getWinner(homeScore, awayScore);
 
-  const prediction = await Prediction.findOneAndUpdate(
-    { userId, matchId },
-    { userId, matchId, homeScore, awayScore, predictedWinner },
-    { upsert: true, new: true }
-  );
+  const prediction = await prisma.prediction.upsert({
+    where: { userId_matchId: { userId, matchId: match.id } },
+    create: { userId, matchId: match.id, homeScore, awayScore, predictedWinner },
+    update: { homeScore, awayScore, predictedWinner },
+  });
 
-  return NextResponse.json({ success: true, prediction });
+  return NextResponse.json({ success: true, prediction: { ...prediction, _id: prediction.id.toString() } });
 }

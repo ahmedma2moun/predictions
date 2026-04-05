@@ -1,26 +1,10 @@
-import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IUser extends Document {
+export interface IUser {
+  id: number;
   name: string;
   email: string;
   password: string;
   role: 'admin' | 'user';
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
-
-const UserSchema = new Schema<IUser>(
-  {
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'user'], default: 'user' },
-    avatarUrl: { type: String },
-  },
-  { timestamps: true }
-);
-
-UserSchema.index({ name: 'text', email: 'text' });
-
-export const User = mongoose.models.users_prediction || mongoose.model<IUser>('users_prediction', UserSchema);

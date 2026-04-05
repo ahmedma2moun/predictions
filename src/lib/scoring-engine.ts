@@ -1,5 +1,11 @@
-import { IScoringRule } from '@/models/ScoringRule';
-import { IPrediction } from '@/models/Prediction';
+interface ScoringRule {
+  id: number;
+  name: string;
+  key: string;
+  points: number;
+  priority: number;
+  isActive: boolean;
+}
 
 interface MatchResult {
   homeScore: number;
@@ -32,17 +38,17 @@ const TIERED_KEYS = ['exact_score', 'score_difference', 'one_team_score'];
 export function calculateScore(
   prediction: PredictionInput,
   result: MatchResult,
-  rules: IScoringRule[]
-): { totalPoints: number; breakdown: Array<{ ruleId: any; ruleName: string; pointsAwarded: number; matched: boolean }> } {
+  rules: ScoringRule[]
+): { totalPoints: number; breakdown: Array<{ ruleId: number; ruleName: string; pointsAwarded: number; matched: boolean }> } {
   const activeRules = rules.filter((r) => r.isActive).sort((a, b) => a.priority - b.priority);
-  const breakdown: Array<{ ruleId: any; ruleName: string; pointsAwarded: number; matched: boolean }> = [];
+  const breakdown: Array<{ ruleId: number; ruleName: string; pointsAwarded: number; matched: boolean }> = [];
   let totalPoints = 0;
 
   // correct_winner is always evaluated independently
   const winnerRule = activeRules.find((r) => r.key === 'correct_winner');
   if (winnerRule) {
     const matched = ruleEvaluators.correct_winner(prediction, result);
-    breakdown.push({ ruleId: winnerRule._id, ruleName: winnerRule.name, pointsAwarded: matched ? winnerRule.points : 0, matched });
+    breakdown.push({ ruleId: winnerRule.id, ruleName: winnerRule.name, pointsAwarded: matched ? winnerRule.points : 0, matched });
     if (matched) totalPoints += winnerRule.points;
   }
 
@@ -54,11 +60,11 @@ export function calculateScore(
     if (!evaluator) continue;
     const matched = !tieredApplied && evaluator(prediction, result);
     if (matched && !tieredApplied) {
-      breakdown.push({ ruleId: rule._id, ruleName: rule.name, pointsAwarded: rule.points, matched: true });
+      breakdown.push({ ruleId: rule.id, ruleName: rule.name, pointsAwarded: rule.points, matched: true });
       totalPoints += rule.points;
       tieredApplied = true;
     } else {
-      breakdown.push({ ruleId: rule._id, ruleName: rule.name, pointsAwarded: 0, matched: false });
+      breakdown.push({ ruleId: rule.id, ruleName: rule.name, pointsAwarded: 0, matched: false });
     }
   }
 

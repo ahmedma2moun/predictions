@@ -1,5 +1,3 @@
-import { Types } from 'mongoose';
-
 export interface UserSession {
   id: string;
   email: string;

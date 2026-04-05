@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  admin
+  user
+}
+
+enum MatchStatus {
+  scheduled
+  live
+  finished
+  postponed
+  cancelled
+}
+
+enum Winner {
+  home
+  away
+  draw
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  name        String
+  email       String       @unique
+  password    String
+  role        Role         @default(user)
+  avatarUrl   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  predictions Prediction[]
+}
+
+model League {
+  id         Int      @id @default(autoincrement())
+  externalId Int      @unique
+  name       String
+  country    String
+  logo       String?
+  season     Int
+  isActive   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  teams      Team[]
+  matches    Match[]
+}
+
+model Team {
+  id               Int      @id @default(autoincrement())
+  externalId       Int      @unique
+  name             String
+  logo             String?
+  leagueId         Int
+  league           League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  externalLeagueId Int
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Match {
+  id               Int          @id @default(autoincrement())
+  externalId       Int          @unique
+  leagueId         Int?
+  league           League?      @relation(fields: [leagueId], references: [id], onDelete: SetNull)
+  externalLeagueId Int
+  homeTeamExtId    Int
+  homeTeamName     String
+  homeTeamLogo     String?
+  awayTeamExtId    Int
+  awayTeamName     String
+  awayTeamLogo     String?
+  kickoffTime      DateTime
+  status           MatchStatus  @default(scheduled)
+  resultHomeScore  Int?
+  resultAwayScore  Int?
+  resultWinner     Winner?
+  scoresProcessed  Boolean      @default(false)
+  weekStart        DateTime
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  predictions      Prediction[]
+}
+
+model Prediction {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matchId          Int
+  match            Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  homeScore        Int
+  awayScore        Int
+  predictedWinner  Winner
+  pointsAwarded    Int      @default(0)
+  scoringBreakdown Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, matchId])
+}
+
+model ScoringRule {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String
+  key         String   @unique
+  points      Int
+  priority    Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

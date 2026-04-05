@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { connectDB } from '@/lib/db';
-import { Match } from '@/models/Match';
-import { League } from '@/models/League';
-import { Team } from '@/models/Team';
-import { Prediction } from '@/models/Prediction';
-import { ScoringRule } from '@/models/ScoringRule';
-import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
+import { prisma } from '@/lib/prisma';
+import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football-api';
 import { calculateScore } from '@/lib/scoring-engine';
+import { serializeMatch } from '@/models/Match';
 import { format, addDays } from 'date-fns';
 
 function getFridayStart(): Date {
@@ -21,7 +17,10 @@ function getFridayStart(): Date {
 }
 
 async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
-  const teams = await Team.find({ isActive: true }, { externalId: 1, externalLeagueId: 1 }).lean();
+  const teams = await prisma.team.findMany({
+    where: { isActive: true },
+    select: { externalId: true, externalLeagueId: true },
+  });
   const map = new Map<number, Set<number>>();
   for (const t of teams) {
     if (!map.has(t.externalLeagueId)) map.set(t.externalLeagueId, new Set());
@@ -30,7 +29,7 @@ async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
   return map;
 }
 
-function filterByActiveTeams(fixtures: any[], activeTeamIds: Set<number> | undefined) {
+function filterByActiveTeams(fixtures: APIFixture[], activeTeamIds: Set<number> | undefined) {
   if (!activeTeamIds || activeTeamIds.size === 0) return fixtures;
   return fixtures.filter(f =>
     activeTeamIds.has(f.teams.home.id) || activeTeamIds.has(f.teams.away.id)
@@ -40,30 +39,34 @@ function filterByActiveTeams(fixtures: any[], activeTeamIds: Set<number> | undef
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  await connectDB();
+
   const { searchParams } = new URL(req.url);
   const page = Number(searchParams.get('page') || 1);
   const limit = 50;
+
   const [matches, total] = await Promise.all([
-    Match.find().sort({ kickoffTime: -1 }).skip((page - 1) * limit).limit(limit).lean(),
-    Match.countDocuments(),
+    prisma.match.findMany({ orderBy: { kickoffTime: 'desc' }, skip: (page - 1) * limit, take: limit }),
+    prisma.match.count(),
   ]);
-  return NextResponse.json({ matches: matches.map(m => ({ ...m, _id: m._id.toString(), leagueId: m.leagueId.toString() })), total, page });
+
+  return NextResponse.json({ matches: matches.map(serializeMatch), total, page });
 }
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  await connectDB();
+
   const { action, leagueId } = await req.json();
 
-  // ── Fetch results for past matches without results ───────────────────────
+  // ── Fetch results for past matches without results ─────────────────────────
   if (action === 'fetch-results') {
     const now = new Date();
-    const pendingMatches = await Match.find({
-      kickoffTime: { $lt: now },
-      status: { $nin: ['finished', 'cancelled'] },
-    }).lean();
+    const pendingMatches = await prisma.match.findMany({
+      where: {
+        kickoffTime: { lt: now },
+        status: { notIn: ['finished', 'cancelled'] },
+      },
+    });
 
     if (pendingMatches.length === 0) return NextResponse.json({ updated: 0, scored: 0 });
 
@@ -73,9 +76,9 @@ export async function POST(req: NextRequest) {
       byLeague.get(m.externalLeagueId)!.push(m);
     }
 
-    const leagues = await League.find({ isActive: true }).lean();
+    const leagues = await prisma.league.findMany({ where: { isActive: true } });
     const leagueMap = new Map(leagues.map(l => [l.externalId, l]));
-    const rules = await ScoringRule.find({ isActive: true }).lean();
+    const rules = await prisma.scoringRule.findMany({ where: { isActive: true } });
     let updated = 0, scored = 0;
 
     for (const [externalLeagueId, batch] of byLeague) {
@@ -88,7 +91,7 @@ export async function POST(req: NextRequest) {
 
       try {
         const fixtures = await fetchFixtures({ league: externalLeagueId, season: league.season, from, to });
-        const fixtureMap = new Map(fixtures.map(f => [f.fixture.id, f]));
+        const fixtureMap = new Map(fixtures.map((f: APIFixture) => [f.fixture.id, f]));
 
         for (const match of batch) {
           const fixture = fixtureMap.get(match.externalId);
@@ -100,28 +103,27 @@ export async function POST(req: NextRequest) {
           if (homeScore === null || awayScore === null) continue;
 
           const winner = homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
-          const updatedMatch = await Match.findByIdAndUpdate(
-            match._id,
-            { status: 'finished', result: { homeScore, awayScore, winner } },
-            { new: true }
-          );
-          if (!updatedMatch || updatedMatch.scoresProcessed) continue;
+          const updatedMatch = await prisma.match.update({
+            where: { id: match.id },
+            data: { status: 'finished', resultHomeScore: homeScore, resultAwayScore: awayScore, resultWinner: winner },
+          });
+          if (updatedMatch.scoresProcessed) continue;
           updated++;
 
-          const predictions = await Prediction.find({ matchId: match._id });
+          const predictions = await prisma.prediction.findMany({ where: { matchId: match.id } });
           for (const pred of predictions) {
             const { totalPoints, breakdown } = calculateScore(
               { homeScore: pred.homeScore, awayScore: pred.awayScore },
               { homeScore, awayScore, winner },
-              rules as any
+              rules
             );
-            pred.pointsAwarded = totalPoints;
-            pred.scoringBreakdown = { rules: breakdown };
-            await pred.save();
+            await prisma.prediction.update({
+              where: { id: pred.id },
+              data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
+            });
             scored++;
           }
-          updatedMatch.scoresProcessed = true;
-          await updatedMatch.save();
+          await prisma.match.update({ where: { id: match.id }, data: { scoresProcessed: true } });
         }
       } catch (e) {
         console.error(`[admin/matches] fetch-results error league ${externalLeagueId}:`, e);
@@ -131,7 +133,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ updated, scored });
   }
 
-  // ── Fetch past 7 days — upsert matches + save result, no score calc ───────
+  // ── Fetch past 7 days — upsert matches + save result, no score calc ─────────
   if (action === 'fetch-past7') {
     const today = new Date();
     today.setUTCHours(23, 59, 59, 999);
@@ -142,7 +144,7 @@ export async function POST(req: NextRequest) {
     const to   = format(today,   'yyyy-MM-dd');
 
     const [leagues, activeTeamsByLeague] = await Promise.all([
-      League.find({ isActive: true }).lean(),
+      prisma.league.findMany({ where: { isActive: true } }),
       getActiveTeamsByLeague(),
     ]);
     let inserted = 0;
@@ -152,32 +154,40 @@ export async function POST(req: NextRequest) {
         const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
         const fixtures = filterByActiveTeams(allFixtures, activeTeamsByLeague.get(league.externalId));
 
-        const ops = fixtures.map(f => {
+        // Check which ones already exist
+        const fixtureIds = fixtures.map((f: APIFixture) => f.fixture.id);
+        const existing = new Set(
+          (await prisma.match.findMany({ where: { externalId: { in: fixtureIds } }, select: { externalId: true } }))
+            .map(m => m.externalId)
+        );
+
+        const toCreate = fixtures.filter((f: APIFixture) => !existing.has(f.fixture.id));
+        for (const f of toCreate) {
           const status     = mapFixtureStatus(f.fixture.status.short);
           const homeScore  = f.score.fulltime.home ?? f.goals.home;
           const awayScore  = f.score.fulltime.away ?? f.goals.away;
           const isFinished = status === 'finished' && homeScore !== null && awayScore !== null;
-          const winner     = isFinished ? (homeScore! > awayScore! ? 'home' : awayScore! > homeScore! ? 'away' : 'draw') : undefined;
+          const winner     = isFinished ? (homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw') : null;
 
-          const update: any = {
-            $setOnInsert: {
+          await prisma.match.create({
+            data: {
               externalId: f.fixture.id,
-              leagueId: league._id,
+              leagueId: league.id,
               externalLeagueId: league.externalId,
-              homeTeam: { externalId: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
-              awayTeam: { externalId: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
+              homeTeamExtId: f.teams.home.id,
+              homeTeamName: f.teams.home.name,
+              homeTeamLogo: f.teams.home.logo,
+              awayTeamExtId: f.teams.away.id,
+              awayTeamName: f.teams.away.name,
+              awayTeamLogo: f.teams.away.logo,
               kickoffTime: new Date(f.fixture.date),
+              status,
               scoresProcessed: false,
               weekStart: weekAgo,
+              ...(isFinished ? { resultHomeScore: homeScore, resultAwayScore: awayScore, resultWinner: winner } : {}),
             },
-            $set: { status, ...(isFinished ? { result: { homeScore, awayScore, winner } } : {}) },
-          };
-          return { updateOne: { filter: { externalId: f.fixture.id }, update, upsert: true } };
-        });
-
-        if (ops.length > 0) {
-          const bw = await Match.bulkWrite(ops);
-          inserted += bw.upsertedCount;
+          });
+          inserted++;
         }
       } catch (e) {
         console.error(`[admin/matches] fetch-past7 error league ${league.externalId}:`, e);
@@ -205,13 +215,14 @@ export async function POST(req: NextRequest) {
 
   const [leagues, activeTeamsByLeague] = await Promise.all([
     leagueId
-      ? League.findById(leagueId).then(l => (l ? [l] : []))
-      : League.find({ isActive: true }),
+      ? prisma.league.findUnique({ where: { id: Number(leagueId) } }).then(l => (l ? [l] : []))
+      : prisma.league.findMany({ where: { isActive: true } }),
     getActiveTeamsByLeague(),
   ]);
 
   let inserted = 0, skipped = 0;
   const debug: any[] = [];
+
   for (const league of leagues) {
     try {
       const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
@@ -219,29 +230,34 @@ export async function POST(req: NextRequest) {
       const fixtures = filterByActiveTeams(allFixtures, activeTeamIds);
       debug.push({ league: league.name, externalId: league.externalId, season: league.season, from, to, allFixtures: allFixtures.length, activeTeams: activeTeamIds?.size ?? 'none', filtered: fixtures.length });
 
-      const ops = fixtures.map(f => ({
-        updateOne: {
-          filter: { externalId: f.fixture.id },
-          update: {
-            $setOnInsert: {
-              externalId: f.fixture.id,
-              leagueId: league._id,
-              externalLeagueId: league.externalId,
-              homeTeam: { externalId: f.teams.home.id, name: f.teams.home.name, logo: f.teams.home.logo },
-              awayTeam: { externalId: f.teams.away.id, name: f.teams.away.name, logo: f.teams.away.logo },
-              kickoffTime: new Date(f.fixture.date),
-              status: mapFixtureStatus(f.fixture.status.short),
-              scoresProcessed: false,
-              weekStart: fridayStart,
-            },
-          },
-          upsert: true,
-        },
-      }));
-      if (ops.length > 0) {
-        const result = await Match.bulkWrite(ops);
-        inserted += result.upsertedCount;
-        skipped += result.matchedCount;
+      const fixtureIds = fixtures.map((f: APIFixture) => f.fixture.id);
+      const existing = new Set(
+        (await prisma.match.findMany({ where: { externalId: { in: fixtureIds } }, select: { externalId: true } }))
+          .map(m => m.externalId)
+      );
+
+      const toCreate = fixtures.filter((f: APIFixture) => !existing.has(f.fixture.id));
+      skipped += fixtures.length - toCreate.length;
+
+      if (toCreate.length > 0) {
+        await prisma.match.createMany({
+          data: toCreate.map((f: APIFixture) => ({
+            externalId: f.fixture.id,
+            leagueId: league.id,
+            externalLeagueId: league.externalId,
+            homeTeamExtId: f.teams.home.id,
+            homeTeamName: f.teams.home.name,
+            homeTeamLogo: f.teams.home.logo,
+            awayTeamExtId: f.teams.away.id,
+            awayTeamName: f.teams.away.name,
+            awayTeamLogo: f.teams.away.logo,
+            kickoffTime: new Date(f.fixture.date),
+            status: mapFixtureStatus(f.fixture.status.short),
+            scoresProcessed: false,
+            weekStart: fridayStart,
+          })),
+        });
+        inserted += toCreate.length;
       }
     } catch (e: any) {
       debug.push({ league: league.name, externalId: league.externalId, error: e?.message ?? String(e) });
