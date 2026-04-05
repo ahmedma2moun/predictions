@@ -12,6 +12,7 @@ export default function AdminTeamsPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/leagues")
@@ -66,6 +67,20 @@ export default function AdminTeamsPage() {
     t.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const allActive = filtered.length > 0 && filtered.every(t => t.isActive);
+  const someActive = filtered.some(t => t.isActive);
+
+  async function selectAll(activate: boolean) {
+    if (!filtered.length) return;
+    setBulkLoading(true);
+    const ops = filtered
+      .filter(t => !!t.isActive !== activate)
+      .map(team => toggleTeam(team, activate));
+    await Promise.all(ops);
+    toast.success(activate ? `Activated all ${filtered.length} teams` : `Deactivated all ${filtered.length} teams`);
+    setBulkLoading(false);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -104,7 +119,29 @@ export default function AdminTeamsPage() {
                 : "No teams match your search."}
             </p>
           ) : (
-            filtered.map(team => (
+            <>
+              <div className="flex items-center justify-between pb-1 border-b border-border">
+                <span className="text-sm text-muted-foreground">{filtered.length} team{filtered.length !== 1 ? "s" : ""}</span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkLoading || allActive}
+                    onClick={() => selectAll(true)}
+                  >
+                    Activate All
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkLoading || !someActive}
+                    onClick={() => selectAll(false)}
+                  >
+                    Deactivate All
+                  </Button>
+                </div>
+              </div>
+            {filtered.map(team => (
               <div key={team.externalId} className="flex items-center justify-between p-3 rounded-lg bg-accent">
                 <div className="flex items-center gap-3">
                   {team.logo && <img src={team.logo} alt="" className="h-6 w-6 object-contain" />}
@@ -112,7 +149,8 @@ export default function AdminTeamsPage() {
                 </div>
                 <Switch checked={!!team.isActive} onCheckedChange={v => toggleTeam(team, v)} />
               </div>
-            ))
+            ))}
+            </>
           )}
         </CardContent>
       </Card>

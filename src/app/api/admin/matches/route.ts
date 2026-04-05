@@ -266,3 +266,15 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ inserted, skipped, debug });
 }
+
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { ids } = await req.json();
+  if (!Array.isArray(ids) || ids.length === 0) return NextResponse.json({ error: 'No ids provided' }, { status: 400 });
+
+  const numericIds = ids.map((id: string) => Number(id)).filter((id: number) => !isNaN(id));
+  const result = await prisma.match.deleteMany({ where: { id: { in: numericIds } } });
+  return NextResponse.json({ deleted: result.count });
+}
