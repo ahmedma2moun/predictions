@@ -18,12 +18,14 @@ export default async function DashboardPage() {
       orderBy: { kickoffTime: 'asc' },
       take: 5,
     }),
-    prisma.prediction.findMany({
-      where: { userId },
-      include: { match: true },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-    }),
+    isAdmin
+      ? Promise.resolve([])
+      : prisma.prediction.findMany({
+          where: { userId },
+          include: { match: true },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
     prisma.$queryRaw<Array<{ userId: number; totalPoints: bigint }>>`
       SELECT "userId", SUM("pointsAwarded") AS "totalPoints"
       FROM "Prediction"
@@ -32,11 +34,13 @@ export default async function DashboardPage() {
       LIMIT 5
     `,
     isAdmin ? prisma.user.count() : Promise.resolve(null),
-    prisma.$queryRaw<Array<{ total: bigint; count: bigint }>>`
-      SELECT SUM("pointsAwarded") AS total, COUNT(*) AS count
-      FROM "Prediction"
-      WHERE "userId" = ${userId}
-    `,
+    isAdmin
+      ? Promise.resolve([{ total: BigInt(0), count: BigInt(0) }])
+      : prisma.$queryRaw<Array<{ total: bigint; count: bigint }>>`
+          SELECT SUM("pointsAwarded") AS total, COUNT(*) AS count
+          FROM "Prediction"
+          WHERE "userId" = ${userId}
+        `,
   ]);
 
   const topUserIds = leaderboardTop.map(l => Number(l.userId));
