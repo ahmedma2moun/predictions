@@ -161,36 +161,35 @@ export default function MatchPredictionPage() {
             {allPredictions.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No predictions submitted.</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Player</th>
-                    <th className="text-center px-4 py-2 font-medium text-muted-foreground">Prediction</th>
-                    {match.result && (
-                      <th className="text-right px-4 py-2 font-medium text-muted-foreground">Pts</th>
+              <div className="divide-y">
+                {allPredictions.map((p: any) => (
+                  <div key={p.userId} className="px-4 py-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{p.userName}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="tabular-nums text-sm">{p.homeScore} – {p.awayScore}</span>
+                        {match.result && (
+                          p.pointsAwarded > 0
+                            ? <span className="text-yellow-500 font-bold text-sm">+{p.pointsAwarded} pts</span>
+                            : <span className="text-muted-foreground text-sm">0 pts</span>
+                        )}
+                      </div>
+                    </div>
+                    {isAdmin && match.result && p.scoringBreakdown && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        {(p.scoringBreakdown as Array<{ ruleName: string; pointsAwarded: number; matched: boolean }>).map((rule) => (
+                          <span
+                            key={rule.ruleName}
+                            className={`text-xs ${rule.matched ? "text-green-500" : "text-muted-foreground line-through"}`}
+                          >
+                            {rule.ruleName}{rule.matched ? ` +${rule.pointsAwarded}` : ""}
+                          </span>
+                        ))}
+                      </div>
                     )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {allPredictions.map((p: any) => (
-                    <tr key={p.userId} className="border-b last:border-0">
-                      <td className="px-4 py-3 font-medium">{p.userName}</td>
-                      <td className="px-4 py-3 text-center tabular-nums">
-                        {p.homeScore} – {p.awayScore}
-                      </td>
-                      {match.result && (
-                        <td className="px-4 py-3 text-right">
-                          {p.pointsAwarded > 0 ? (
-                            <span className="text-yellow-500 font-bold">+{p.pointsAwarded}</span>
-                          ) : (
-                            <span className="text-muted-foreground">0</span>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

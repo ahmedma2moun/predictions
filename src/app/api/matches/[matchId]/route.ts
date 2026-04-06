@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { serializeMatch } from '@/models/Match';
 import { isMatchLocked } from '@/lib/utils';
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ matc
       homeScore: p.homeScore,
       awayScore: p.awayScore,
       pointsAwarded: p.pointsAwarded,
+      scoringBreakdown: p.scoringBreakdown ?? null,
     }));
   }
 
