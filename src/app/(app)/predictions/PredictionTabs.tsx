@@ -1,8 +1,10 @@
 "use client";
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatKickoff } from "@/lib/utils";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
 
@@ -22,9 +24,37 @@ export type SerializedPrediction = {
   };
 };
 
+type OtherPrediction = {
+  userId: number;
+  userName: string;
+  homeScore: number;
+  awayScore: number;
+  pointsAwarded: number | null;
+};
+
 function PredictionCard({ pred }: { pred: SerializedPrediction }) {
   const match = pred.matchId;
   const isFinished = match.status === "finished";
+  const isLocked = match.status !== "upcoming" && match.status !== "scheduled";
+
+  const [open, setOpen] = useState(false);
+  const [others, setOthers] = useState<OtherPrediction[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function toggle() {
+    if (!open && others === null) {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/matches/${match._id}`);
+        const data = await res.json();
+        setOthers(data.allPredictions ?? []);
+      } finally {
+        setLoading(false);
+      }
+    }
+    setOpen((v) => !v);
+  }
+
   return (
     <Card className={isFinished && pred.pointsAwarded > 0 ? "border-green-500/30" : ""}>
       <CardContent className="pt-4">
@@ -56,7 +86,7 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
             </p>
             {isFinished && match.result && (
               <p className="text-xs text-muted-foreground">
-                Actual: {match.result.homeScore} – {match.result.awayScore}
+                Result: {match.result.homeScore} – {match.result.awayScore}
               </p>
             )}
           </div>
@@ -80,6 +110,48 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
               </span>
             ))}
           </div>
+        )}
+        {isLocked && (
+          <button
+            onClick={toggle}
+            className="mt-3 pt-3 border-t w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {loading ? (
+              "Loading..."
+            ) : (
+              <>
+                {open ? "Hide" : "Show"} all predictions
+                {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </>
+            )}
+          </button>
+        )}
+        {open && others && others.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {others.map((o) => (
+              <div
+                key={o.userId}
+                className="flex items-center justify-between text-xs px-2 py-1 rounded-md bg-muted/40"
+              >
+                <span className="font-medium truncate max-w-[120px]">{o.userName}</span>
+                <span className="font-mono tabular-nums">
+                  {o.homeScore} – {o.awayScore}
+                </span>
+                {isFinished && (
+                  <span
+                    className={`ml-2 ${
+                      (o.pointsAwarded ?? 0) > 0 ? "text-green-500" : "text-muted-foreground"
+                    }`}
+                  >
+                    +{o.pointsAwarded ?? 0} pts
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {open && others && others.length === 0 && (
+          <p className="mt-2 text-xs text-muted-foreground text-center">No other predictions.</p>
         )}
       </CardContent>
     </Card>
