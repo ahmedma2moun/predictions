@@ -175,7 +175,7 @@ export default function MatchPredictionPage() {
                         )}
                       </div>
                     </div>
-                    {isAdmin && match.result && p.scoringBreakdown?.rules && (
+                    {match.result && p.scoringBreakdown?.rules && (
                       <div className="flex flex-wrap gap-x-3 gap-y-1">
                         {(p.scoringBreakdown.rules as Array<{ ruleName: string; pointsAwarded: number; matched: boolean }>).map((rule) => (
                           <span
