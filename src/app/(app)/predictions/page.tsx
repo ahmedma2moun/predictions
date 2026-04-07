@@ -1,74 +1,68 @@
-"use client";
-import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
-import { formatKickoff } from "@/lib/utils";
+import { isMatchLocked } from "@/lib/utils";
+import { PredictionTabs, type SerializedPrediction } from "./PredictionTabs";
 
-export default function PredictionsPage() {
-  const [predictions, setPredictions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default async function PredictionsPage() {
+  const session = await auth();
+  const userId = Number((session!.user as { id: string }).id);
 
-  useEffect(() => {
-    fetch("/api/predictions")
-      .then(r => r.json())
-      .then(data => { setPredictions(data); setLoading(false); });
-  }, []);
+  const predictions = await prisma.prediction.findMany({
+    where: { userId },
+    include: { match: true },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
 
-  const totalPoints = predictions.reduce((sum, p) => sum + (p.pointsAwarded || 0), 0);
+  const serialized: SerializedPrediction[] = predictions.map((p) => ({
+    _id: p.id.toString(),
+    homeScore: p.homeScore,
+    awayScore: p.awayScore,
+    pointsAwarded: p.pointsAwarded,
+    scoringBreakdown: p.scoringBreakdown as SerializedPrediction["scoringBreakdown"] | null,
+    matchId: {
+      _id: p.match.id.toString(),
+      kickoffTime: p.match.kickoffTime.toISOString(),
+      status: p.match.status,
+      homeTeam: { name: p.match.homeTeamName },
+      awayTeam: { name: p.match.awayTeamName },
+      result:
+        p.match.resultHomeScore !== null && p.match.resultHomeScore !== undefined
+          ? { homeScore: p.match.resultHomeScore, awayScore: p.match.resultAwayScore! }
+          : undefined,
+    },
+  }));
 
-  if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin text-4xl">⚽</div></div>;
+  const totalPoints = serialized.reduce((sum, p) => sum + (p.pointsAwarded || 0), 0);
+
+  const futurePreds = serialized
+    .filter((p) => !isMatchLocked(p.matchId.kickoffTime))
+    .sort(
+      (a, b) =>
+        new Date(a.matchId.kickoffTime).getTime() - new Date(b.matchId.kickoffTime).getTime()
+    );
+
+  const pastPreds = serialized
+    .filter((p) => isMatchLocked(p.matchId.kickoffTime))
+    .sort(
+      (a, b) =>
+        new Date(b.matchId.kickoffTime).getTime() - new Date(a.matchId.kickoffTime).getTime()
+    );
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">My Predictions</h1>
-        <Badge variant="outline" className="text-base px-3 py-1">{totalPoints} pts total</Badge>
+        <Badge variant="outline" className="text-base px-3 py-1">
+          {totalPoints} pts total
+        </Badge>
       </div>
 
-      {predictions.length === 0 ? (
+      {serialized.length === 0 ? (
         <p className="text-muted-foreground">No predictions yet. Go predict some matches!</p>
       ) : (
-        predictions.map(pred => {
-          const match = pred.matchId;
-          if (!match) return null;
-          const isFinished = match.status === "finished";
-          return (
-            <Card key={pred._id} className={isFinished && pred.pointsAwarded > 0 ? "border-green-500/30" : ""}>
-              <CardContent className="pt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-muted-foreground">{formatKickoff(match.kickoffTime)}</span>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={isFinished ? "secondary" : "outline"} className="text-xs">
-                      {match.status.toUpperCase()}
-                    </Badge>
-                    {isFinished && (
-                      <Badge variant={pred.pointsAwarded > 0 ? "default" : "secondary"} className="text-xs">
-                        +{pred.pointsAwarded} pts
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Home</p>
-                    <p className="font-medium text-sm">{match.homeTeam?.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Your pick</p>
-                    <p className="font-bold text-lg">{pred.homeScore} – {pred.awayScore}</p>
-                    {isFinished && match.result && (
-                      <p className="text-xs text-muted-foreground">Actual: {match.result.homeScore} – {match.result.awayScore}</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Away</p>
-                    <p className="font-medium text-sm">{match.awayTeam?.name}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })
+        <PredictionTabs futurePreds={futurePreds} pastPreds={pastPreds} />
       )}
     </div>
   );

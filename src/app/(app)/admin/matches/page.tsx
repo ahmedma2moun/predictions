@@ -6,8 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatKickoff } from "@/lib/utils";
 
-const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
-
 export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,11 +63,9 @@ export default function AdminMatchesPage() {
     setFetchingResults(false);
   }
 
-  const twoDaysAgo = Date.now() - TWO_DAYS_MS;
-  const visibleMatches = matches.filter(m => {
-    if (m.status === 'finished' && m.result && new Date(m.kickoffTime).getTime() < twoDaysAgo) return false;
-    return true;
-  });
+  const visibleMatches = [...matches].sort(
+    (a, b) => new Date(b.kickoffTime).getTime() - new Date(a.kickoffTime).getTime()
+  );
 
   const allSelected = visibleMatches.length > 0 && visibleMatches.every(m => selected.has(m._id));
   const someSelected = selected.size > 0;
