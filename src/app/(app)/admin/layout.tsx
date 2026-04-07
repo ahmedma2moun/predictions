@@ -8,6 +8,7 @@ const adminLinks = [
   { href: "/admin/leagues", label: "Leagues" },
   { href: "/admin/teams", label: "Teams" },
   { href: "/admin/matches", label: "Matches" },
+  { href: "/admin/results", label: "Results" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/scoring", label: "Scoring" },
 ];
