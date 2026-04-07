@@ -76,8 +76,7 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
                     : "text-muted-foreground line-through"
                 }`}
               >
-                {rule.ruleName}
-                {rule.matched ? ` +${rule.pointsAwarded}` : ""}
+                {rule.ruleName} +{rule.pointsAwarded}
               </span>
             ))}
           </div>

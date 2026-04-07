@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatKickoff } from "@/lib/utils";
 
+type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
+
 type PredictionRow = {
   id: string;
   userId: string;
@@ -12,6 +14,7 @@ type PredictionRow = {
   homeScore: number;
   awayScore: number;
   pointsAwarded: number;
+  scoringBreakdown: RuleBreakdown[] | null;
 };
 
 type MatchRow = {
@@ -106,21 +109,35 @@ export default function AdminResultsPage() {
                           {match.predictions.map((pred) => (
                             <div
                               key={pred.id}
-                              className="grid grid-cols-[1fr_auto_auto] gap-2 items-center px-2 py-1.5 rounded-md bg-accent"
+                              className="px-2 py-1.5 rounded-md bg-accent space-y-1"
                             >
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">{pred.userName}</p>
-                                <p className="text-xs text-muted-foreground truncate">{pred.userEmail}</p>
+                              <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium truncate">{pred.userName}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{pred.userEmail}</p>
+                                </div>
+                                <span className="text-sm tabular-nums font-semibold">
+                                  {pred.homeScore} – {pred.awayScore}
+                                </span>
+                                <Badge
+                                  variant={pred.pointsAwarded > 0 ? "default" : "secondary"}
+                                  className="text-xs justify-self-end"
+                                >
+                                  +{pred.pointsAwarded} pts
+                                </Badge>
                               </div>
-                              <span className="text-sm tabular-nums font-semibold">
-                                {pred.homeScore} – {pred.awayScore}
-                              </span>
-                              <Badge
-                                variant={pred.pointsAwarded > 0 ? "default" : "secondary"}
-                                className="text-xs justify-self-end"
-                              >
-                                +{pred.pointsAwarded} pts
-                              </Badge>
+                              {pred.scoringBreakdown && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-0.5">
+                                  {pred.scoringBreakdown.map((rule) => (
+                                    <span
+                                      key={rule.ruleName}
+                                      className={`text-xs ${rule.matched ? "text-green-500 font-medium" : "text-muted-foreground line-through"}`}
+                                    >
+                                      {rule.ruleName} +{rule.pointsAwarded}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

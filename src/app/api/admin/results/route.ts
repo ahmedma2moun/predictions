@@ -35,6 +35,7 @@ export async function GET() {
       homeScore: p.homeScore,
       awayScore: p.awayScore,
       pointsAwarded: p.pointsAwarded,
+      scoringBreakdown: (p.scoringBreakdown as { rules: { ruleName: string; pointsAwarded: number; matched: boolean }[] } | null)?.rules ?? null,
     })),
   }));
 
