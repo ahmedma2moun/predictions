@@ -8,7 +8,7 @@ export async function GET() {
   if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const users = await prisma.user.findMany({
-    select: { id: true, name: true, email: true, role: true, avatarUrl: true, createdAt: true, updatedAt: true },
+    select: { id: true, name: true, email: true, role: true, avatarUrl: true, notificationEmail: true, createdAt: true, updatedAt: true },
     orderBy: { createdAt: 'desc' },
   });
   return NextResponse.json(users.map(u => ({ ...u, _id: u.id.toString() })));
@@ -43,16 +43,17 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { id, name, role, password } = await req.json();
+  const { id, name, role, password, notificationEmail } = await req.json();
   const data: any = {};
   if (name) data.name = name;
   if (role) data.role = role;
   if (password) data.password = await bcrypt.hash(password, 12);
+  if (notificationEmail !== undefined) data.notificationEmail = notificationEmail || null;
 
   const user = await prisma.user.update({
     where: { id: Number(id) },
     data,
-    select: { id: true, name: true, email: true, role: true, avatarUrl: true, createdAt: true, updatedAt: true },
+    select: { id: true, name: true, email: true, role: true, avatarUrl: true, notificationEmail: true, createdAt: true, updatedAt: true },
   });
   return NextResponse.json({ ...user, _id: user.id.toString() });
 }

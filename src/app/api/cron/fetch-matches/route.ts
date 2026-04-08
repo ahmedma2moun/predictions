@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football-api';
+import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
 import { format, addDays } from 'date-fns';
 
 export async function GET(req: NextRequest) {
@@ -58,6 +59,38 @@ export async function GET(req: NextRequest) {
     } catch (e) {
       console.error(`[cron/fetch-matches] ERROR league ${league.name} (${league.externalId}):`, e);
       errors++;
+    }
+  }
+
+  // Send email notifications if new matches were inserted
+  if (inserted > 0) {
+    try {
+      const newMatches = await prisma.match.findMany({
+        where: { weekStart: fridayStart, status: 'scheduled' },
+        include: { league: { select: { name: true } } },
+        orderBy: { kickoffTime: 'asc' },
+      });
+
+      const matchesForEmail: MatchForEmail[] = newMatches.map(m => ({
+        homeTeamName: m.homeTeamName,
+        awayTeamName: m.awayTeamName,
+        kickoffTime: m.kickoffTime,
+        leagueName: m.league?.name ?? 'Unknown League',
+      }));
+
+      const recipients = await prisma.user.findMany({
+        where: { notificationEmail: { not: null } },
+        select: { notificationEmail: true },
+      });
+
+      for (const user of recipients) {
+        if (user.notificationEmail) {
+          await sendNewMatchesEmail(user.notificationEmail, matchesForEmail);
+          console.log(`[cron/fetch-matches] Notification sent to ${user.notificationEmail}`);
+        }
+      }
+    } catch (e) {
+      console.error('[cron/fetch-matches] Failed to send email notifications:', e);
     }
   }
 

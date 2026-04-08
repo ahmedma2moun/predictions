@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
 import { calculateScore } from '@/lib/scoring-engine';
+import { sendResultsEmail, type ResultMatchForEmail } from '@/lib/email';
 import { format } from 'date-fns';
 
 export async function GET(req: NextRequest) {
@@ -17,6 +18,9 @@ export async function GET(req: NextRequest) {
   const activeLeagues = await prisma.league.findMany({ where: { isActive: true } });
   const rules = await prisma.scoringRule.findMany({ where: { isActive: true } });
   let updated = 0, scored = 0, errors = 0;
+
+  // Map userId → list of scored matches for email
+  const userMatchMap = new Map<number, ResultMatchForEmail[]>();
 
   console.log(`[cron/fetch-results] Starting — ${activeLeagues.length} active leagues, date: ${dateStr}`);
 
@@ -41,6 +45,7 @@ export async function GET(req: NextRequest) {
         const match = await prisma.match.update({
           where: { externalId: f.fixture.id },
           data: { status: 'finished', resultHomeScore: homeScore, resultAwayScore: awayScore, resultWinner: winner },
+          include: { league: { select: { name: true } } },
         }).catch(() => null);
 
         if (!match) {
@@ -69,6 +74,23 @@ export async function GET(req: NextRequest) {
             data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
           });
           scored++;
+
+          // Collect for email
+          const entry: ResultMatchForEmail = {
+            homeTeamName: match.homeTeamName,
+            awayTeamName: match.awayTeamName,
+            kickoffTime: match.kickoffTime,
+            leagueName: match.league?.name ?? 'Unknown League',
+            resultHomeScore: homeScore,
+            resultAwayScore: awayScore,
+            predictionHomeScore: pred.homeScore,
+            predictionAwayScore: pred.awayScore,
+            pointsAwarded: totalPoints,
+            scoringBreakdown: breakdown.map(r => ({ ruleName: r.ruleName, pointsAwarded: r.pointsAwarded, matched: r.matched })),
+          };
+          const list = userMatchMap.get(pred.userId) ?? [];
+          list.push(entry);
+          userMatchMap.set(pred.userId, list);
         }
 
         await prisma.match.update({ where: { id: match.id }, data: { scoresProcessed: true } });
@@ -76,6 +98,27 @@ export async function GET(req: NextRequest) {
     } catch (e) {
       console.error(`[cron/fetch-results] ERROR league ${league.name} (${league.externalId}):`, e);
       errors++;
+    }
+  }
+
+  // Send personalized results emails
+  if (userMatchMap.size > 0) {
+    try {
+      const userIds = [...userMatchMap.keys()];
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds }, notificationEmail: { not: null } },
+        select: { id: true, notificationEmail: true },
+      });
+
+      for (const user of users) {
+        const matches = userMatchMap.get(user.id);
+        if (user.notificationEmail && matches?.length) {
+          await sendResultsEmail(user.notificationEmail, matches);
+          console.log(`[cron/fetch-results] Results email sent to ${user.notificationEmail}`);
+        }
+      }
+    } catch (e) {
+      console.error('[cron/fetch-results] Failed to send results emails:', e);
     }
   }
 
