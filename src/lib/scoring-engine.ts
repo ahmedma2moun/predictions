@@ -28,6 +28,7 @@ const ruleEvaluators: Record<string, RuleEvaluator> = {
   exact_score: (pred, actual) =>
     pred.homeScore === actual.homeScore && pred.awayScore === actual.awayScore,
   score_difference: (pred, actual) =>
+    actual.winner !== 'draw' &&
     pred.homeScore - pred.awayScore === actual.homeScore - actual.awayScore,
   one_team_score: (pred, actual) =>
     pred.homeScore === actual.homeScore || pred.awayScore === actual.awayScore,
