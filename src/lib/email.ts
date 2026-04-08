@@ -43,7 +43,8 @@ export interface ResultMatchForEmail {
 
 // ─── New Matches Email ────────────────────────────────────────────────────────
 
-export async function sendNewMatchesEmail(to: string, matches: MatchForEmail[]): Promise<void> {
+export async function sendNewMatchesEmail(to: string | null | undefined, matches: MatchForEmail[]): Promise<void> {
+  if (!to) return;
   if (!matches.length) return;
 
   // Group by league, sorted by kickoff ascending within each league
@@ -107,7 +108,8 @@ export async function sendNewMatchesEmail(to: string, matches: MatchForEmail[]):
 
 // ─── Results Email ────────────────────────────────────────────────────────────
 
-export async function sendResultsEmail(to: string, matches: ResultMatchForEmail[]): Promise<void> {
+export async function sendResultsEmail(to: string | null | undefined, matches: ResultMatchForEmail[]): Promise<void> {
+  if (!to) return;
   if (!matches.length) return;
 
   const totalPoints = matches.reduce((sum, m) => sum + m.pointsAwarded, 0);
