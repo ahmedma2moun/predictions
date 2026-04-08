@@ -91,16 +91,17 @@ export async function GET(req: NextRequest) {
   if (allUserIds.length === 0) return NextResponse.json([]);
 
   const users = await prisma.user.findMany({
-    where: { id: { in: allUserIds } },
+    where: { id: { in: allUserIds }, role: { not: 'admin' } },
     select: { id: true, name: true, email: true, avatarUrl: true },
   });
   const userMap = new Map(users.map(u => [u.id, u]));
 
-  const result = rows.map((entry) => {
+  const result = rows.flatMap((entry) => {
     const user = userMap.get(Number(entry.userId));
+    if (!user) return []; // skip admins
     const predictionsCount   = Number(entry.predictionsCount);
     const correctPredictions = Number(entry.correctPredictions);
-    return {
+    return [{
       userId: Number(entry.userId),
       name: user?.name ?? 'Unknown',
       email: user?.email ?? '',
@@ -109,7 +110,7 @@ export async function GET(req: NextRequest) {
       predictionsCount,
       correctPredictions,
       accuracy: predictionsCount > 0 ? Math.round((correctPredictions / predictionsCount) * 100) : 0,
-    };
+    }];
   });
 
   // Append group members who have no predictions yet (only when a group is selected)
@@ -117,6 +118,7 @@ export async function GET(req: NextRequest) {
     for (const uid of userIdFilter) {
       if (!scoredUserIds.has(uid)) {
         const user = userMap.get(uid);
+        if (!user) continue; // skip admins and unknown users
         result.push({
           userId: uid,
           name: user?.name ?? 'Unknown',
