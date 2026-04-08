@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { formatKickoff } from "@/lib/utils";
+import { KickoffTime } from "@/components/KickoffTime";
 
 export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<any[]>([]);
@@ -157,7 +157,7 @@ export default function AdminMatchesPage() {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{match.homeTeam.name} vs {match.awayTeam.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatKickoff(match.kickoffTime)}</p>
+                    <p className="text-xs text-muted-foreground"><KickoffTime date={match.kickoffTime} /></p>
                     {match.result && (
                       <p className="text-xs text-muted-foreground">Result: {match.result.homeScore}–{match.result.awayScore}</p>
                     )}

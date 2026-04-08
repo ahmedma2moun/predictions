@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatKickoff } from "@/lib/utils";
+import { KickoffTime } from "@/components/KickoffTime";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
@@ -59,7 +59,7 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
     <Card className={isFinished && pred.pointsAwarded > 0 ? "border-green-500/30" : ""}>
       <CardContent className="pt-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground">{formatKickoff(match.kickoffTime)}</span>
+          <span className="text-xs text-muted-foreground"><KickoffTime date={match.kickoffTime} /></span>
           <div className="flex items-center gap-2">
             <Badge variant={isFinished ? "secondary" : "outline"} className="text-xs">
               {match.status.toUpperCase()}

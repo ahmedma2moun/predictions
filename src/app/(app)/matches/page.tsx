@@ -5,7 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatKickoff, isMatchLocked } from "@/lib/utils";
+import { isMatchLocked } from "@/lib/utils";
+import { KickoffTime } from "@/components/KickoffTime";
 import { Lock, CheckCircle } from "lucide-react";
 
 export default async function MatchesPage() {
@@ -44,7 +45,7 @@ export default async function MatchesPage() {
                 <CardContent className="pt-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-muted-foreground">
-                      {formatKickoff(match.kickoffTime)}
+                      <KickoffTime date={match.kickoffTime} />
                     </span>
                     <div className="flex items-center gap-2">
                       {locked && <Lock className="h-3 w-3 text-muted-foreground" />}

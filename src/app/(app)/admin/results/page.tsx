@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatKickoff } from "@/lib/utils";
+import { KickoffTime } from "@/components/KickoffTime";
 
 type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
 
@@ -76,7 +76,7 @@ export default function AdminResultsPage() {
                           {match.homeTeamName} vs {match.awayTeamName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatKickoff(match.kickoffTime)}
+                          <KickoffTime date={match.kickoffTime} />
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">

@@ -4,7 +4,7 @@ import { serializeMatch } from "@/models/Match";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { formatKickoff } from "@/lib/utils";
+import { KickoffTime } from "@/components/KickoffTime";
 import { Calendar, Trophy, TrendingUp, Users } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -118,10 +118,10 @@ export default async function DashboardPage() {
                   <div className="flex items-center justify-between p-3 rounded-lg bg-accent hover:bg-accent/80 transition-colors">
                     <div className="flex-1">
                       <p className="text-sm font-medium">{s.homeTeam.name} vs {s.awayTeam.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatKickoff(match.kickoffTime)}</p>
+                      <p className="text-xs text-muted-foreground"><KickoffTime date={match.kickoffTime} /></p>
                     </div>
                     <Badge variant={match.status === "live" ? "destructive" : "secondary"}>
-                      {match.status === "live" ? "LIVE" : formatKickoff(match.kickoffTime).split(",")[0]}
+                      {match.status === "live" ? "LIVE" : <KickoffTime date={match.kickoffTime} weekdayOnly />}
                     </Badge>
                   </div>
                 </Link>

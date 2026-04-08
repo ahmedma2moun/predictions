@@ -4,7 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatKickoff, isMatchLocked } from "@/lib/utils";
+import { isMatchLocked } from "@/lib/utils";
+import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
 import { ChevronLeft, Minus, Plus, Lock } from "lucide-react";
 
@@ -101,7 +102,7 @@ export default function MatchPredictionPage() {
               {locked ? <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Locked</span> : match.status.toUpperCase()}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{formatKickoff(match.kickoffTime)}</p>
+          <p className="text-sm text-muted-foreground"><KickoffTime date={match.kickoffTime} /></p>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
