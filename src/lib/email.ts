@@ -95,6 +95,9 @@ export async function sendNewMatchesEmail(to: string | null | undefined, matches
       </div>
       <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
         ${leagueBlocks}
+        <div style="margin-top:16px;text-align:center;">
+          <a href="${process.env.NEXTAUTH_URL}/matches" style="display:inline-block;background:#22c55e;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Go to Matches &rarr;</a>
+        </div>
       </div>
     </div>`;
 
@@ -180,6 +183,9 @@ export async function sendResultsEmail(to: string | null | undefined, matches: R
         ${leagueBlocks}
         <div style="margin-top:16px;padding:12px 16px;background:#f0fdf4;border-radius:6px;border-left:4px solid #22c55e;">
           <strong>Total points earned this round: ${totalPoints}</strong>
+        </div>
+        <div style="margin-top:16px;text-align:center;">
+          <a href="${process.env.NEXTAUTH_URL}/predictions" style="display:inline-block;background:#3b82f6;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">View My Picks &rarr;</a>
         </div>
       </div>
     </div>`;
