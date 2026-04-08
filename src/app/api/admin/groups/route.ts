@@ -9,11 +9,7 @@ export async function GET() {
 
   const groups = await prisma.group.findMany({
     orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-    include: {
-      _count: { select: { members: true } },
-      groupLeagues: { include: { league: { select: { id: true, name: true, country: true, logo: true } } } },
-      groupTeams:   { include: { team:   { select: { id: true, name: true, logo: true } } } },
-    },
+    include: { _count: { select: { members: true } } },
   });
 
   return NextResponse.json(groups.map(g => ({
@@ -22,8 +18,6 @@ export async function GET() {
     name: g.name,
     isDefault: g.isDefault,
     memberCount: g._count.members,
-    leagues: g.groupLeagues.map(gl => gl.league),
-    teams:   g.groupTeams.map(gt => gt.team),
     createdAt: g.createdAt,
   })));
 }

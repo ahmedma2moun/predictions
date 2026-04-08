@@ -14,8 +14,6 @@ type Group = {
   name: string;
   isDefault: boolean;
   memberCount: number;
-  leagues: { id: number; name: string; country: string }[];
-  teams:   { id: number; name: string }[];
 };
 
 export default function AdminGroupsPage() {
@@ -53,8 +51,8 @@ export default function AdminGroupsPage() {
     }
   }
 
-  async function deleteGroup(id: string, name: string) {
-    if (!confirm(`Delete group "${name}"? This cannot be undone.`)) return;
+  async function deleteGroup(id: string, groupName: string) {
+    if (!confirm(`Delete group "${groupName}"? This cannot be undone.`)) return;
     const r = await fetch(`/api/admin/groups/${id}`, { method: "DELETE" });
     if (r.ok) {
       toast.success("Group deleted");
@@ -104,8 +102,6 @@ export default function AdminGroupsPage() {
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {group.memberCount} member{group.memberCount !== 1 ? "s" : ""}
-                    {group.leagues.length > 0 && ` · ${group.leagues.length} league${group.leagues.length !== 1 ? "s" : ""}`}
-                    {group.teams.length > 0   && ` · ${group.teams.length} team${group.teams.length !== 1 ? "s" : ""}`}
                   </p>
                 </div>
                 <div className="flex gap-2">

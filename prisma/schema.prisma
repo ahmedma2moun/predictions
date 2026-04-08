@@ -41,32 +41,30 @@ model User {
 }
 
 model League {
-  id           Int           @id @default(autoincrement())
-  externalId   Int           @unique
-  name         String
-  country      String
-  logo         String?
-  season       Int
-  isActive     Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  teams        Team[]
-  matches      Match[]
-  groupLeagues GroupLeague[]
+  id         Int      @id @default(autoincrement())
+  externalId Int      @unique
+  name       String
+  country    String
+  logo       String?
+  season     Int
+  isActive   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  teams      Team[]
+  matches    Match[]
 }
 
 model Team {
-  id               Int         @id @default(autoincrement())
-  externalId       Int         @unique
+  id               Int      @id @default(autoincrement())
+  externalId       Int      @unique
   name             String
   logo             String?
   leagueId         Int
-  league           League      @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  league           League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   externalLeagueId Int
-  isActive         Boolean     @default(true)
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  groupTeams       GroupTeam[]
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model Match {
@@ -123,42 +121,20 @@ model ScoringRule {
 }
 
 model Group {
-  id           Int           @id @default(autoincrement())
-  name         String
-  isDefault    Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  members      GroupMember[]
-  groupLeagues GroupLeague[]
-  groupTeams   GroupTeam[]
+  id        Int           @id @default(autoincrement())
+  name      String
+  isDefault Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  members   GroupMember[]
 }
 
 model GroupMember {
-  id       Int   @id @default(autoincrement())
-  groupId  Int
-  group    Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  userId   Int
-  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, userId])
-}
-
-model GroupLeague {
-  id       Int    @id @default(autoincrement())
-  groupId  Int
-  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  leagueId Int
-  league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, leagueId])
-}
-
-model GroupTeam {
   id      Int   @id @default(autoincrement())
   groupId Int
   group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  teamId  Int
-  team    Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId  Int
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([groupId, teamId])
+  @@unique([groupId, userId])
 }
