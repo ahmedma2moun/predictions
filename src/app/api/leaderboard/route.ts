@@ -21,67 +21,87 @@ export async function GET(req: NextRequest) {
     matchWhere.kickoffTime = { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
   }
 
-  const finishedMatches = await prisma.match.findMany({ where: matchWhere, select: { id: true } });
-  const matchIds = finishedMatches.map(m => m.id);
-  if (matchIds.length === 0) return NextResponse.json([]);
-
   // Restrict to group members when a group is selected
   let userIdFilter: number[] | null = null;
   if (groupId) {
-    const members = await prisma.groupMember.findMany({
-      where: { groupId: Number(groupId) },
-      select: { userId: true },
+    const group = await prisma.group.findUnique({
+      where: { id: Number(groupId) },
+      select: { isDefault: true, createdAt: true, members: { select: { userId: true } } },
     });
-    userIdFilter = members.map(m => m.userId);
+    if (!group) return NextResponse.json([]);
+
+    // For non-general groups, only count matches that kicked off after the group was created.
+    // If a period filter (week/month) is already applied, use whichever lower bound is later.
+    if (!group.isDefault) {
+      const existingGte: Date | undefined = matchWhere.kickoffTime?.gte;
+      const groupGte = group.createdAt;
+      matchWhere.kickoffTime = {
+        ...(matchWhere.kickoffTime ?? {}),
+        gte: existingGte && existingGte > groupGte ? existingGte : groupGte,
+      };
+    }
+
+    userIdFilter = group.members.map(m => m.userId);
     if (userIdFilter.length === 0) return NextResponse.json([]);
   }
 
+  const finishedMatches = await prisma.match.findMany({ where: matchWhere, select: { id: true } });
+  const matchIds = finishedMatches.map(m => m.id);
+
   type AggRow = { userId: number; totalPoints: bigint; predictionsCount: bigint; correctPredictions: bigint };
 
-  let rows: AggRow[];
-  if (userIdFilter !== null) {
-    rows = await prisma.$queryRaw<AggRow[]>`
-      SELECT
-        "userId",
-        SUM("pointsAwarded")                                  AS "totalPoints",
-        COUNT(*)                                               AS "predictionsCount",
-        SUM(CASE WHEN "pointsAwarded" > 0 THEN 1 ELSE 0 END) AS "correctPredictions"
-      FROM "Prediction"
-      WHERE "matchId" = ANY(${matchIds})
-        AND "userId"  = ANY(${userIdFilter})
-      GROUP BY "userId"
-      ORDER BY "totalPoints" DESC
-      LIMIT 100
-    `;
-  } else {
-    rows = await prisma.$queryRaw<AggRow[]>`
-      SELECT
-        "userId",
-        SUM("pointsAwarded")                                  AS "totalPoints",
-        COUNT(*)                                               AS "predictionsCount",
-        SUM(CASE WHEN "pointsAwarded" > 0 THEN 1 ELSE 0 END) AS "correctPredictions"
-      FROM "Prediction"
-      WHERE "matchId" = ANY(${matchIds})
-      GROUP BY "userId"
-      ORDER BY "totalPoints" DESC
-      LIMIT 100
-    `;
+  let rows: AggRow[] = [];
+  if (matchIds.length > 0) {
+    if (userIdFilter !== null) {
+      rows = await prisma.$queryRaw<AggRow[]>`
+        SELECT
+          "userId",
+          SUM("pointsAwarded")                                  AS "totalPoints",
+          COUNT(*)                                               AS "predictionsCount",
+          SUM(CASE WHEN "pointsAwarded" > 0 THEN 1 ELSE 0 END) AS "correctPredictions"
+        FROM "Prediction"
+        WHERE "matchId" = ANY(${matchIds})
+          AND "userId"  = ANY(${userIdFilter})
+        GROUP BY "userId"
+        ORDER BY "totalPoints" DESC
+        LIMIT 100
+      `;
+    } else {
+      rows = await prisma.$queryRaw<AggRow[]>`
+        SELECT
+          "userId",
+          SUM("pointsAwarded")                                  AS "totalPoints",
+          COUNT(*)                                               AS "predictionsCount",
+          SUM(CASE WHEN "pointsAwarded" > 0 THEN 1 ELSE 0 END) AS "correctPredictions"
+        FROM "Prediction"
+        WHERE "matchId" = ANY(${matchIds})
+        GROUP BY "userId"
+        ORDER BY "totalPoints" DESC
+        LIMIT 100
+      `;
+    }
   }
 
-  const userIds = rows.map(r => Number(r.userId));
+  // Collect all user IDs we need: scored members + zero-score group members
+  const scoredUserIds = new Set(rows.map(r => Number(r.userId)));
+  const allUserIds = userIdFilter
+    ? [...new Set([...scoredUserIds, ...userIdFilter])]
+    : [...scoredUserIds];
+
+  if (allUserIds.length === 0) return NextResponse.json([]);
+
   const users = await prisma.user.findMany({
-    where: { id: { in: userIds } },
+    where: { id: { in: allUserIds } },
     select: { id: true, name: true, email: true, avatarUrl: true },
   });
   const userMap = new Map(users.map(u => [u.id, u]));
 
-  const result = rows.map((entry, idx) => {
+  const result = rows.map((entry) => {
     const user = userMap.get(Number(entry.userId));
     const predictionsCount   = Number(entry.predictionsCount);
     const correctPredictions = Number(entry.correctPredictions);
     return {
-      rank: idx + 1,
-      userId: entry.userId.toString(),
+      userId: Number(entry.userId),
       name: user?.name ?? 'Unknown',
       email: user?.email ?? '',
       avatarUrl: user?.avatarUrl ?? undefined,
@@ -92,7 +112,27 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json(result, {
-    headers: { "Cache-Control": "s-maxage=30, stale-while-revalidate=60" },
-  });
+  // Append group members who have no predictions yet (only when a group is selected)
+  if (userIdFilter !== null) {
+    for (const uid of userIdFilter) {
+      if (!scoredUserIds.has(uid)) {
+        const user = userMap.get(uid);
+        result.push({
+          userId: uid,
+          name: user?.name ?? 'Unknown',
+          email: user?.email ?? '',
+          avatarUrl: user?.avatarUrl ?? undefined,
+          totalPoints: 0,
+          predictionsCount: 0,
+          correctPredictions: 0,
+          accuracy: 0,
+        });
+      }
+    }
+  }
+
+  return NextResponse.json(
+    result.map((entry, idx) => ({ rank: idx + 1, ...entry, userId: entry.userId.toString() })),
+    { headers: { "Cache-Control": "s-maxage=30, stale-while-revalidate=60" } },
+  );
 }
