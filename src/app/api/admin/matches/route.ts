@@ -7,15 +7,6 @@ import { serializeMatch } from '@/models/Match';
 import { sendNewMatchesEmail, sendResultsEmail, type MatchForEmail, type ResultMatchForEmail } from '@/lib/email';
 import { format, addDays } from 'date-fns';
 
-function getFridayStart(): Date {
-  const now = new Date();
-  const day = now.getUTCDay();
-  const diff = day >= 5 ? day - 5 : 7 - (5 - day);
-  const friday = new Date(now);
-  friday.setUTCDate(now.getUTCDate() - diff);
-  friday.setUTCHours(0, 0, 0, 0);
-  return friday;
-}
 
 async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
   const teams = await prisma.team.findMany({
@@ -234,17 +225,18 @@ export async function POST(req: NextRequest) {
   // ── Fetch upcoming fixtures ──────────────────────────────────────────────
   if (action !== 'fetch' && action !== 'fetch-month') return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
   let from: string, to: string, fridayStart: Date;
   if (action === 'fetch-month') {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
     fridayStart = today;
     from = format(today, 'yyyy-MM-dd');
     to = format(addDays(today, 30), 'yyyy-MM-dd');
   } else {
-    fridayStart = getFridayStart();
-    from = format(fridayStart, 'yyyy-MM-dd');
-    to = format(addDays(fridayStart, 7), 'yyyy-MM-dd');
+    fridayStart = today;
+    from = format(today, 'yyyy-MM-dd');
+    to = format(addDays(today, 7), 'yyyy-MM-dd');
   }
 
   const [leagues, activeTeamsByLeague] = await Promise.all([

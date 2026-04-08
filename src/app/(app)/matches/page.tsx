@@ -16,7 +16,6 @@ export default async function MatchesPage() {
   const matches = await prisma.match.findMany({
     where: { status: { in: ["scheduled", "live"] } },
     orderBy: { kickoffTime: "asc" },
-    take: 100,
   });
 
   const predMap = new Map<number, { homeScore: number; awayScore: number }>();
