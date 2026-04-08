@@ -28,6 +28,13 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.create({
     data: { name, email: email.toLowerCase(), password: hashed, role: role || 'user' },
   });
+
+  // Auto-add to the default group (General)
+  const defaultGroup = await prisma.group.findFirst({ where: { isDefault: true } });
+  if (defaultGroup) {
+    await prisma.groupMember.create({ data: { groupId: defaultGroup.id, userId: user.id } });
+  }
+
   const { password: _, ...userObj } = user;
   return NextResponse.json({ ...userObj, _id: user.id.toString() });
 }

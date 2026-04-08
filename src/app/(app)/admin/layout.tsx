@@ -10,6 +10,7 @@ const adminLinks = [
   { href: "/admin/matches", label: "Matches" },
   { href: "/admin/results", label: "Results" },
   { href: "/admin/users", label: "Users" },
+  { href: "/admin/groups", label: "Groups" },
   { href: "/admin/scoring", label: "Scoring" },
 ];
 

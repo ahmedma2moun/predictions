@@ -19,6 +19,30 @@ async function seed() {
     console.log('Admin user already exists');
   }
 
+  // Seed default "General" group and add all existing users
+  const existingDefault = await prisma.group.findFirst({ where: { isDefault: true } });
+  if (!existingDefault) {
+    const generalGroup = await prisma.group.create({
+      data: { name: 'General', isDefault: true },
+    });
+    const allUsers = await prisma.user.findMany({ select: { id: true } });
+    if (allUsers.length > 0) {
+      await prisma.groupMember.createMany({
+        data: allUsers.map(u => ({ groupId: generalGroup.id, userId: u.id })),
+        skipDuplicates: true,
+      });
+    }
+    console.log(`General group created and ${allUsers.length} user(s) added`);
+  } else {
+    // Ensure all existing users are in the General group (idempotent backfill)
+    const allUsers = await prisma.user.findMany({ select: { id: true } });
+    await prisma.groupMember.createMany({
+      data: allUsers.map(u => ({ groupId: existingDefault.id, userId: u.id })),
+      skipDuplicates: true,
+    });
+    console.log('General group already exists — backfilled any missing members');
+  }
+
   // Seed scoring rules
   const rules = [
     { name: 'Correct Winner/Draw', description: 'Predicted winner matches actual winner (home/away/draw)', key: 'correct_winner', points: 2, priority: 1, isActive: true },

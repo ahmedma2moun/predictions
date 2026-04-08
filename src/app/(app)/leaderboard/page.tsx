@@ -17,29 +17,53 @@ type LeaderboardEntry = {
   accuracy: number;
 };
 
+type Group = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+};
+
 export default function LeaderboardPage() {
   const { data: session } = useSession();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [period, setPeriod] = useState("all");
+  const [period, setPeriod]           = useState("all");
+  const [groups, setGroups]           = useState<Group[]>([]);
+  const [groupId, setGroupId]         = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  // Cache per period so switching back is instant
+  // Cache per "period+groupId" key so switching back is instant
   const cache = useRef<Record<string, LeaderboardEntry[]>>({});
 
+  // Load user's groups once
   useEffect(() => {
-    const cached = cache.current[period];
+    fetch("/api/groups")
+      .then(r => r.json())
+      .then((data: Group[]) => {
+        setGroups(data);
+        // Auto-select the default group if present
+        const defaultGroup = data.find(g => g.isDefault);
+        if (defaultGroup) setGroupId(defaultGroup.id);
+      });
+  }, []);
+
+  useEffect(() => {
+    const cacheKey = `${period}:${groupId ?? "all"}`;
+    const cached = cache.current[cacheKey];
     if (cached) {
       setLeaderboard(cached);
-      // Refresh silently in background
       setIsRefreshing(true);
+    } else {
+      setLeaderboard([]);
     }
-    fetch(`/api/leaderboard?period=${period}`)
+
+    const url = `/api/leaderboard?period=${period}${groupId ? `&groupId=${groupId}` : ""}`;
+    fetch(url)
       .then((r) => r.json())
       .then((data: LeaderboardEntry[]) => {
-        cache.current[period] = data;
+        cache.current[cacheKey] = data;
         setLeaderboard(data);
         setIsRefreshing(false);
       });
-  }, [period]);
+  }, [period, groupId]);
 
   const myId = (session?.user as { id?: string } | undefined)?.id;
 
@@ -51,6 +75,27 @@ export default function LeaderboardPage() {
           <span className="text-xs text-muted-foreground animate-pulse">Updating…</span>
         )}
       </div>
+
+      {/* Group selector */}
+      {groups.length > 1 && (
+        <div className="flex gap-2 flex-wrap">
+          {groups.map(g => (
+            <button
+              key={g.id}
+              onClick={() => setGroupId(g.id)}
+              className={cn(
+                "px-3 py-1 rounded-full text-sm font-medium border transition-colors",
+                groupId === g.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover:border-foreground hover:text-foreground"
+              )}
+            >
+              {g.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <Tabs value={period} onValueChange={setPeriod}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="all">All Time</TabsTrigger>
