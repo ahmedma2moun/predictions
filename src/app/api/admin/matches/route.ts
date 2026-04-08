@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football-api';
 import { calculateScore } from '@/lib/scoring-engine';
 import { serializeMatch } from '@/models/Match';
+import { sendNewMatchesEmail, sendResultsEmail, type MatchForEmail, type ResultMatchForEmail } from '@/lib/email';
 import { format, addDays } from 'date-fns';
 
 function getFridayStart(): Date {
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
     const leagueMap = new Map(leagues.map(l => [l.externalId, l]));
     const rules = await prisma.scoringRule.findMany({ where: { isActive: true } });
     let updated = 0, scored = 0;
+    const userMatchMap = new Map<number, ResultMatchForEmail[]>();
 
     for (const [externalLeagueId, batch] of byLeague) {
       const league = leagueMap.get(externalLeagueId);
@@ -122,11 +124,43 @@ export async function POST(req: NextRequest) {
               data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
             });
             scored++;
+
+            const entry: ResultMatchForEmail = {
+              homeTeamName: match.homeTeamName,
+              awayTeamName: match.awayTeamName,
+              kickoffTime: match.kickoffTime,
+              leagueName: leagueMap.get(match.externalLeagueId)?.name ?? 'Unknown League',
+              resultHomeScore: homeScore,
+              resultAwayScore: awayScore,
+              predictionHomeScore: pred.homeScore,
+              predictionAwayScore: pred.awayScore,
+              pointsAwarded: totalPoints,
+              scoringBreakdown: breakdown.map(r => ({ ruleName: r.ruleName, pointsAwarded: r.pointsAwarded, matched: r.matched })),
+            };
+            const list = userMatchMap.get(pred.userId) ?? [];
+            list.push(entry);
+            userMatchMap.set(pred.userId, list);
           }
           await prisma.match.update({ where: { id: match.id }, data: { scoresProcessed: true } });
         }
       } catch (e) {
         console.error(`[admin/matches] fetch-results error league ${externalLeagueId}:`, e);
+      }
+    }
+
+    if (userMatchMap.size > 0) {
+      try {
+        const userIds = [...userMatchMap.keys()];
+        const users = await prisma.user.findMany({
+          where: { id: { in: userIds }, notificationEmail: { not: null } },
+          select: { id: true, notificationEmail: true },
+        });
+        for (const user of users) {
+          const matches = userMatchMap.get(user.id);
+          if (matches?.length) await sendResultsEmail(user.notificationEmail, matches);
+        }
+      } catch (e) {
+        console.error('[admin/matches] Failed to send results emails:', e);
       }
     }
 
@@ -261,6 +295,31 @@ export async function POST(req: NextRequest) {
       }
     } catch (e: any) {
       debug.push({ league: league.name, externalId: league.externalId, error: e?.message ?? String(e) });
+    }
+  }
+
+  if (inserted > 0) {
+    try {
+      const newMatches = await prisma.match.findMany({
+        where: { weekStart: fridayStart, status: 'scheduled' },
+        include: { league: { select: { name: true } } },
+        orderBy: { kickoffTime: 'asc' },
+      });
+      const matchesForEmail: MatchForEmail[] = newMatches.map(m => ({
+        homeTeamName: m.homeTeamName,
+        awayTeamName: m.awayTeamName,
+        kickoffTime: m.kickoffTime,
+        leagueName: m.league?.name ?? 'Unknown League',
+      }));
+      const recipients = await prisma.user.findMany({
+        where: { notificationEmail: { not: null } },
+        select: { notificationEmail: true },
+      });
+      for (const user of recipients) {
+        await sendNewMatchesEmail(user.notificationEmail, matchesForEmail);
+      }
+    } catch (e) {
+      console.error('[admin/matches] Failed to send new matches emails:', e);
     }
   }
 
