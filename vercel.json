@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/fetch-matches",
-      "schedule": "59 21 * * 3"
+      "schedule": "59 21 * * 4"
     },
     {
       "path": "/api/cron/fetch-results",
