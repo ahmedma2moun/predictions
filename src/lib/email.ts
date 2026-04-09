@@ -231,3 +231,43 @@ export async function sendResultsEmail(to: string | null | undefined, matches: R
     html,
   });
 }
+
+// ─── Cron Run Notification ────────────────────────────────────────────────────
+
+export async function sendCronRunEmail(
+  cronName: string,
+  summary: Record<string, string | number>,
+): Promise<void> {
+  const to = 'ahmed.m.maamoun94@gmail.com';
+  const timestamp = new Date().toUTCString();
+
+  const rows = Object.entries(summary)
+    .map(
+      ([key, val]) => `
+      <tr>
+        <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;color:#555;font-size:13px;">${key}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;font-weight:600;font-size:13px;">${val}</td>
+      </tr>`
+    )
+    .join('');
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#1a1a1a;">
+      <div style="background:#6366f1;padding:16px 24px;border-radius:8px 8px 0 0;">
+        <h2 style="margin:0;color:#fff;font-size:18px;">Cron: ${cronName}</h2>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:12px;">${timestamp}</p>
+      </div>
+      <div style="padding:20px 24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `[Cron] ${cronName} finished`,
+    html,
+  });
+}

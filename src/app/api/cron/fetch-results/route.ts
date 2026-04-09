@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
 import { calculateScore } from '@/lib/scoring-engine';
-import { sendResultsEmail, type ResultMatchForEmail } from '@/lib/email';
+import { sendResultsEmail, sendCronRunEmail, type ResultMatchForEmail } from '@/lib/email';
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format } from 'date-fns';
 
@@ -126,5 +126,12 @@ export async function GET(req: NextRequest) {
 
   const summary = { updated, scored, errors, timestamp: new Date().toISOString() };
   console.log('[cron/fetch-results] Done —', JSON.stringify(summary));
+
+  try {
+    await sendCronRunEmail('fetch-results', summary);
+  } catch (e) {
+    console.error('[cron/fetch-results] Failed to send cron notification email:', e);
+  }
+
   return NextResponse.json(summary);
 }

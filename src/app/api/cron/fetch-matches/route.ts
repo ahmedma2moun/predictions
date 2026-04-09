@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football-api';
-import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
+import { sendNewMatchesEmail, sendCronRunEmail, type MatchForEmail } from '@/lib/email';
 import { format, addDays } from 'date-fns';
 
 export async function GET(req: NextRequest) {
@@ -96,5 +96,12 @@ export async function GET(req: NextRequest) {
 
   const summary = { inserted, skipped, errors, timestamp: new Date().toISOString() };
   console.log('[cron/fetch-matches] Done —', JSON.stringify(summary));
+
+  try {
+    await sendCronRunEmail('fetch-matches', summary);
+  } catch (e) {
+    console.error('[cron/fetch-matches] Failed to send cron notification email:', e);
+  }
+
   return NextResponse.json(summary);
 }
