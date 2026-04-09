@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
 import { calculateScore } from '@/lib/scoring-engine';
 import { sendResultsEmail, type ResultMatchForEmail } from '@/lib/email';
+import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format } from 'date-fns';
 
 export async function GET(req: NextRequest) {
@@ -113,7 +114,8 @@ export async function GET(req: NextRequest) {
       for (const user of users) {
         const matches = userMatchMap.get(user.id);
         if (user.notificationEmail && matches?.length) {
-          await sendResultsEmail(user.notificationEmail, matches);
+          const leaderboards = await getUserGroupLeaderboards(user.id);
+          await sendResultsEmail(user.notificationEmail, matches, leaderboards);
           console.log(`[cron/fetch-results] Results email sent to ${user.notificationEmail}`);
         }
       }

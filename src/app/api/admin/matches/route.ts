@@ -5,6 +5,7 @@ import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football
 import { calculateScore } from '@/lib/scoring-engine';
 import { serializeMatch } from '@/models/Match';
 import { sendNewMatchesEmail, sendResultsEmail, type MatchForEmail, type ResultMatchForEmail } from '@/lib/email';
+import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format, addDays } from 'date-fns';
 
 
@@ -148,7 +149,10 @@ export async function POST(req: NextRequest) {
         });
         for (const user of users) {
           const matches = userMatchMap.get(user.id);
-          if (matches?.length) await sendResultsEmail(user.notificationEmail, matches);
+          if (matches?.length) {
+            const leaderboards = await getUserGroupLeaderboards(user.id);
+            await sendResultsEmail(user.notificationEmail, matches, leaderboards);
+          }
         }
       } catch (e) {
         console.error('[admin/matches] Failed to send results emails:', e);

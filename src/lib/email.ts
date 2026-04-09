@@ -41,6 +41,16 @@ export interface ResultMatchForEmail {
   scoringBreakdown: { ruleName: string; pointsAwarded: number; matched: boolean }[] | null;
 }
 
+export interface GroupLeaderboardEntry {
+  userName: string;
+  totalPoints: number;
+}
+
+export interface GroupLeaderboard {
+  groupName: string;
+  entries: GroupLeaderboardEntry[];
+}
+
 // ─── New Matches Email ────────────────────────────────────────────────────────
 
 export async function sendNewMatchesEmail(to: string | null | undefined, matches: MatchForEmail[]): Promise<void> {
@@ -111,7 +121,7 @@ export async function sendNewMatchesEmail(to: string | null | undefined, matches
 
 // ─── Results Email ────────────────────────────────────────────────────────────
 
-export async function sendResultsEmail(to: string | null | undefined, matches: ResultMatchForEmail[]): Promise<void> {
+export async function sendResultsEmail(to: string | null | undefined, matches: ResultMatchForEmail[], groupLeaderboards: GroupLeaderboard[] = []): Promise<void> {
   if (!to) return;
   if (!matches.length) return;
 
@@ -173,6 +183,25 @@ export async function sendResultsEmail(to: string | null | undefined, matches: R
     })
     .join('');
 
+  const leaderboardBlocks = groupLeaderboards.map(({ groupName, entries }) => {
+    const rows = entries.map((e, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+      return `
+        <tr style="background:${i % 2 === 0 ? '#fff' : '#f9f9f9'};">
+          <td style="padding:8px 12px;font-size:13px;width:32px;">${medal}</td>
+          <td style="padding:8px 12px;font-size:13px;font-weight:500;">${e.userName}</td>
+          <td style="padding:8px 12px;font-size:13px;text-align:right;font-weight:600;">${e.totalPoints} pts</td>
+        </tr>`;
+    }).join('');
+    return `
+      <div style="margin-bottom:20px;">
+        <h3 style="margin:0 0 8px;font-size:15px;color:#1a1a1a;background:#f5f5f5;padding:8px 12px;border-radius:6px;">${groupName}</h3>
+        <table style="width:100%;border-collapse:collapse;border:1px solid #e5e5e5;border-radius:6px;overflow:hidden;">
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+
   const html = `
     <div style="font-family:sans-serif;max-width:680px;margin:0 auto;color:#1a1a1a;">
       <div style="background:#3b82f6;padding:20px 24px;border-radius:8px 8px 0 0;">
@@ -184,6 +213,11 @@ export async function sendResultsEmail(to: string | null | undefined, matches: R
         <div style="margin-top:16px;padding:12px 16px;background:#f0fdf4;border-radius:6px;border-left:4px solid #22c55e;">
           <strong>Total points earned this round: ${totalPoints}</strong>
         </div>
+        ${leaderboardBlocks.length ? `
+        <div style="margin-top:24px;">
+          <h2 style="margin:0 0 16px;font-size:17px;color:#1a1a1a;">Leaderboard</h2>
+          ${leaderboardBlocks}
+        </div>` : ''}
         <div style="margin-top:16px;text-align:center;">
           <a href="${process.env.NEXTAUTH_URL}/predictions" style="display:inline-block;background:#3b82f6;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">View My Picks &rarr;</a>
         </div>
