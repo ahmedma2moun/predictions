@@ -6,7 +6,14 @@ import { format, addDays } from 'date-fns';
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret    = process.env.CRON_SECRET;
+  const triggerSecret = process.env.TRIGGER_SECRET;
+  const isVercelCron  = !!req.headers.get('x-vercel-cron-schedule');
+  const authorized =
+    isVercelCron ||
+    (cronSecret    && authHeader === `Bearer ${cronSecret}`) ||
+    (triggerSecret && authHeader === `Bearer ${triggerSecret}`);
+  if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
