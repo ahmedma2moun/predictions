@@ -97,13 +97,20 @@ function mapFDMatch(m: FDMatch): APIFixture {
 }
 
 async function apiGet<T>(path: string, params?: Record<string, string | number>): Promise<T> {
-  console.log('[football-api] FOOTBALL_API_KEY:', API_KEY);
   const url = new URL(`${BASE_URL}${path}`);
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
   }
+  const label = `${path}${url.search}`;
+  console.log(`[football-api] GET ${label}`);
+  const t0 = Date.now();
   const res = await fetch(url.toString(), { headers, next: { revalidate: 0 } });
-  if (!res.ok) throw new Error(`football-data.org error: ${res.status} ${res.statusText}`);
+  const ms = Date.now() - t0;
+  if (!res.ok) {
+    console.error(`[football-api] ${res.status} ${res.statusText} — ${label} (${ms}ms)`);
+    throw new Error(`football-data.org error: ${res.status} ${res.statusText}`);
+  }
+  console.log(`[football-api] ${res.status} OK — ${label} (${ms}ms)`);
   return res.json();
 }
 
