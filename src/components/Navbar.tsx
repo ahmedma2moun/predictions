@@ -2,12 +2,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { LayoutDashboard, Calendar, TrendingUp, Trophy, Settings, LogOut } from "lucide-react";
+import { Calendar, TrendingUp, Trophy, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/matches", label: "Matches", icon: Calendar },
   { href: "/predictions", label: "My Picks", icon: TrendingUp, adminHidden: true },
   { href: "/leaderboard", label: "Leaders", icon: Trophy },
@@ -22,7 +21,7 @@ export function Navbar() {
     <>
       {/* Top bar — desktop */}
       <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 bg-card border-b border-border items-center px-6 gap-6">
-        <Link href="/dashboard" className="font-bold text-lg flex items-center gap-2">
+        <Link href="/matches" className="font-bold text-lg flex items-center gap-2">
           ⚽ Predictions
         </Link>
         <div className="flex items-center gap-1 flex-1">
@@ -68,7 +67,7 @@ export function Navbar() {
 
       {/* Top bar — mobile */}
       <nav className="md:hidden fixed top-0 left-0 right-0 z-50 h-12 bg-card border-b border-border flex items-center justify-between px-4">
-        <Link href="/dashboard" className="font-bold text-sm flex items-center gap-1.5">
+        <Link href="/matches" className="font-bold text-sm flex items-center gap-1.5">
           ⚽ Predictions
         </Link>
         <div className="flex items-center gap-2">

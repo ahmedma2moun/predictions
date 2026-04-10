@@ -11,7 +11,7 @@ export default auth((req) => {
   }
 
   if (pathname.startsWith('/admin') && !isAdmin) {
-    return NextResponse.redirect(new URL('/dashboard', req.url));
+    return NextResponse.redirect(new URL('/matches', req.url));
   }
 
   return NextResponse.next();
