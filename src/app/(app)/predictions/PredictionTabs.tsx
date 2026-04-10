@@ -30,6 +30,7 @@ type OtherPrediction = {
   homeScore: number;
   awayScore: number;
   pointsAwarded: number | null;
+  scoringBreakdown: RuleBreakdown[] | null;
 };
 
 function PredictionCard({ pred }: { pred: SerializedPrediction }) {
@@ -127,24 +128,44 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
           </button>
         )}
         {open && others && others.length > 0 && (
-          <div className="mt-2 space-y-1">
+          <div className="mt-2 space-y-1.5">
             {others.map((o) => (
               <div
                 key={o.userId}
-                className="flex items-center justify-between text-xs px-2 py-1 rounded-md bg-muted/40"
+                className="text-xs px-2 py-1.5 rounded-md bg-muted/40 space-y-1"
               >
-                <span className="font-medium truncate max-w-[120px]">{o.userName}</span>
-                <span className="font-mono tabular-nums">
-                  {o.homeScore} – {o.awayScore}
-                </span>
-                {isFinished && (
-                  <span
-                    className={`ml-2 ${
-                      (o.pointsAwarded ?? 0) > 0 ? "text-green-500" : "text-muted-foreground"
-                    }`}
-                  >
-                    +{o.pointsAwarded ?? 0} pts
-                  </span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium truncate max-w-[140px]">{o.userName}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono tabular-nums">
+                      {o.homeScore} – {o.awayScore}
+                    </span>
+                    {isFinished && (
+                      <span
+                        className={`font-medium ${
+                          (o.pointsAwarded ?? 0) > 0 ? "text-green-500" : "text-muted-foreground"
+                        }`}
+                      >
+                        +{o.pointsAwarded ?? 0} pts
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {isFinished && o.scoringBreakdown && o.scoringBreakdown.length > 0 && (
+                  <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+                    {o.scoringBreakdown.map((rule) => (
+                      <span
+                        key={rule.ruleName}
+                        className={
+                          rule.matched
+                            ? "text-green-500 font-medium"
+                            : "text-muted-foreground line-through"
+                        }
+                      >
+                        {rule.ruleName} +{rule.pointsAwarded}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
             ))}

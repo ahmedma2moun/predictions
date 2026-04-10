@@ -39,7 +39,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
       homeScore: p.homeScore,
       awayScore: p.awayScore,
       pointsAwarded: p.pointsAwarded,
-      scoringBreakdown: p.scoringBreakdown ?? null,
+      // Normalize from DB shape { rules: [...] } to the flat array
+      scoringBreakdown: (p.scoringBreakdown as { rules?: unknown[] } | null)?.rules ?? null,
     }));
   }
 

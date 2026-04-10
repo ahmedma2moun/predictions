@@ -14,11 +14,12 @@ export async function GET(req: NextRequest) {
   const matchWhere: any = { status: 'finished' };
   if (leagueId) matchWhere.externalLeagueId = Number(leagueId);
 
-  const now = new Date();
-  if (period === 'week') {
-    matchWhere.kickoffTime = { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
-  } else if (period === 'month') {
-    matchWhere.kickoffTime = { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+  const fromParam = searchParams.get('from');
+  const toParam   = searchParams.get('to');
+  if (fromParam || toParam) {
+    matchWhere.kickoffTime = {};
+    if (fromParam) matchWhere.kickoffTime.gte = new Date(fromParam);
+    if (toParam)   matchWhere.kickoffTime.lt  = new Date(toParam);
   }
 
   // Restrict to group members when a group is selected
