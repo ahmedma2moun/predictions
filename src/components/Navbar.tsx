@@ -30,6 +30,7 @@ export function Navbar() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 pathname.startsWith(item.href)
@@ -44,6 +45,7 @@ export function Navbar() {
           {isAdmin && (
             <Link
               href="/admin"
+              prefetch={false}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 pathname.startsWith("/admin")
@@ -86,6 +88,7 @@ export function Navbar() {
           <Link
             key={item.href}
             href={item.href}
+            prefetch={false}
             className={cn(
               "flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
               pathname.startsWith(item.href)
@@ -100,6 +103,7 @@ export function Navbar() {
         {isAdmin && (
           <Link
             href="/admin"
+            prefetch={false}
             className={cn(
               "flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
               pathname.startsWith("/admin")
