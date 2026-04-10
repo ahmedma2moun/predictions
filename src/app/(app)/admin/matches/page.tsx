@@ -22,9 +22,7 @@ export default function AdminMatchesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
-  const [fetchingMonth, setFetchingMonth] = useState(false);
   const [fetchingResults, setFetchingResults] = useState(false);
-  const [fetchingPast7, setFetchingPast7] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
 
@@ -55,33 +53,6 @@ export default function AdminMatchesPage() {
       await toastApiError(r, "Failed to fetch matches");
     }
     setFetching(false);
-  }
-
-  async function fetchNextMonth() {
-    setFetchingMonth(true);
-    const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch-month" }) });
-    if (r.ok) {
-      const data = await r.json();
-      console.table(data.debug);
-      toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
-      await loadMatches();
-    } else {
-      await toastApiError(r, "Failed to fetch next month matches");
-    }
-    setFetchingMonth(false);
-  }
-
-  async function fetchPast7() {
-    setFetchingPast7(true);
-    const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch-past7" }) });
-    if (r.ok) {
-      const data = await r.json();
-      toast.success(`Added ${data.inserted} new matches from the past 7 days`);
-      await loadMatches();
-    } else {
-      await toastApiError(r, "Failed to fetch past 7 days");
-    }
-    setFetchingPast7(false);
   }
 
   async function fetchResults() {
@@ -154,12 +125,6 @@ export default function AdminMatchesPage() {
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={fetchResults} disabled={fetchingResults}>
             {fetchingResults ? "Fetching..." : "Fetch Results"}
-          </Button>
-          <Button variant="outline" onClick={fetchPast7} disabled={fetchingPast7}>
-            {fetchingPast7 ? "Fetching..." : "Fetch Past 7 Days"}
-          </Button>
-          <Button variant="outline" onClick={fetchNextMonth} disabled={fetchingMonth}>
-            {fetchingMonth ? "Fetching..." : "Fetch Next Month"}
           </Button>
           <Button onClick={fetchMatches} disabled={fetching}>
             {fetching ? "Fetching..." : "Fetch This Week"}
