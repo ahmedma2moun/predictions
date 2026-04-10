@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
+import { getStandingsMap } from '@/lib/standings';
 import { calculateScore } from '@/lib/scoring-engine';
 import { sendResultsEmail, type ResultMatchForEmail } from '@/lib/email';
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
@@ -151,6 +152,20 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
       }
     } catch (e) {
       console.error(`[${logPrefix}] Failed to send results emails:`, e);
+    }
+  }
+
+  // Refresh standings for every league that had results processed
+  if (updated > 0) {
+    const leaguesWithResults = [...byLeague.keys()]
+      .filter(id => leagueMap.has(id))
+      .map(id => ({ externalLeagueId: id, season: leagueMap.get(id)!.season }));
+
+    try {
+      await getStandingsMap(leaguesWithResults, { force: true });
+      console.log(`[${logPrefix}] Standings refreshed for ${leaguesWithResults.length} league(s)`);
+    } catch (e) {
+      console.error(`[${logPrefix}] Failed to refresh standings:`, e);
     }
   }
 

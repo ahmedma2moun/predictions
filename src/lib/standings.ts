@@ -29,7 +29,8 @@ export function standingKey(externalTeamId: number, externalLeagueId: number): s
  * the cache is older than 2 hours) and persisted in TeamStanding for reuse.
  */
 export async function getStandingsMap(
-  leagues: { externalLeagueId: number; season: number }[]
+  leagues: { externalLeagueId: number; season: number }[],
+  { force = false }: { force?: boolean } = {}
 ): Promise<Map<string, CachedStanding>> {
   const uniqueLeagues = [
     ...new Map(leagues.map(l => [l.externalLeagueId, l])).values(),
@@ -46,7 +47,7 @@ export async function getStandingsMap(
       select: { updatedAt: true },
     });
 
-    const isStale = !newest || now - newest.updatedAt.getTime() > CACHE_TTL_MS;
+    const isStale = force || !newest || now - newest.updatedAt.getTime() > CACHE_TTL_MS;
 
     if (isStale) {
       try {
