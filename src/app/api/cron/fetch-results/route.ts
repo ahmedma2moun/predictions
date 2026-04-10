@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { fetchFixtures, fetchMatchGoals, mapFixtureStatus } from '@/lib/football-api';
 import { calculateScore } from '@/lib/scoring-engine';
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
             resultHomeScore: homeScore,
             resultAwayScore: awayScore,
             resultWinner: winner,
-            ...(goals !== null && { goals }),
+            ...(goals !== null && { goals: goals as unknown as Prisma.InputJsonValue }),
           },
           include: { league: { select: { name: true } } },
         }).catch(() => null);
