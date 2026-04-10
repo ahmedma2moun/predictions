@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { serializeMatch } from '@/models/Match';
 import { isMatchLocked } from '@/lib/utils';
-import { getStandingsMap } from '@/lib/standings';
+import { getStandingsMap, standingKey } from '@/lib/standings';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
   const session = await auth();
@@ -23,8 +23,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     getStandingsMap([{ externalLeagueId: match.externalLeagueId, season: 0 }]),
   ]);
 
-  const homeStanding = standingMap.get(match.homeTeamExtId) ?? null;
-  const awayStanding = standingMap.get(match.awayTeamExtId) ?? null;
+  const homeStanding = standingMap.get(standingKey(match.homeTeamExtId, match.externalLeagueId)) ?? null;
+  const awayStanding = standingMap.get(standingKey(match.awayTeamExtId, match.externalLeagueId)) ?? null;
 
   let allPredictions = null;
   if (isAdmin || isMatchLocked(match.kickoffTime)) {

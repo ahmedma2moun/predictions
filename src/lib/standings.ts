@@ -15,19 +15,28 @@ export type CachedStanding = {
 };
 
 /**
- * Returns a map of externalTeamId → standing for the given leagues.
+ * Composite key used in the standings map: "<teamId>_<leagueId>".
+ * A team can appear in multiple competitions so we must scope each standing
+ * to its competition — keying by teamId alone would cause collisions.
+ */
+export function standingKey(externalTeamId: number, externalLeagueId: number): string {
+  return `${externalTeamId}_${externalLeagueId}`;
+}
+
+/**
+ * Returns a map keyed by standingKey(teamId, leagueId) → standing.
  * Standings are fetched from football-data.org on the first call (or when
  * the cache is older than 2 hours) and persisted in TeamStanding for reuse.
  */
 export async function getStandingsMap(
   leagues: { externalLeagueId: number; season: number }[]
-): Promise<Map<number, CachedStanding>> {
+): Promise<Map<string, CachedStanding>> {
   const uniqueLeagues = [
     ...new Map(leagues.map(l => [l.externalLeagueId, l])).values(),
   ];
 
   const now = Date.now();
-  const result = new Map<number, CachedStanding>();
+  const result = new Map<string, CachedStanding>();
 
   for (const { externalLeagueId } of uniqueLeagues) {
     // Check freshness of the cached data for this league
@@ -89,7 +98,7 @@ export async function getStandingsMap(
     // Load from DB (fresh or cached)
     const rows = await prisma.teamStanding.findMany({ where: { externalLeagueId } });
     for (const row of rows) {
-      result.set(row.externalTeamId, {
+      result.set(standingKey(row.externalTeamId, row.externalLeagueId), {
         position: row.position,
         played: row.played,
         won: row.won,

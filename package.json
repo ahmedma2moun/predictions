@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "npx tsx scripts/seed.ts",
+    "backfill-matchday": "npx tsx scripts/backfill-matchday.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

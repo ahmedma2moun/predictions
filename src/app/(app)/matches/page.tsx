@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { serializeMatch } from "@/models/Match";
-import { getStandingsMap } from "@/lib/standings";
+import { getStandingsMap, standingKey } from "@/lib/standings";
 import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,8 +54,8 @@ export default async function MatchesPage() {
           const s = serializeMatch(match);
           const locked = isMatchLocked(match.kickoffTime);
           const prediction = predMap.get(match.id) ?? null;
-          const homeStanding = standingMap.get(match.homeTeamExtId);
-          const awayStanding = standingMap.get(match.awayTeamExtId);
+          const homeStanding = standingMap.get(standingKey(match.homeTeamExtId, match.externalLeagueId));
+          const awayStanding = standingMap.get(standingKey(match.awayTeamExtId, match.externalLeagueId));
 
           return (
             <Link key={s._id} href={`/matches/${s._id}`}>
