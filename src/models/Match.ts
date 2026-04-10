@@ -28,7 +28,7 @@ export interface IMatch {
   resultHomeScore?: number | null;
   resultAwayScore?: number | null;
   resultWinner?: 'home' | 'away' | 'draw' | null;
-  goals?: GoalEvent[] | null;
+  goals?: unknown;
   scoresProcessed: boolean;
   weekStart: Date;
   createdAt: Date;

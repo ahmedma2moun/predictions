@@ -45,7 +45,7 @@ interface FDGoal {
 }
 
 interface FDMatchDetail extends FDMatch {
-  goals: FDGoal[];
+  goals: FDGoal[] | null;
 }
 
 interface FDStandingEntry {
@@ -227,9 +227,10 @@ export async function fetchStandings(leagueId: number): Promise<{ season: number
   };
 }
 
-export async function fetchMatchGoals(fixtureId: number): Promise<import('@/models/Match').GoalEvent[]> {
+export async function fetchMatchGoals(fixtureId: number): Promise<import('@/models/Match').GoalEvent[] | null> {
   const m = await apiGet<FDMatchDetail>(`/matches/${fixtureId}`);
-  if (!m?.goals) return [];
+  if (!m) return null;
+  if (!m.goals) return null;
   return m.goals.map(g => ({
     minute: g.minute,
     injuryTime: g.injuryTime,
