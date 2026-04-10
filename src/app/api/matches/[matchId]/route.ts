@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { serializeMatch } from '@/models/Match';
 import { isMatchLocked } from '@/lib/utils';
+import { getStandingsMap } from '@/lib/standings';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
   const session = await auth();
@@ -15,9 +16,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
   const userId = Number((session.user as any).id);
   const isAdmin = (session.user as any).role === 'admin';
 
-  const prediction = isAdmin
-    ? null
-    : await prisma.prediction.findFirst({ where: { userId, matchId: match.id } });
+  const [prediction, standingMap] = await Promise.all([
+    isAdmin
+      ? Promise.resolve(null)
+      : prisma.prediction.findFirst({ where: { userId, matchId: match.id } }),
+    getStandingsMap([{ externalLeagueId: match.externalLeagueId, season: 0 }]),
+  ]);
+
+  const homeStanding = standingMap.get(match.homeTeamExtId) ?? null;
+  const awayStanding = standingMap.get(match.awayTeamExtId) ?? null;
 
   let allPredictions = null;
   if (isAdmin || isMatchLocked(match.kickoffTime)) {
@@ -36,9 +43,37 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     }));
   }
 
+  const standings = {
+    home: homeStanding
+      ? {
+          position: homeStanding.position,
+          played: homeStanding.played,
+          won: homeStanding.won,
+          drawn: homeStanding.drawn,
+          lost: homeStanding.lost,
+          points: homeStanding.points,
+          goalDifference: homeStanding.goalDifference,
+          form: homeStanding.form,
+        }
+      : null,
+    away: awayStanding
+      ? {
+          position: awayStanding.position,
+          played: awayStanding.played,
+          won: awayStanding.won,
+          drawn: awayStanding.drawn,
+          lost: awayStanding.lost,
+          points: awayStanding.points,
+          goalDifference: awayStanding.goalDifference,
+          form: awayStanding.form,
+        }
+      : null,
+  };
+
   return NextResponse.json({
     ...serializeMatch(match),
     isAdmin,
+    standings,
     prediction: prediction
       ? {
           homeScore: prediction.homeScore,

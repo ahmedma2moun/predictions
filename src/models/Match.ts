@@ -11,6 +11,8 @@ export interface IMatch {
   awayTeamLogo?: string | null;
   kickoffTime: Date;
   status: 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled';
+  matchday?: number | null;
+  venue?: string | null;
   resultHomeScore?: number | null;
   resultAwayScore?: number | null;
   resultWinner?: 'home' | 'away' | 'draw' | null;
@@ -31,6 +33,8 @@ export function serializeMatch(m: IMatch) {
     awayTeam: { externalId: m.awayTeamExtId, name: m.awayTeamName, logo: m.awayTeamLogo ?? undefined },
     kickoffTime: m.kickoffTime,
     status: m.status,
+    matchday: m.matchday ?? null,
+    venue: m.venue ?? null,
     result:
       m.resultHomeScore !== null && m.resultHomeScore !== undefined
         ? { homeScore: m.resultHomeScore, awayScore: m.resultAwayScore!, winner: m.resultWinner! }

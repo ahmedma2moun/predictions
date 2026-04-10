@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { isMatchLocked } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
-import { ChevronLeft, Minus, Plus, Lock } from "lucide-react";
+import { ChevronLeft, Minus, Plus, Lock, MapPin } from "lucide-react";
 
 function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
   return (
@@ -33,6 +33,53 @@ function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v
       >
         <Plus className="h-4 w-4" />
       </Button>
+    </div>
+  );
+}
+
+function ordinal(n: number) {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
+
+type Standing = {
+  position: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  points: number;
+  goalDifference: number;
+  form: string | null;
+} | null;
+
+function FormBadge({ char }: { char: string }) {
+  const color =
+    char === "W" ? "bg-green-500" :
+    char === "D" ? "bg-yellow-500" :
+    "bg-red-500";
+  return (
+    <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold ${color}`}>
+      {char}
+    </span>
+  );
+}
+
+function StandingsRow({ label, standing }: { label: string; standing: Standing }) {
+  if (!standing) return null;
+  const recentForm = standing.form ? standing.form.split("").slice(-5) : [];
+  return (
+    <div className="flex items-center justify-between gap-2 text-sm">
+      <span className="font-medium w-20 truncate text-xs text-muted-foreground">{label}</span>
+      <span className="font-bold w-8 text-center">{ordinal(standing.position)}</span>
+      <span className="text-muted-foreground text-xs w-12 text-center">
+        {standing.won}W {standing.drawn}D {standing.lost}L
+      </span>
+      <span className="font-semibold w-10 text-center">{standing.points} pts</span>
+      <div className="flex gap-0.5">
+        {recentForm.map((c, i) => <FormBadge key={i} char={c} />)}
+      </div>
     </div>
   );
 }
@@ -66,6 +113,8 @@ export default function MatchPredictionPage() {
 
   const locked = isMatchLocked(match.kickoffTime);
   const isAdmin = match.isAdmin as boolean;
+  const standings: { home: Standing; away: Standing } = match.standings ?? { home: null, away: null };
+  const hasStandings = standings.home !== null || standings.away !== null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,7 +151,17 @@ export default function MatchPredictionPage() {
               {locked ? <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Locked</span> : match.status.toUpperCase()}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground"><KickoffTime date={match.kickoffTime} /></p>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground"><KickoffTime date={match.kickoffTime} /></p>
+            {match.matchday && (
+              <p className="text-xs text-muted-foreground">Matchday {match.matchday}</p>
+            )}
+            {match.venue && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-3 w-3" />{match.venue}
+              </p>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
@@ -110,12 +169,18 @@ export default function MatchPredictionPage() {
               <div className="flex-1 flex flex-col items-center gap-3">
                 {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="h-16 w-16 object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.homeTeam.name}</p>
+                {standings.home && (
+                  <p className="text-xs text-muted-foreground">{ordinal(standings.home.position)}</p>
+                )}
                 {!isAdmin && <ScoreInput value={homeScore} onChange={setHomeScore} disabled={locked} />}
               </div>
               <div className="text-muted-foreground font-bold text-xl">–</div>
               <div className="flex-1 flex flex-col items-center gap-3">
                 {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="h-16 w-16 object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.awayTeam.name}</p>
+                {standings.away && (
+                  <p className="text-xs text-muted-foreground">{ordinal(standings.away.position)}</p>
+                )}
                 {!isAdmin && <ScoreInput value={awayScore} onChange={setAwayScore} disabled={locked} />}
               </div>
             </div>
@@ -152,6 +217,25 @@ export default function MatchPredictionPage() {
           </div>
         </CardContent>
       </Card>
+
+      {hasStandings && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">League Standings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between text-xs text-muted-foreground px-0 mb-1">
+              <span className="w-20" />
+              <span className="w-8 text-center">Pos</span>
+              <span className="w-12 text-center">Record</span>
+              <span className="w-10 text-center">Pts</span>
+              <span className="text-xs">Form</span>
+            </div>
+            <StandingsRow label={match.homeTeam.name} standing={standings.home} />
+            <StandingsRow label={match.awayTeam.name} standing={standings.away} />
+          </CardContent>
+        </Card>
+      )}
 
       {(locked || isAdmin) && allPredictions && (
         <Card>

@@ -82,6 +82,8 @@ model Match {
   awayTeamLogo     String?
   kickoffTime      DateTime
   status           MatchStatus  @default(scheduled)
+  matchday         Int?
+  venue            String?
   resultHomeScore  Int?
   resultAwayScore  Int?
   resultWinner     Winner?
@@ -138,4 +140,24 @@ model GroupMember {
   user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId])
+}
+
+model TeamStanding {
+  id               Int      @id @default(autoincrement())
+  externalTeamId   Int
+  externalLeagueId Int
+  season           Int
+  position         Int
+  played           Int
+  won              Int
+  drawn            Int
+  lost             Int
+  points           Int
+  goalsFor         Int
+  goalsAgainst     Int
+  goalDifference   Int
+  form             String?
+  updatedAt        DateTime @updatedAt
+
+  @@unique([externalTeamId, externalLeagueId])
 }

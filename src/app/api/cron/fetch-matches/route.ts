@@ -56,6 +56,8 @@ export async function GET(req: NextRequest) {
             awayTeamLogo: f.teams.away.logo,
             kickoffTime: new Date(f.fixture.date),
             status: mapFixtureStatus(f.fixture.status.short),
+            matchday: f.fixture.matchday ?? null,
+            venue: f.fixture.venue ?? null,
             scoresProcessed: false,
             weekStart: fridayStart,
           })),

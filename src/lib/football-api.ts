@@ -25,11 +25,36 @@ interface FDMatch {
   id: number;
   utcDate: string;
   status: string;
+  matchday?: number;
+  venue?: string;
   competition: { id: number; name: string; emblem?: string };
   season: { startDate: string };
   homeTeam: { id: number; name?: string; crest?: string };
   awayTeam: { id: number; name?: string; crest?: string };
   score: { fullTime: { home: number | null; away: number | null } };
+}
+
+interface FDStandingEntry {
+  position: number;
+  team: { id: number; name: string; crest?: string };
+  playedGames: number;
+  form: string | null;
+  won: number;
+  draw: number;
+  lost: number;
+  points: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+}
+
+interface FDStandingsResponse {
+  season: { startDate: string };
+  standings: Array<{
+    stage: string;
+    type: string;
+    table: FDStandingEntry[];
+  }>;
 }
 
 function fdStatusToShort(status: string): string {
@@ -51,6 +76,8 @@ function mapFDMatch(m: FDMatch): APIFixture {
       id: m.id,
       date: m.utcDate,
       status: { short: fdStatusToShort(m.status), long: m.status },
+      matchday: m.matchday,
+      venue: m.venue,
     },
     league: {
       id: m.competition.id,
@@ -87,7 +114,7 @@ export interface APILeague {
 }
 
 export interface APIFixture {
-  fixture: { id: number; date: string; status: { short: string; long: string } };
+  fixture: { id: number; date: string; status: { short: string; long: string }; matchday?: number; venue?: string };
   league: { id: number; name: string; logo: string; season: number };
   teams: {
     home: { id: number; name: string; logo: string };
@@ -95,6 +122,21 @@ export interface APIFixture {
   };
   goals: { home: number | null; away: number | null };
   score: { fulltime: { home: number | null; away: number | null } };
+}
+
+export interface APIStandingEntry {
+  position: number;
+  teamId: number;
+  teamName: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  points: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  form: string | null;
 }
 
 export interface APITeam {
@@ -142,6 +184,32 @@ export async function fetchFixtures(params: {
 export async function fetchFixtureById(fixtureId: number): Promise<APIFixture | null> {
   const m = await apiGet<FDMatch>(`/matches/${fixtureId}`);
   return m ? mapFDMatch(m) : null;
+}
+
+export async function fetchStandings(leagueId: number): Promise<{ season: number; standings: APIStandingEntry[] }> {
+  const data = await apiGet<FDStandingsResponse>(`/competitions/${leagueId}/standings`);
+  const season = new Date(data.season.startDate).getFullYear();
+  const table =
+    data.standings.find(s => s.type === 'TOTAL')?.table ??
+    data.standings[0]?.table ??
+    [];
+  return {
+    season,
+    standings: table.map(e => ({
+      position: e.position,
+      teamId: e.team.id,
+      teamName: e.team.name,
+      played: e.playedGames,
+      won: e.won,
+      drawn: e.draw,
+      lost: e.lost,
+      points: e.points,
+      goalsFor: e.goalsFor,
+      goalsAgainst: e.goalsAgainst,
+      goalDifference: e.goalDifference,
+      form: e.form,
+    })),
+  };
 }
 
 export function mapFixtureStatus(short: string): 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled' {
