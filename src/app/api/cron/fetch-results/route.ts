@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
+import { fetchFixtures, fetchMatchGoals, mapFixtureStatus } from '@/lib/football-api';
 import { calculateScore } from '@/lib/scoring-engine';
 import { sendResultsEmail, sendCronRunEmail, type ResultMatchForEmail } from '@/lib/email';
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
@@ -50,9 +50,24 @@ export async function GET(req: NextRequest) {
         }
 
         const winner = homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
+
+        // Fetch goal scorers for this match (separate API call)
+        let goals = null;
+        try {
+          goals = await fetchMatchGoals(f.fixture.id);
+        } catch (e) {
+          console.warn(`[cron/fetch-results] Could not fetch goals for fixture ${f.fixture.id}:`, e);
+        }
+
         const match = await prisma.match.update({
           where: { externalId: f.fixture.id },
-          data: { status: 'finished', resultHomeScore: homeScore, resultAwayScore: awayScore, resultWinner: winner },
+          data: {
+            status: 'finished',
+            resultHomeScore: homeScore,
+            resultAwayScore: awayScore,
+            resultWinner: winner,
+            ...(goals !== null && { goals }),
+          },
           include: { league: { select: { name: true } } },
         }).catch(() => null);
 

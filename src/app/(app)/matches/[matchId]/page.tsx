@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { isMatchLocked, formatStage, isKnockoutStage } from "@/lib/utils";
+import type { GoalEvent } from "@/models/Match";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
 import { ChevronLeft, Minus, Plus, Lock, MapPin } from "lucide-react";
@@ -116,7 +117,7 @@ export default function MatchPredictionPage() {
   useEffect(() => {
     if (!match || locked) return;
     const ms = new Date(match.kickoffTime).getTime() - Date.now();
-    if (ms <= 0) { setLocked(true); return; }
+    if (ms <= 0) { const t = setTimeout(() => setLocked(true), 0); return () => clearTimeout(t); }
     const timer = setTimeout(() => setLocked(true), ms);
     return () => clearTimeout(timer);
   }, [match, locked]);
@@ -216,6 +217,35 @@ export default function MatchPredictionPage() {
                     <span className="text-yellow-500 font-bold">+{match.prediction.pointsAwarded} pts</span>
                   </p>
                 )}
+              </div>
+            )}
+
+            {match.goals && match.goals.length > 0 && (
+              <div className="space-y-1">
+                {(match.goals as GoalEvent[]).map((g, i) => {
+                  const isHome = g.teamId === match.homeTeam.externalId;
+                  const minute = g.injuryTime ? `${g.minute}+${g.injuryTime}'` : `${g.minute}'`;
+                  const icon = g.type === 'OWN_GOAL' ? '⚽ OG' : g.type === 'PENALTY' ? '⚽ P' : '⚽';
+                  return (
+                    <div key={i} className={`flex items-center gap-2 text-xs ${isHome ? 'justify-start' : 'justify-end'}`}>
+                      {isHome ? (
+                        <>
+                          <span className="text-muted-foreground tabular-nums">{minute}</span>
+                          <span>{icon}</span>
+                          <span className="font-medium">{g.scorerName ?? '—'}</span>
+                          {g.assistName && <span className="text-muted-foreground">({g.assistName})</span>}
+                        </>
+                      ) : (
+                        <>
+                          {g.assistName && <span className="text-muted-foreground">({g.assistName})</span>}
+                          <span className="font-medium">{g.scorerName ?? '—'}</span>
+                          <span>{icon}</span>
+                          <span className="text-muted-foreground tabular-nums">{minute}</span>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 

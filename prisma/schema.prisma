@@ -89,6 +89,7 @@ model Match {
   resultHomeScore  Int?
   resultAwayScore  Int?
   resultWinner     Winner?
+  goals            Json?
   scoresProcessed  Boolean      @default(false)
   weekStart        DateTime
   createdAt        DateTime     @default(now())
