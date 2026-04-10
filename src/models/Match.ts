@@ -1,13 +1,3 @@
-export interface GoalEvent {
-  minute: number | null;
-  injuryTime: number | null;
-  type: string;
-  teamId: number | null;
-  teamName: string | null;
-  scorerName: string | null;
-  assistName: string | null;
-}
-
 export interface IMatch {
   id: number;
   externalId: number;
@@ -28,7 +18,6 @@ export interface IMatch {
   resultHomeScore?: number | null;
   resultAwayScore?: number | null;
   resultWinner?: 'home' | 'away' | 'draw' | null;
-  goals?: unknown;
   scoresProcessed: boolean;
   weekStart: Date;
   createdAt: Date;
@@ -54,7 +43,6 @@ export function serializeMatch(m: IMatch) {
       m.resultHomeScore !== null && m.resultHomeScore !== undefined
         ? { homeScore: m.resultHomeScore, awayScore: m.resultAwayScore!, winner: m.resultWinner! }
         : undefined,
-    goals: (m.goals as GoalEvent[] | null) ?? null,
     scoresProcessed: m.scoresProcessed,
     weekStart: m.weekStart,
     createdAt: m.createdAt,

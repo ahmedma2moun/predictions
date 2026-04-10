@@ -35,19 +35,6 @@ interface FDMatch {
   score: { fullTime: { home: number | null; away: number | null } };
 }
 
-interface FDGoal {
-  minute: number | null;
-  injuryTime: number | null;
-  type: string;
-  team: { id: number; name: string } | null;
-  scorer: { id: number; name: string } | null;
-  assist: { id: number; name: string } | null;
-}
-
-interface FDMatchDetail extends FDMatch {
-  goals: FDGoal[] | null;
-}
-
 interface FDStandingEntry {
   position: number;
   team: { id: number; name: string; crest?: string };
@@ -225,21 +212,6 @@ export async function fetchStandings(leagueId: number): Promise<{ season: number
       form: e.form,
     })),
   };
-}
-
-export async function fetchMatchGoals(fixtureId: number): Promise<import('@/models/Match').GoalEvent[] | null> {
-  const m = await apiGet<FDMatchDetail>(`/matches/${fixtureId}`);
-  if (!m) return null;
-  if (!m.goals) return null;
-  return m.goals.map(g => ({
-    minute: g.minute,
-    injuryTime: g.injuryTime,
-    type: g.type,
-    teamId: g.team?.id ?? null,
-    teamName: g.team?.name ?? null,
-    scorerName: g.scorer?.name ?? null,
-    assistName: g.assist?.name ?? null,
-  }));
 }
 
 export function mapFixtureStatus(short: string): 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled' {

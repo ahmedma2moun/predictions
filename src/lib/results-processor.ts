@@ -1,6 +1,5 @@
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { fetchFixtures, fetchMatchGoals, mapFixtureStatus } from '@/lib/football-api';
+import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
 import { calculateScore } from '@/lib/scoring-engine';
 import { sendResultsEmail, type ResultMatchForEmail } from '@/lib/email';
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
@@ -83,22 +82,9 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
 
         const winner = homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
 
-        let goals = null;
-        try {
-          goals = await fetchMatchGoals(f.fixture.id);
-        } catch (e) {
-          console.warn(`[${logPrefix}] Could not fetch goals for fixture ${f.fixture.id}:`, e);
-        }
-
         const updatedMatch = await prisma.match.update({
           where: { id: match.id },
-          data: {
-            status: 'finished',
-            resultHomeScore: homeScore,
-            resultAwayScore: awayScore,
-            resultWinner: winner,
-            ...(goals !== null && { goals: goals as unknown as Prisma.InputJsonValue }),
-          },
+          data: { status: 'finished', resultHomeScore: homeScore, resultAwayScore: awayScore, resultWinner: winner },
         });
         updated++;
         console.log(`[${logPrefix}] Result saved: ${match.homeTeamName} ${homeScore}–${awayScore} ${match.awayTeamName}`);
