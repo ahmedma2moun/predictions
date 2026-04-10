@@ -3,18 +3,35 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/client-api";
+
+type League = {
+  _id: string | null;
+  externalId: number;
+  name: string;
+  country: string;
+  season: number;
+  logo?: string;
+  isActive: boolean;
+};
 
 export default function AdminLeaguesPage() {
-  const [leagues, setLeagues] = useState<any[]>([]);
+  const [leagues, setLeagues] = useState<League[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/leagues")
-      .then(r => r.json())
-      .then(data => { setLeagues(data); setLoading(false); });
+      .then(async r => {
+        if (!r.ok) throw new Error("Failed to load leagues");
+        return r.json();
+      })
+      .then(data => { setLeagues(data); setLoading(false); })
+      .catch(() => { setError("Failed to load leagues. Please refresh."); setLoading(false); });
   }, []);
 
   async function fetchFromApi() {
@@ -24,25 +41,33 @@ export default function AdminLeaguesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "fetch" }),
     });
-    const data = await r.json();
-    setLeagues(data.sort((a: any, b: any) => a.name.localeCompare(b.name)));
-    toast.success(`Loaded ${data.length} leagues from API`);
+    if (r.ok) {
+      const data = await r.json();
+      setLeagues(data.sort((a: League, b: League) => a.name.localeCompare(b.name)));
+      toast.success(`Loaded ${data.length} leagues from API`);
+    } else {
+      await toastApiError(r, "Failed to fetch leagues");
+    }
     setFetching(false);
   }
 
-  async function toggleLeague(league: any, isActive: boolean) {
+  async function toggleLeague(league: League, isActive: boolean) {
     const r = await fetch("/api/admin/leagues", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...league, isActive }),
     });
-    const data = await r.json();
-    setLeagues(prev => prev.map(l =>
-      l.externalId === league.externalId
-        ? { ...l, isActive, _id: isActive ? data._id : null }
-        : l
-    ));
-    toast.success(isActive ? "League activated" : "League removed");
+    if (r.ok) {
+      const data = await r.json();
+      setLeagues(prev => prev.map(l =>
+        l.externalId === league.externalId
+          ? { ...l, isActive, _id: isActive ? data._id : null }
+          : l
+      ));
+      toast.success(isActive ? "League activated" : "League removed");
+    } else {
+      await toastApiError(r, "Failed to update league");
+    }
   }
 
   const filtered = leagues.filter(l =>
@@ -67,7 +92,20 @@ export default function AdminLeaguesPage() {
       <Card>
         <CardContent className="pt-4 space-y-2">
           {loading ? (
-            <p className="text-muted-foreground">Loading...</p>
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-6 w-6 rounded" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-32 rounded" />
+                    <Skeleton className="h-3 w-24 rounded" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-10 rounded-full" />
+              </div>
+            ))
+          ) : error ? (
+            <p className="text-destructive text-sm">{error}</p>
           ) : filtered.length === 0 ? (
             <p className="text-muted-foreground">
               {leagues.length === 0

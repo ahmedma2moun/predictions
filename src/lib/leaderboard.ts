@@ -4,43 +4,48 @@ import type { GroupLeaderboard } from '@/lib/email';
 /**
  * Returns leaderboard data for all non-default groups the given user belongs to.
  * Entries are sorted by total points descending.
+ *
+ * Uses 2 DB queries regardless of the number of groups (was N+1 before):
+ *   1. Fetch all group memberships with their full member lists in one include.
+ *   2. One groupBy aggregation across all member IDs combined.
  */
 export async function getUserGroupLeaderboards(userId: number): Promise<GroupLeaderboard[]> {
-  // Find groups the user belongs to, excluding the default (General) group
+  // Single query: get all non-default groups the user belongs to,
+  // with each group's full member list included.
   const memberships = await prisma.groupMember.findMany({
     where: { userId, group: { isDefault: false } },
-    select: { groupId: true, group: { select: { name: true } } },
+    select: {
+      group: {
+        select: {
+          name: true,
+          members: {
+            select: { userId: true, user: { select: { name: true } } },
+          },
+        },
+      },
+    },
   });
 
   if (!memberships.length) return [];
 
-  const result: GroupLeaderboard[] = [];
+  // Collect every member ID across all groups for a single aggregation query.
+  const allMemberIds = [
+    ...new Set(memberships.flatMap(m => m.group.members.map(gm => gm.userId))),
+  ];
 
-  for (const { groupId, group } of memberships) {
-    // Get all members of this group
-    const members = await prisma.groupMember.findMany({
-      where: { groupId },
-      select: { userId: true, user: { select: { name: true } } },
-    });
+  // Single aggregation for all members — no more N per-group queries.
+  const pointRows = await prisma.prediction.groupBy({
+    by: ['userId'],
+    where: { userId: { in: allMemberIds } },
+    _sum: { pointsAwarded: true },
+  });
 
-    const memberIds = members.map(m => m.userId);
-    const userNameMap = new Map(members.map(m => [m.userId, m.user.name]));
+  const pointMap = new Map(pointRows.map(r => [r.userId, r._sum.pointsAwarded ?? 0]));
 
-    // Sum all-time points per member
-    const pointRows = await prisma.prediction.groupBy({
-      by: ['userId'],
-      where: { userId: { in: memberIds } },
-      _sum: { pointsAwarded: true },
-    });
-
-    const pointMap = new Map(pointRows.map(r => [r.userId, r._sum.pointsAwarded ?? 0]));
-
-    const entries = memberIds
-      .map(id => ({ userName: userNameMap.get(id) ?? 'Unknown', totalPoints: pointMap.get(id) ?? 0 }))
+  return memberships.map(({ group }) => {
+    const entries = group.members
+      .map(m => ({ userName: m.user.name, totalPoints: pointMap.get(m.userId) ?? 0 }))
       .sort((a, b) => b.totalPoints - a.totalPoints);
-
-    result.push({ groupName: group.name, entries });
-  }
-
-  return result;
+    return { groupName: group.name, entries };
+  });
 }

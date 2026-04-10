@@ -6,9 +6,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { isMatchLocked } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
-import { Lock, CheckCircle } from "lucide-react";
+import { LiveLockIcon } from "@/components/LiveLockIcon";
+import { CheckCircle } from "lucide-react";
 
 function ordinal(n: number) {
   const s = ["th", "st", "nd", "rd"];
@@ -52,7 +52,6 @@ export default async function MatchesPage() {
       ) : (
         matches.map((match) => {
           const s = serializeMatch(match);
-          const locked = isMatchLocked(match.kickoffTime);
           const prediction = predMap.get(match.id) ?? null;
           const homeStanding = standingMap.get(standingKey(match.homeTeamExtId, match.externalLeagueId));
           const awayStanding = standingMap.get(standingKey(match.awayTeamExtId, match.externalLeagueId));
@@ -66,7 +65,7 @@ export default async function MatchesPage() {
                       <KickoffTime date={match.kickoffTime} />
                     </span>
                     <div className="flex items-center gap-2">
-                      {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                      <LiveLockIcon kickoffTime={match.kickoffTime} />
                       {prediction && <CheckCircle className="h-3 w-3 text-green-500" />}
                       <Badge
                         variant={match.status === "live" ? "destructive" : "outline"}

@@ -3,12 +3,24 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/client-api";
 import { KickoffTime } from "@/components/KickoffTime";
 
+type AdminMatch = {
+  _id: string;
+  homeTeam: { name: string };
+  awayTeam: { name: string };
+  kickoffTime: string;
+  status: string;
+  result?: { homeScore: number; awayScore: number };
+};
+
 export default function AdminMatchesPage() {
-  const [matches, setMatches] = useState<any[]>([]);
+  const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
   const [fetchingMonth, setFetchingMonth] = useState(false);
   const [fetchingResults, setFetchingResults] = useState(false);
@@ -17,10 +29,16 @@ export default function AdminMatchesPage() {
   const [deleting, setDeleting] = useState(false);
 
   async function loadMatches() {
-    const r = await fetch("/api/admin/matches");
-    const data = await r.json();
-    setMatches(data.matches || []);
-    setLoading(false);
+    try {
+      const r = await fetch("/api/admin/matches");
+      if (!r.ok) throw new Error("Failed to load matches");
+      const data = await r.json();
+      setMatches(data.matches || []);
+    } catch {
+      setError("Failed to load matches. Please refresh.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { loadMatches(); }, []);
@@ -28,38 +46,54 @@ export default function AdminMatchesPage() {
   async function fetchMatches() {
     setFetching(true);
     const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch" }) });
-    const data = await r.json();
-    console.table(data.debug);
-    toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
-    await loadMatches();
+    if (r.ok) {
+      const data = await r.json();
+      console.table(data.debug);
+      toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
+      await loadMatches();
+    } else {
+      await toastApiError(r, "Failed to fetch matches");
+    }
     setFetching(false);
   }
 
   async function fetchNextMonth() {
     setFetchingMonth(true);
     const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch-month" }) });
-    const data = await r.json();
-    console.table(data.debug);
-    toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
-    await loadMatches();
+    if (r.ok) {
+      const data = await r.json();
+      console.table(data.debug);
+      toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
+      await loadMatches();
+    } else {
+      await toastApiError(r, "Failed to fetch next month matches");
+    }
     setFetchingMonth(false);
   }
 
   async function fetchPast7() {
     setFetchingPast7(true);
     const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch-past7" }) });
-    const data = await r.json();
-    toast.success(`Added ${data.inserted} new matches from the past 7 days`);
-    await loadMatches();
+    if (r.ok) {
+      const data = await r.json();
+      toast.success(`Added ${data.inserted} new matches from the past 7 days`);
+      await loadMatches();
+    } else {
+      await toastApiError(r, "Failed to fetch past 7 days");
+    }
     setFetchingPast7(false);
   }
 
   async function fetchResults() {
     setFetchingResults(true);
     const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch-results" }) });
-    const data = await r.json();
-    toast.success(`Updated ${data.updated} results, scored ${data.scored} predictions`);
-    await loadMatches();
+    if (r.ok) {
+      const data = await r.json();
+      toast.success(`Updated ${data.updated} results, scored ${data.scored} predictions`);
+      await loadMatches();
+    } else {
+      await toastApiError(r, "Failed to fetch results");
+    }
     setFetchingResults(false);
   }
 
@@ -94,14 +128,24 @@ export default function AdminMatchesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: Array.from(selected) }),
     });
-    const data = await r.json();
-    toast.success(`Deleted ${data.deleted} match${data.deleted !== 1 ? "es" : ""}`);
-    setSelected(new Set());
-    await loadMatches();
+    if (r.ok) {
+      const data = await r.json();
+      toast.success(`Deleted ${data.deleted} match${data.deleted !== 1 ? "es" : ""}`);
+      setSelected(new Set());
+      await loadMatches();
+    } else {
+      await toastApiError(r, "Failed to delete matches");
+    }
     setDeleting(false);
   }
 
-  const statusColors: Record<string, any> = { scheduled: "outline", live: "destructive", finished: "secondary", postponed: "secondary", cancelled: "secondary" };
+  const statusColors: Record<string, "outline" | "destructive" | "secondary"> = {
+    scheduled: "outline",
+    live: "destructive",
+    finished: "secondary",
+    postponed: "secondary",
+    cancelled: "secondary",
+  };
 
   return (
     <div className="space-y-4">
@@ -124,7 +168,20 @@ export default function AdminMatchesPage() {
       </div>
       <Card>
         <CardContent className="pt-4 space-y-2">
-          {loading ? <p className="text-muted-foreground">Loading...</p> : visibleMatches.length === 0 ? (
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-3">
+                <Skeleton className="h-4 w-4 rounded" />
+                <div className="flex-1 space-y-1">
+                  <Skeleton className="h-4 w-48 rounded" />
+                  <Skeleton className="h-3 w-32 rounded" />
+                </div>
+                <Skeleton className="h-6 w-20 rounded" />
+              </div>
+            ))
+          ) : error ? (
+            <p className="text-destructive text-sm">{error}</p>
+          ) : visibleMatches.length === 0 ? (
             <p className="text-muted-foreground">No matches to display.</p>
           ) : (
             <>
@@ -162,7 +219,7 @@ export default function AdminMatchesPage() {
                       <p className="text-xs text-muted-foreground">Result: {match.result.homeScore}–{match.result.awayScore}</p>
                     )}
                   </div>
-                  <Badge variant={statusColors[match.status] || "outline"}>{match.status}</Badge>
+                  <Badge variant={statusColors[match.status] ?? "outline"}>{match.status}</Badge>
                 </div>
               ))}
             </>

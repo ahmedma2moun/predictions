@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 type User = { id: number; _id: string; name: string; email: string; avatarUrl?: string };
@@ -30,18 +31,25 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
   const [busy, setBusy]         = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState("");
 
-  async function loadAll() {
-    const [grp, users] = await Promise.all([
+  // Load group + all users once on mount — never re-fetches all users on member changes
+  useEffect(() => {
+    Promise.all([
       fetch(`/api/admin/groups/${id}`).then(r => r.json()),
       fetch("/api/admin/users").then(r => r.json()),
-    ]);
+    ]).then(([grp, users]) => {
+      setGroup(grp);
+      setNameEdit(grp.name ?? "");
+      setAllUsers(users);
+      setLoading(false);
+    });
+  }, [id]);
+
+  // Re-fetches only the group (members list) after a mutation — not all users
+  async function reloadGroup() {
+    const grp = await fetch(`/api/admin/groups/${id}`).then(r => r.json());
     setGroup(grp);
     setNameEdit(grp.name ?? "");
-    setAllUsers(users);
-    setLoading(false);
   }
-
-  useEffect(() => { loadAll(); }, [id]);
 
   async function patch(body: object, busyKey: string) {
     setBusy(busyKey);
@@ -56,7 +64,7 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
       toast.error(err.error || "Failed");
       return false;
     }
-    await loadAll();
+    await reloadGroup();
     return true;
   }
 
@@ -75,8 +83,36 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
      u.email.toLowerCase().includes(userSearch.toLowerCase()))
   );
 
-  if (loading) return <p className="text-muted-foreground text-sm">Loading…</p>;
-  if (!group)  return <p className="text-destructive text-sm">Group not found.</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-2xl">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-8 w-20 rounded" />
+          <Skeleton className="h-6 w-40 rounded" />
+        </div>
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-28 rounded" /></CardHeader>
+          <CardContent><Skeleton className="h-9 w-64 rounded" /></CardContent>
+        </Card>
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-36 rounded" /></CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-2">
+                <Skeleton className="h-7 w-7 rounded-full" />
+                <div className="flex-1 space-y-1">
+                  <Skeleton className="h-4 w-32 rounded" />
+                  <Skeleton className="h-3 w-48 rounded" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!group) return <p className="text-destructive text-sm">Group not found.</p>;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -121,7 +157,7 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
                       disabled={busy === `rm-${u.id}`}
                       onClick={() => patch({ action: "remove-member", userId: u.id }, `rm-${u.id}`)}
                     >
-                      Remove
+                      {busy === `rm-${u.id}` ? "Removing…" : "Remove"}
                     </Button>
                   )}
                 </div>
@@ -154,7 +190,7 @@ export default function AdminGroupDetailPage({ params }: { params: Promise<{ id:
                       disabled={busy === `add-${u.id}`}
                       onClick={() => patch({ action: "add-member", userId: u.id }, `add-${u.id}`)}
                     >
-                      Add
+                      {busy === `add-${u.id}` ? "Adding…" : "Add"}
                     </Button>
                   </div>
                 ))

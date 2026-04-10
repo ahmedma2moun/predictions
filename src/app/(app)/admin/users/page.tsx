@@ -6,23 +6,41 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/client-api";
+
+type AdminUser = {
+  _id: string;
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  notificationEmail?: string | null;
+};
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "user" });
   const [saving, setSaving] = useState(false);
 
-  const [editUser, setEditUser] = useState<any | null>(null);
+  const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [editForm, setEditForm] = useState({ name: "", role: "user", password: "", notificationEmail: "" });
   const [editSaving, setEditSaving] = useState(false);
 
   async function loadUsers() {
-    const r = await fetch("/api/admin/users");
-    setUsers(await r.json());
-    setLoading(false);
+    try {
+      const r = await fetch("/api/admin/users");
+      if (!r.ok) throw new Error("Failed to load users");
+      setUsers(await r.json());
+    } catch {
+      setError("Failed to load users. Please refresh.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { loadUsers(); }, []);
@@ -30,7 +48,11 @@ export default function AdminUsersPage() {
   async function createUser(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const r = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const r = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
     setSaving(false);
     if (r.ok) {
       toast.success("User created");
@@ -38,12 +60,11 @@ export default function AdminUsersPage() {
       setForm({ name: "", email: "", password: "", role: "user" });
       await loadUsers();
     } else {
-      const err = await r.json();
-      toast.error(err.error || "Failed");
+      await toastApiError(r, "Failed to create user");
     }
   }
 
-  function openEdit(user: any) {
+  function openEdit(user: AdminUser) {
     setEditUser(user);
     setEditForm({ name: user.name, role: user.role, password: "", notificationEmail: user.notificationEmail ?? "" });
   }
@@ -52,17 +73,25 @@ export default function AdminUsersPage() {
     e.preventDefault();
     if (!editUser) return;
     setEditSaving(true);
-    const payload: any = { id: editUser._id, name: editForm.name, role: editForm.role, notificationEmail: editForm.notificationEmail };
+    const payload: Record<string, string> = {
+      id: editUser._id,
+      name: editForm.name,
+      role: editForm.role,
+      notificationEmail: editForm.notificationEmail,
+    };
     if (editForm.password) payload.password = editForm.password;
-    const r = await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const r = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
     setEditSaving(false);
     if (r.ok) {
       toast.success("User updated");
       setEditUser(null);
       await loadUsers();
     } else {
-      const err = await r.json();
-      toast.error(err.error || "Failed");
+      await toastApiError(r, "Failed to update user");
     }
   }
 
@@ -92,21 +121,35 @@ export default function AdminUsersPage() {
       </div>
       <Card>
         <CardContent className="pt-4 space-y-2">
-          {loading ? <p className="text-muted-foreground">Loading...</p> : users.map(user => (
-            <div key={user._id} className="flex items-center justify-between p-3 rounded-lg bg-accent">
-              <div>
-                <p className="font-medium text-sm">{user.name}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-                {user.notificationEmail && (
-                  <p className="text-xs text-muted-foreground">Notify: {user.notificationEmail}</p>
-                )}
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-3">
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-32 rounded" />
+                  <Skeleton className="h-3 w-48 rounded" />
+                </div>
+                <Skeleton className="h-8 w-16 rounded" />
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role}</Badge>
-                <Button size="sm" variant="outline" onClick={() => openEdit(user)}>Edit</Button>
+            ))
+          ) : error ? (
+            <p className="text-destructive text-sm">{error}</p>
+          ) : (
+            users.map(user => (
+              <div key={user._id} className="flex items-center justify-between p-3 rounded-lg bg-accent">
+                <div>
+                  <p className="font-medium text-sm">{user.name}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                  {user.notificationEmail && (
+                    <p className="text-xs text-muted-foreground">Notify: {user.notificationEmail}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role}</Badge>
+                  <Button size="sm" variant="outline" onClick={() => openEdit(user)}>Edit</Button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </CardContent>
       </Card>
 

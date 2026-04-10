@@ -93,6 +93,8 @@ export default function MatchPredictionPage() {
   const [awayScore, setAwayScore] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Reactive lock: starts false, set true once match loads, then auto-updates at kickoff.
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     fetch(`/api/matches/${matchId}`)
@@ -105,13 +107,22 @@ export default function MatchPredictionPage() {
           setAwayScore(data.prediction.awayScore);
         }
         setLoading(false);
+        // Compute initial lock state from server data
+        setLocked(isMatchLocked(data.kickoffTime));
       });
   }, [matchId]);
 
+  // Auto-lock at kickoff if the page is left open — avoids a full re-fetch.
+  useEffect(() => {
+    if (!match || locked) return;
+    const ms = new Date(match.kickoffTime).getTime() - Date.now();
+    if (ms <= 0) { setLocked(true); return; }
+    const timer = setTimeout(() => setLocked(true), ms);
+    return () => clearTimeout(timer);
+  }, [match, locked]);
+
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin text-4xl">⚽</div></div>;
   if (!match) return <div className="p-4">Match not found</div>;
-
-  const locked = isMatchLocked(match.kickoffTime);
   const isAdmin = match.isAdmin as boolean;
   const standings: { home: Standing; away: Standing } = match.standings ?? { home: null, away: null };
   const hasStandings = standings.home !== null || standings.away !== null;
