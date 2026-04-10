@@ -25,6 +25,7 @@ interface FDMatch {
   id: number;
   utcDate: string;
   status: string;
+  stage?: string;
   matchday?: number;
   venue?: string;
   competition: { id: number; name: string; emblem?: string };
@@ -76,6 +77,7 @@ function mapFDMatch(m: FDMatch): APIFixture {
       id: m.id,
       date: m.utcDate,
       status: { short: fdStatusToShort(m.status), long: m.status },
+      stage: m.stage,
       matchday: m.matchday,
       venue: m.venue,
     },
@@ -114,7 +116,7 @@ export interface APILeague {
 }
 
 export interface APIFixture {
-  fixture: { id: number; date: string; status: { short: string; long: string }; matchday?: number; venue?: string };
+  fixture: { id: number; date: string; status: { short: string; long: string }; stage?: string; matchday?: number; venue?: string };
   league: { id: number; name: string; logo: string; season: number };
   teams: {
     home: { id: number; name: string; logo: string };

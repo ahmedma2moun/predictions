@@ -4,6 +4,50 @@ import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football
 import { sendNewMatchesEmail, sendCronRunEmail, type MatchForEmail } from '@/lib/email';
 import { format, addDays } from 'date-fns';
 
+// Stages that are always single-leg (no leg numbers shown)
+const SINGLE_LEG_STAGES = new Set(['FINAL', 'THIRD_PLACE', 'THIRD_PLACE_PLAY_OFF']);
+
+/**
+ * For knockout rounds, derive leg numbers from matchday:
+ * within a given stage the lower matchday = Leg 1, higher = Leg 2.
+ * Works correctly whether one or both legs are in the DB.
+ * Final / third-place stages never get a leg number.
+ */
+async function assignKnockoutLegs(externalLeagueId: number) {
+  const knockoutMatches = await prisma.match.findMany({
+    where: {
+      externalLeagueId,
+      stage: { not: null },
+      NOT: [{ stage: 'GROUP_STAGE' }, { stage: 'REGULAR_SEASON' }],
+    },
+    select: { id: true, stage: true, matchday: true },
+  });
+
+  // Group by stage, collect distinct sorted matchdays
+  const stageMatchdays = new Map<string, number[]>();
+  for (const m of knockoutMatches) {
+    if (!m.stage || m.matchday == null) continue;
+    if (!stageMatchdays.has(m.stage)) stageMatchdays.set(m.stage, []);
+    const days = stageMatchdays.get(m.stage)!;
+    if (!days.includes(m.matchday)) days.push(m.matchday);
+  }
+  // Sort each stage's matchdays ascending
+  for (const days of stageMatchdays.values()) days.sort((a, b) => a - b);
+
+  for (const m of knockoutMatches) {
+    if (!m.stage) continue;
+    if (SINGLE_LEG_STAGES.has(m.stage) || m.matchday == null) {
+      await prisma.match.update({ where: { id: m.id }, data: { leg: null } });
+      continue;
+    }
+    const days = stageMatchdays.get(m.stage) ?? [];
+    const legIndex = days.indexOf(m.matchday);
+    // legIndex 0 → Leg 1, 1 → Leg 2; anything unexpected → null
+    const leg = legIndex === 0 ? 1 : legIndex === 1 ? 2 : null;
+    await prisma.match.update({ where: { id: m.id }, data: { leg } });
+  }
+}
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const cronSecret    = process.env.CRON_SECRET;
@@ -56,6 +100,7 @@ export async function GET(req: NextRequest) {
             awayTeamLogo: f.teams.away.logo,
             kickoffTime: new Date(f.fixture.date),
             status: mapFixtureStatus(f.fixture.status.short),
+            stage: f.fixture.stage ?? null,
             matchday: f.fixture.matchday ?? null,
             venue: f.fixture.venue ?? null,
             scoresProcessed: false,
@@ -64,6 +109,9 @@ export async function GET(req: NextRequest) {
         });
         inserted += toCreate.length;
         console.log(`[cron/fetch-matches] ${league.name}: inserted=${toCreate.length}, skipped=${fixtures.length - toCreate.length}`);
+
+        // Auto-assign leg numbers for knockout rounds in this league
+        await assignKnockoutLegs(league.externalId);
       }
     } catch (e) {
       console.error(`[cron/fetch-matches] ERROR league ${league.name} (${league.externalId}):`, e);

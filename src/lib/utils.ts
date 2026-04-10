@@ -24,6 +24,29 @@ export function getWinner(home: number, away: number): 'home' | 'away' | 'draw' 
   return 'draw';
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  GROUP_STAGE:        'Group Stage',
+  ROUND_OF_64:        'Round of 64',
+  ROUND_OF_32:        'Round of 32',
+  ROUND_OF_16:        'Round of 16',
+  QUARTER_FINALS:     'Quarter Final',
+  SEMI_FINALS:        'Semi Final',
+  THIRD_PLACE:        'Third Place',
+  FINAL:              'Final',
+  PLAYOFF_ROUND_ONE:  'Playoff Round 1',
+  PLAYOFF_ROUND_TWO:  'Playoff Round 2',
+  PLAYOFFS:           'Playoffs',
+};
+
+export function formatStage(stage: string): string {
+  return STAGE_LABELS[stage] ?? stage.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+export function isKnockoutStage(stage: string | null | undefined): boolean {
+  if (!stage) return false;
+  return stage !== 'GROUP_STAGE';
+}
+
 export function getFridayDate(): Date {
   const now = new Date();
   const day = now.getUTCDay(); // 0=Sun, 5=Fri

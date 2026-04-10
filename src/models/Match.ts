@@ -12,6 +12,8 @@ export interface IMatch {
   kickoffTime: Date;
   status: 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled';
   matchday?: number | null;
+  stage?: string | null;
+  leg?: number | null;
   venue?: string | null;
   resultHomeScore?: number | null;
   resultAwayScore?: number | null;
@@ -34,6 +36,8 @@ export function serializeMatch(m: IMatch) {
     kickoffTime: m.kickoffTime,
     status: m.status,
     matchday: m.matchday ?? null,
+    stage: m.stage ?? null,
+    leg: m.leg ?? null,
     venue: m.venue ?? null,
     result:
       m.resultHomeScore !== null && m.resultHomeScore !== undefined

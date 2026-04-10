@@ -83,6 +83,8 @@ model Match {
   kickoffTime      DateTime
   status           MatchStatus  @default(scheduled)
   matchday         Int?
+  stage            String?
+  leg              Int?
   venue            String?
   resultHomeScore  Int?
   resultAwayScore  Int?

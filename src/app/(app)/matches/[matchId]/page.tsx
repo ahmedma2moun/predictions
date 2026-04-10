@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { isMatchLocked } from "@/lib/utils";
+import { isMatchLocked, formatStage, isKnockoutStage } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
 import { ChevronLeft, Minus, Plus, Lock, MapPin } from "lucide-react";
@@ -164,9 +164,13 @@ export default function MatchPredictionPage() {
           </div>
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground"><KickoffTime date={match.kickoffTime} /></p>
-            {match.matchday && (
+            {isKnockoutStage(match.stage) ? (
+              <p className="text-xs text-muted-foreground">
+                {formatStage(match.stage)}{match.leg ? ` · Leg ${match.leg}` : ''}
+              </p>
+            ) : match.matchday ? (
               <p className="text-xs text-muted-foreground">Matchday {match.matchday}</p>
-            )}
+            ) : null}
             {match.venue && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <MapPin className="h-3 w-3" />{match.venue}

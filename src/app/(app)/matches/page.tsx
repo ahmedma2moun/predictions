@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { serializeMatch } from "@/models/Match";
 import { getStandingsMap, standingKey } from "@/lib/standings";
+import { formatStage, isKnockoutStage } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
@@ -76,11 +77,15 @@ export default async function MatchesPage() {
                     </div>
                   </div>
 
-                  {match.matchday && (
+                  {isKnockoutStage(s.stage) ? (
+                    <p className="text-xs text-center text-muted-foreground mb-2">
+                      {formatStage(s.stage!)}{s.leg ? ` · Leg ${s.leg}` : ''}
+                    </p>
+                  ) : match.matchday ? (
                     <p className="text-xs text-center text-muted-foreground mb-2">
                       Matchday {match.matchday}
                     </p>
-                  )}
+                  ) : null}
 
                   <div className="flex items-center justify-between">
                     <div className="flex-1 text-center">
