@@ -6,39 +6,23 @@
     },
     {
       "path": "/api/cron/fetch-matches",
-      "schedule": "59 21 * * 4"
+      "schedule": "00 18 * * 4"
     },
     {
       "path": "/api/cron/fetch-results",
-      "schedule": "30 9 * * *"
+      "schedule": "15 10 * * *"
     },
     {
       "path": "/api/cron/fetch-results",
-      "schedule": "0 23 * * *"
+      "schedule": "30 22 * * *"
     },
     {
-      "path": "/api/cron/fetch-results",
-      "schedule": "0 14 * * *"
+      "path": "/api/cron/prediction-reminder",
+      "schedule": "0 16 * * 5"
     },
     {
-      "path": "/api/cron/fetch-results",
-      "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/cron/fetch-results",
-      "schedule": "0 18 * * *"
-    },
-    {
-      "path": "/api/cron/fetch-results",
-      "schedule": "0 20 * * *"
-    },
-    {
-      "path": "/api/cron/fetch-results",
-      "schedule": "0 22 * * *"
-    },
-    {
-      "path": "/api/cron/fetch-results",
-      "schedule": "0 00 * * *"
+      "path": "/api/cron/daily-reminder",
+      "schedule": "0 9 * * *"
     }
   ]
 }

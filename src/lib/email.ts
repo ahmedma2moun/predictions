@@ -232,6 +232,115 @@ export async function sendResultsEmail(to: string | null | undefined, matches: R
   });
 }
 
+// ─── Prediction Reminder Email ───────────────────────────────────────────────
+
+export interface UnpredictedMatch {
+  homeTeamName: string;
+  awayTeamName: string;
+  kickoffTime: Date;
+  leagueName: string;
+}
+
+function buildReminderLeagueBlocks(matches: UnpredictedMatch[]): string {
+  const grouped = new Map<string, UnpredictedMatch[]>();
+  for (const m of [...matches].sort((a, b) => a.kickoffTime.getTime() - b.kickoffTime.getTime())) {
+    const list = grouped.get(m.leagueName) ?? [];
+    list.push(m);
+    grouped.set(m.leagueName, list);
+  }
+
+  return [...grouped.entries()]
+    .map(([league, ms]) => {
+      const rows = ms
+        .map(
+          m => `
+          <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;">${formatShortDate(m.kickoffTime)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-weight:500;">${m.homeTeamName}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:center;color:#888;">vs</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-weight:500;">${m.awayTeamName}</td>
+          </tr>`,
+        )
+        .join('');
+
+      return `
+        <div style="margin-bottom:24px;">
+          <h3 style="margin:0 0 8px;font-size:15px;color:#1a1a1a;background:#f5f5f5;padding:8px 12px;border-radius:6px;">${league}</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <thead>
+              <tr style="color:#888;font-size:12px;">
+                <th style="padding:6px 12px;text-align:left;font-weight:500;">Date (CLT)</th>
+                <th style="padding:6px 12px;text-align:left;font-weight:500;">Home</th>
+                <th style="padding:6px 12px;"></th>
+                <th style="padding:6px 12px;text-align:left;font-weight:500;">Away</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    })
+    .join('');
+}
+
+export async function sendPredictionReminderEmail(
+  to: string,
+  matches: UnpredictedMatch[],
+): Promise<void> {
+  if (!matches.length) return;
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
+      <div style="background:#f59e0b;padding:20px 24px;border-radius:8px 8px 0 0;">
+        <h2 style="margin:0;color:#fff;font-size:20px;">Don't forget to predict!</h2>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.9);font-size:13px;">You still have ${matches.length} match${matches.length > 1 ? 'es' : ''} without a prediction this week.</p>
+      </div>
+      <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
+        ${buildReminderLeagueBlocks(matches)}
+        <div style="margin-top:16px;text-align:center;">
+          <a href="${process.env.NEXTAUTH_URL}/matches" style="display:inline-block;background:#f59e0b;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Submit Predictions &rarr;</a>
+        </div>
+      </div>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `Reminder: ${matches.length} match${matches.length > 1 ? 'es' : ''} still waiting for your prediction!`,
+    html,
+  });
+}
+
+export async function sendDailyReminderEmail(
+  to: string,
+  matches: UnpredictedMatch[],
+): Promise<void> {
+  if (!matches.length) return;
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
+      <div style="background:#ef4444;padding:20px 24px;border-radius:8px 8px 0 0;">
+        <h2 style="margin:0;color:#fff;font-size:20px;">Matches today — no prediction yet!</h2>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.9);font-size:13px;">${matches.length} match${matches.length > 1 ? 'es kick' : ' kicks'} off today and you haven't predicted ${matches.length > 1 ? 'them' : 'it'} yet.</p>
+      </div>
+      <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
+        ${buildReminderLeagueBlocks(matches)}
+        <div style="margin-top:4px;margin-bottom:20px;padding:10px 14px;background:#fef2f2;border-radius:6px;border-left:4px solid #ef4444;font-size:13px;color:#7f1d1d;">
+          Predictions lock at kickoff — submit before the whistle!
+        </div>
+        <div style="text-align:center;">
+          <a href="${process.env.NEXTAUTH_URL}/matches" style="display:inline-block;background:#ef4444;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Predict Now &rarr;</a>
+        </div>
+      </div>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `Today's matches — predict before kickoff!`,
+    html,
+  });
+}
+
 // ─── Cron Run Notification ────────────────────────────────────────────────────
 
 export async function sendCronRunEmail(
