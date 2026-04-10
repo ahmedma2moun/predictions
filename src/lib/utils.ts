@@ -42,9 +42,11 @@ export function formatStage(stage: string): string {
   return STAGE_LABELS[stage] ?? stage.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+const NON_KNOCKOUT_STAGES = new Set(['GROUP_STAGE', 'REGULAR_SEASON']);
+
 export function isKnockoutStage(stage: string | null | undefined): boolean {
   if (!stage) return false;
-  return stage !== 'GROUP_STAGE';
+  return !NON_KNOCKOUT_STAGES.has(stage);
 }
 
 export function getFridayDate(): Date {

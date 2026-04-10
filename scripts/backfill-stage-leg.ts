@@ -46,26 +46,12 @@ async function assignKnockoutLegs(externalLeagueId: number) {
 
   if (knockoutMatches.length === 0) return;
 
-  // Collect distinct sorted matchdays per stage
-  const stageMatchdays = new Map<string, number[]>();
-  for (const m of knockoutMatches) {
-    if (!m.stage || m.matchday == null) continue;
-    if (!stageMatchdays.has(m.stage)) stageMatchdays.set(m.stage, []);
-    const days = stageMatchdays.get(m.stage)!;
-    if (!days.includes(m.matchday)) days.push(m.matchday);
-  }
-  for (const days of stageMatchdays.values()) days.sort((a, b) => a - b);
-
   let assigned = 0;
   for (const m of knockoutMatches) {
     if (!m.stage) continue;
-    if (SINGLE_LEG_STAGES.has(m.stage) || m.matchday == null) {
-      await prisma.match.update({ where: { id: m.id }, data: { leg: null } });
-      continue;
-    }
-    const days = stageMatchdays.get(m.stage) ?? [];
-    const legIndex = days.indexOf(m.matchday);
-    const leg = legIndex === 0 ? 1 : legIndex === 1 ? 2 : null;
+    // Matchday value IS the leg number (matchday 1 = Leg 1, matchday 2 = Leg 2)
+    // Single-leg stages and missing matchday get null
+    const leg = SINGLE_LEG_STAGES.has(m.stage) || m.matchday == null ? null : m.matchday;
     await prisma.match.update({ where: { id: m.id }, data: { leg } });
     if (leg) {
       console.log(`  match ${m.id} → ${m.stage} matchday ${m.matchday} = Leg ${leg}`);

@@ -124,8 +124,9 @@ export default function MatchPredictionPage() {
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin text-4xl">⚽</div></div>;
   if (!match) return <div className="p-4">Match not found</div>;
   const isAdmin = match.isAdmin as boolean;
+  const isKnockout = isKnockoutStage(match.stage);
   const standings: { home: Standing; away: Standing } = match.standings ?? { home: null, away: null };
-  const hasStandings = standings.home !== null || standings.away !== null;
+  const hasStandings = !isKnockout && (standings.home !== null || standings.away !== null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -184,7 +185,7 @@ export default function MatchPredictionPage() {
               <div className="flex-1 flex flex-col items-center gap-3">
                 {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="h-16 w-16 object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.homeTeam.name}</p>
-                {standings.home && (
+                {!isKnockout && standings.home && (
                   <p className="text-xs text-muted-foreground">{ordinal(standings.home.position)}</p>
                 )}
                 {!isAdmin && <ScoreInput value={homeScore} onChange={setHomeScore} disabled={locked} />}
@@ -193,7 +194,7 @@ export default function MatchPredictionPage() {
               <div className="flex-1 flex flex-col items-center gap-3">
                 {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="h-16 w-16 object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.awayTeam.name}</p>
-                {standings.away && (
+                {!isKnockout && standings.away && (
                   <p className="text-xs text-muted-foreground">{ordinal(standings.away.position)}</p>
                 )}
                 {!isAdmin && <ScoreInput value={awayScore} onChange={setAwayScore} disabled={locked} />}
@@ -210,7 +211,7 @@ export default function MatchPredictionPage() {
               <div className="bg-accent rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Final Result</p>
                 <p className="text-2xl font-bold">{match.result.homeScore} – {match.result.awayScore}</p>
-                {!isAdmin && match.prediction && (
+                {!isAdmin && !isKnockout && match.prediction && (
                   <p className="text-sm mt-1">
                     <span className="text-yellow-500 font-bold">+{match.prediction.pointsAwarded} pts</span>
                   </p>
@@ -268,14 +269,14 @@ export default function MatchPredictionPage() {
                       <span className="font-medium text-sm">{p.userName}</span>
                       <div className="flex items-center gap-3">
                         <span className="tabular-nums text-sm">{p.homeScore} – {p.awayScore}</span>
-                        {match.result && (
+                        {!isKnockout && match.result && (
                           p.pointsAwarded > 0
                             ? <span className="text-yellow-500 font-bold text-sm">+{p.pointsAwarded} pts</span>
                             : <span className="text-muted-foreground text-sm">0 pts</span>
                         )}
                       </div>
                     </div>
-                    {match.result && p.scoringBreakdown?.rules && (
+                    {!isKnockout && match.result && p.scoringBreakdown?.rules && (
                       <div className="flex flex-wrap gap-x-3 gap-y-1">
                         {(p.scoringBreakdown.rules as Array<{ ruleName: string; pointsAwarded: number; matched: boolean }>).map((rule) => (
                           <span
