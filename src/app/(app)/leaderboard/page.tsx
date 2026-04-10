@@ -403,7 +403,7 @@ export default function LeaderboardPage() {
                           {isMe && " (you)"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {entry.predictionsCount} picks · {entry.accuracy}% accurate
+                          {entry.predictionsCount} picks
                         </p>
                       </div>
                       <Badge variant={isMe ? "default" : "outline"} className="font-bold shrink-0">
