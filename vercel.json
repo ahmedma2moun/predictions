@@ -1,8 +1,16 @@
 {
   "crons": [
     {
+      "path": "/api/cron/db-export",
+      "schedule": "0 9 * * *"
+    },
+    {
       "path": "/api/cron/fetch-matches",
       "schedule": "59 21 * * 4"
+    },
+    {
+      "path": "/api/cron/fetch-results",
+      "schedule": "30 9 * * *"
     },
     {
       "path": "/api/cron/fetch-results",
