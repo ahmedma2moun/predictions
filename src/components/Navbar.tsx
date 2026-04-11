@@ -5,6 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Calendar, TrendingUp, Trophy, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { href: "/matches", label: "Matches", icon: Calendar },
@@ -59,6 +60,7 @@ export function Navbar() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">{session?.user?.name}</span>
+          <ThemeToggle />
           <Button variant="ghost" size="sm" onClick={() => signOut({ callbackUrl: "/login" })}>
             <LogOut className="h-4 w-4" />
           </Button>
@@ -70,11 +72,12 @@ export function Navbar() {
         <Link href="/matches" className="font-bold text-sm flex items-center gap-1.5">
           ⚽ Predictions
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <div className="text-right">
             <p className="text-xs font-medium leading-none">{session?.user?.name}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{isAdmin ? "Admin" : "Player"}</p>
           </div>
+          <ThemeToggle />
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => signOut({ callbackUrl: "/login" })}>
             <LogOut className="h-4 w-4" />
           </Button>
