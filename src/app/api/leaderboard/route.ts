@@ -7,12 +7,13 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const period   = searchParams.get('period') || 'all';
-  const leagueId = searchParams.get('leagueId');
-  const groupId  = searchParams.get('groupId');
+  const period    = searchParams.get('period') || 'all';
+  const leagueIds = searchParams.getAll('leagueId').map(Number).filter(Boolean);
+  const groupId   = searchParams.get('groupId');
 
   const matchWhere: any = { status: 'finished' };
-  if (leagueId) matchWhere.externalLeagueId = Number(leagueId);
+  if (leagueIds.length === 1) matchWhere.externalLeagueId = leagueIds[0];
+  else if (leagueIds.length > 1) matchWhere.externalLeagueId = { in: leagueIds };
 
   const fromParam = searchParams.get('from');
   const toParam   = searchParams.get('to');

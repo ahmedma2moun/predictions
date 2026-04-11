@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KickoffTime } from "@/components/KickoffTime";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -23,6 +23,8 @@ type LeaderboardEntry = {
 };
 
 type Group = { id: string; name: string; isDefault: boolean };
+
+type League = { id: string; externalId: number; name: string; country: string; logo?: string };
 
 type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
 
@@ -136,6 +138,11 @@ export default function LeaderboardPage() {
   const [groupId, setGroupId]         = useState<string | null>(null);
   const [groupsReady, setGroupsReady] = useState(false);
 
+  const [leagues, setLeagues]           = useState<League[]>([]);
+  const [selectedLeagues, setSelectedLeagues] = useState<string[]>([]);
+  const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
+  const leagueDropdownRef = useRef<HTMLDivElement>(null);
+
   const [leaderboard, setLeaderboard]     = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading]         = useState(true);
   const [isRefreshing, setIsRefreshing]   = useState(false);
@@ -169,11 +176,32 @@ export default function LeaderboardPage() {
       .catch(() => setGroupsReady(true));
   }, []);
 
+  // ── Load leagues ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    fetch("/api/leagues")
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((data: League[]) => setLeagues(data))
+      .catch(() => {});
+  }, []);
+
+  // ── Close league dropdown on outside click ───────────────────────────────────
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (leagueDropdownRef.current && !leagueDropdownRef.current.contains(e.target as Node)) {
+        setLeagueDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // ── Collapse expanded row when time frame changes ───────────────────────────
 
   useEffect(() => {
     setExpandedUserId(null);
-  }, [period, weekOffset, monthOffset, groupId]);
+  }, [period, weekOffset, monthOffset, groupId, selectedLeagues]);
 
   // ── Fetch leaderboard ───────────────────────────────────────────────────────
 
@@ -183,7 +211,8 @@ export default function LeaderboardPage() {
     const range = getDateRange();
     const fromStr = range ? range.from.toISOString() : "";
     const toStr   = range ? range.to.toISOString()   : "";
-    const cacheKey = `${fromStr}:${toStr}:${groupId ?? "all"}`;
+    const leagueKey = selectedLeagues.slice().sort().join(",");
+    const cacheKey = `${fromStr}:${toStr}:${groupId ?? "all"}:${leagueKey}`;
 
     const cached = lbCache.current[cacheKey];
     const now    = Date.now();
@@ -200,6 +229,7 @@ export default function LeaderboardPage() {
     let url = `/api/leaderboard?period=${period}`;
     if (range) url += `&from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}`;
     if (groupId) url += `&groupId=${groupId}`;
+    for (const lid of selectedLeagues) url += `&leagueId=${lid}`;
 
     fetch(url)
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
@@ -210,7 +240,7 @@ export default function LeaderboardPage() {
         setIsRefreshing(false);
       })
       .catch(() => { setIsLoading(false); setIsRefreshing(false); });
-  }, [period, weekOffset, monthOffset, groupId, groupsReady, getDateRange]);
+  }, [period, weekOffset, monthOffset, groupId, selectedLeagues, groupsReady, getDateRange]);
 
   // ── Toggle per-user prediction panel ────────────────────────────────────────
 
@@ -223,7 +253,8 @@ export default function LeaderboardPage() {
     const range = getDateRange();
     const fromStr = range ? range.from.toISOString() : "";
     const toStr   = range ? range.to.toISOString()   : "";
-    const cacheKey = `${userId}:${fromStr}:${toStr}`;
+    const leagueKey = selectedLeagues.slice().sort().join(",");
+    const cacheKey = `${userId}:${fromStr}:${toStr}:${leagueKey}`;
 
     if (upCache.current[cacheKey] && Date.now() - upCache.current[cacheKey].ts < CACHE_TTL_MS) {
       upData.current[userId] = upCache.current[cacheKey].data;
@@ -236,6 +267,7 @@ export default function LeaderboardPage() {
 
     let url = `/api/leaderboard/user-predictions?userId=${userId}`;
     if (range) url += `&from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}`;
+    for (const lid of selectedLeagues) url += `&leagueId=${lid}`;
 
     try {
       const res  = await fetch(url);
@@ -293,6 +325,75 @@ export default function LeaderboardPage() {
               {g.name}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Tournament multi-select */}
+      {leagues.length > 0 && (
+        <div className="relative" ref={leagueDropdownRef}>
+          <button
+            onClick={() => setLeagueDropdownOpen(o => !o)}
+            className={cn(
+              "w-full flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors",
+              leagueDropdownOpen
+                ? "border-ring ring-2 ring-ring bg-background"
+                : "border-border bg-background hover:border-foreground"
+            )}
+          >
+            <span className="truncate text-left">
+              {selectedLeagues.length === 0
+                ? "All Tournaments"
+                : selectedLeagues.length === 1
+                ? leagues.find(l => l.externalId.toString() === selectedLeagues[0])?.name ?? "1 selected"
+                : `${selectedLeagues.length} tournaments`}
+            </span>
+            <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", leagueDropdownOpen && "rotate-180")} />
+          </button>
+
+          {leagueDropdownOpen && (
+            <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-background shadow-md">
+              {/* All option */}
+              <button
+                onClick={() => setSelectedLeagues([])}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors",
+                  selectedLeagues.length === 0 && "font-medium"
+                )}
+              >
+                <span className={cn("flex h-4 w-4 items-center justify-center rounded border shrink-0",
+                  selectedLeagues.length === 0 ? "bg-primary border-primary" : "border-border"
+                )}>
+                  {selectedLeagues.length === 0 && <Check className="h-3 w-3 text-primary-foreground" />}
+                </span>
+                All Tournaments
+              </button>
+
+              <div className="border-t border-border" />
+
+              {leagues.map(l => {
+                const val = l.externalId.toString();
+                const checked = selectedLeagues.includes(val);
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => {
+                      setSelectedLeagues(prev =>
+                        checked ? prev.filter(x => x !== val) : [...prev, val]
+                      );
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
+                  >
+                    <span className={cn("flex h-4 w-4 items-center justify-center rounded border shrink-0",
+                      checked ? "bg-primary border-primary" : "border-border"
+                    )}>
+                      {checked && <Check className="h-3 w-3 text-primary-foreground" />}
+                    </span>
+                    {l.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

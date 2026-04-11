@@ -1,90 +1,138 @@
 # Data Architecture
 
-## Data Store Landscape
+## Data Store
+
+PostgreSQL — single database accessed exclusively via Prisma 6.19.3.
+Schema source of truth: `prisma/schema.prisma`.
 
 ```
-MongoDB Atlas (single cluster)
-├── users           — auth + profile
-├── leagues         — football leagues (admin-managed)
-├── teams           — teams per league (admin-managed)
-├── matches         — fixtures (fetched from API, upserted by externalId)
-├── predictions     — user predictions (compound unique: userId+matchId)
-└── scoringRules    — configurable scoring rules
+PostgreSQL database
+├── User            — auth + profile + notification preference
+├── League          — football competitions (admin-managed)
+├── Team            — teams per league (admin-managed)
+├── Match           — fixtures (fetched from API, inserted by externalId)
+├── Prediction      — user predictions (unique: userId+matchId)
+├── ScoringRule     — configurable scoring rules
+├── Group           — user groups for sub-leaderboards
+├── GroupMember     — many-to-many User ↔ Group
+└── TeamStanding    — cached league standings from football-data.org
 ```
 
 ## Schema Reference
 
-### `users`
-| Field | Type | Index | Notes |
+### `User`
+| Field | Type | Constraint | Notes |
 |---|---|---|---|
-| _id | ObjectId | PK | |
+| id | Int | PK autoincrement | `.toString()` before sending to frontend |
 | name | String | | display name |
-| email | String | unique | lowercase, used for login |
+| email | String | unique | login credential |
 | password | String | | bcrypt hash, cost 12 |
-| role | enum | | 'admin' \| 'user' (default 'user') |
-| avatarUrl | String? | | optional profile photo |
-| createdAt / updatedAt | Date | | timestamps |
+| role | Role enum | default 'user' | 'admin' \| 'user' |
+| avatarUrl | String? | | optional profile photo URL |
+| notificationEmail | String? | | email address for notifications (may differ from login email) |
+| createdAt / updatedAt | DateTime | | auto-managed |
 
-### `leagues`
-| Field | Type | Index | Notes |
+### `League`
+| Field | Type | Constraint | Notes |
 |---|---|---|---|
-| _id | ObjectId | PK | |
-| externalId | Number | unique | API-Football league ID |
+| id | Int | PK autoincrement | |
+| externalId | Int | unique | football-data.org competition ID |
 | name | String | | e.g. "Premier League" |
 | country | String | | |
-| logo | String? | | URL from API |
-| season | Number | | e.g. 2025 |
-| isActive | Boolean | | admin toggles inclusion |
+| logo | String? | | emblem URL from API |
+| season | Int | | e.g. 2025 |
+| isActive | Boolean | default false | admin toggles inclusion |
 
-### `teams`
-| Field | Type | Index | Notes |
+### `Team`
+| Field | Type | Constraint | Notes |
 |---|---|---|---|
-| _id | ObjectId | PK | |
-| externalId | Number | unique | API-Football team ID |
+| id | Int | PK autoincrement | |
+| externalId | Int | unique | football-data.org team ID |
 | name | String | | |
-| logo | String? | | |
-| leagueId | ObjectId | ref:leagues | |
-| externalLeagueId | Number | | denormalized for query perf |
-| isActive | Boolean | | admin toggles |
+| logo | String? | | crest URL |
+| leagueId | Int | FK → League (cascade delete) | |
+| externalLeagueId | Int | | denormalized for query perf |
+| isActive | Boolean | default true | admin toggles |
 
-### `matches`
-| Field | Type | Index | Notes |
+### `Match`
+| Field | Type | Constraint | Notes |
 |---|---|---|---|
-| _id | ObjectId | PK | |
-| externalId | Number | **unique** | API fixture ID — prevents duplicates |
-| leagueId | ObjectId | ref:leagues | |
-| externalLeagueId | Number | | denormalized |
-| homeTeam | embedded | | {externalId, name, logo?} |
-| awayTeam | embedded | | {externalId, name, logo?} |
-| kickoffTime | Date | | UTC |
-| status | enum | | scheduled/live/finished/postponed/cancelled |
-| result | embedded? | | {homeScore, awayScore, winner} — set when finished |
-| scoresProcessed | Boolean | | true after predictions scored |
-| weekStart | Date | | Friday UTC of fetch week |
+| id | Int | PK autoincrement | |
+| externalId | Int | **unique** | API fixture ID — prevents duplicates |
+| leagueId | Int? | FK → League (set null on delete) | |
+| externalLeagueId | Int | | denormalized |
+| homeTeamExtId | Int | | |
+| homeTeamName | String | | flat (not embedded object) |
+| homeTeamLogo | String? | | |
+| awayTeamExtId | Int | | |
+| awayTeamName | String | | flat |
+| awayTeamLogo | String? | | |
+| kickoffTime | DateTime | | UTC |
+| status | MatchStatus enum | default 'scheduled' | scheduled/live/finished/postponed/cancelled |
+| matchday | Int? | | competition matchday |
+| stage | String? | | e.g. "GROUP_STAGE", "QUARTER_FINALS" |
+| leg | Int? | | leg number for two-legged ties |
+| venue | String? | | stadium name |
+| resultHomeScore | Int? | | set when finished |
+| resultAwayScore | Int? | | set when finished |
+| resultWinner | Winner? | | home/away/draw |
+| scoresProcessed | Boolean | default false | true after predictions scored |
+| weekStart | DateTime | | Thursday UTC of fetch week |
 
-### `predictions`
-| Field | Type | Index | Notes |
+### `Prediction`
+| Field | Type | Constraint | Notes |
 |---|---|---|---|
-| _id | ObjectId | PK | |
-| userId | ObjectId | compound unique | ref:users |
-| matchId | ObjectId | compound unique | ref:matches |
-| homeScore | Number | | ≥ 0 |
-| awayScore | Number | | ≥ 0 |
-| predictedWinner | enum | | home/away/draw (computed from scores) |
-| pointsAwarded | Number | | default 0, updated after result |
-| scoringBreakdown | embedded | | {rules: [{ruleId, ruleName, pointsAwarded, matched}]} |
+| id | Int | PK autoincrement | |
+| userId | Int | FK → User (cascade delete) | |
+| matchId | Int | FK → Match (cascade delete) | |
+| homeScore | Int | ≥ 0 | |
+| awayScore | Int | ≥ 0 | |
+| predictedWinner | Winner enum | | computed from scores at save time |
+| pointsAwarded | Int | default 0 | updated after result scored |
+| scoringBreakdown | Json? | | `{rules: [{ruleId, ruleName, pointsAwarded, matched}]}` |
+| | | **@@unique([userId, matchId])** | prevents duplicate predictions |
 
-**Critical**: compound unique index `{ userId: 1, matchId: 1 }` prevents duplicate predictions.
+### `ScoringRule`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| key | String | unique | correct_winner / exact_score / score_difference / one_team_score |
+| name | String | | display name |
+| description | String | | |
+| points | Int | | configurable by admin |
+| priority | Int | | evaluation order (lower = first) |
+| isActive | Boolean | default true | admin can disable rules |
 
-### `scoringRules`
+### `Group`
 | Field | Type | Notes |
 |---|---|---|
-| key | String (unique) | correct_winner / exact_score / score_difference / one_team_score |
-| name | String | Display name |
-| description | String | |
-| points | Number | Configurable by admin |
-| priority | Number | Evaluation order (lower = first) |
-| isActive | Boolean | Admin can disable rules |
+| id | Int | PK autoincrement |
+| name | String | e.g. "General", "Work Friends" |
+| isDefault | Boolean | default false — used for leaderboard default view |
+
+### `GroupMember`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| groupId | Int | FK → Group (cascade delete) | |
+| userId | Int | FK → User (cascade delete) | |
+| | | **@@unique([groupId, userId])** | prevents duplicate membership |
+
+### `TeamStanding`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| externalTeamId | Int | | football-data.org team ID |
+| externalLeagueId | Int | | football-data.org competition ID |
+| season | Int | | |
+| position | Int | | league table position |
+| played | Int | | |
+| won / drawn / lost | Int | | |
+| points | Int | | |
+| goalsFor / goalsAgainst / goalDifference | Int | | |
+| form | String? | | e.g. "WDWLW" |
+| updatedAt | DateTime | auto | used for 2-hour cache TTL check |
+| | | **@@unique([externalTeamId, externalLeagueId])** | |
 
 ## Default Scoring Rules
 
@@ -95,39 +143,68 @@ MongoDB Atlas (single cluster)
 | score_difference | 3 | 3 | Goal diff matches (tiered) |
 | one_team_score | 1 | 4 | Either home or away score matches (tiered) |
 
-## Key Query Patterns
+## Key Access Patterns
 
 ```typescript
-// Get upcoming matches with user's predictions
-const matches = await Match.find({ status: { $in: ['scheduled', 'live'] } })
-  .sort({ kickoffTime: 1 })
-  .limit(100)
-  .lean();
-const preds = await Prediction.find({ userId, matchId: { $in: matchIds } }).lean();
+// Prisma singleton — always import from @/lib/prisma
+import { prisma } from '@/lib/prisma';
 
-// Leaderboard aggregation
-await Prediction.aggregate([
-  { $match: { matchId: { $in: finishedMatchIds } } },
-  { $group: { _id: '$userId', totalPoints: { $sum: '$pointsAwarded' } } },
-  { $sort: { totalPoints: -1 } }
-]);
+// Upcoming matches with user's predictions
+const matches = await prisma.match.findMany({
+  where: { status: { in: ['scheduled', 'live'] } },
+  orderBy: { kickoffTime: 'asc' },
+  include: { predictions: { where: { userId } } },
+});
 
-// Upsert match (idempotent)
-await Match.bulkWrite(fixtures.map(f => ({
-  updateOne: {
-    filter: { externalId: f.fixture.id },
-    update: { $setOnInsert: { ...matchFields } },
-    upsert: true
-  }
-})));
+// Leaderboard aggregation (raw SQL for performance)
+const rows = await prisma.$queryRaw`
+  SELECT u.id, u.name, SUM(p."pointsAwarded") AS total
+  FROM "Prediction" p
+  JOIN "User" u ON u.id = p."userId"
+  JOIN "Match" m ON m.id = p."matchId"
+  WHERE m.status = 'finished'
+  GROUP BY u.id, u.name
+  ORDER BY total DESC
+`;
+// Note: $queryRaw returns BigInt — always wrap with Number() before JSON
+
+// Idempotent match insert (check first, then createMany)
+const existing = await prisma.match.findMany({
+  where: { externalId: { in: externalIds } },
+  select: { externalId: true },
+});
+const existingSet = new Set(existing.map(m => m.externalId));
+const newFixtures = fixtures.filter(f => !existingSet.has(f.fixture.id));
+if (newFixtures.length) {
+  await prisma.match.createMany({ data: newFixtures.map(toMatchData) });
+}
+
+// Upsert prediction (unique: userId+matchId)
+await prisma.prediction.upsert({
+  where: { userId_matchId: { userId, matchId } },
+  update: { homeScore, awayScore, predictedWinner },
+  create: { userId, matchId, homeScore, awayScore, predictedWinner },
+});
+
+// TeamStanding cache (2-hour TTL, see src/lib/standings.ts)
+const standingsMap = await getStandingsMap(leagues);
+const standing = standingsMap.get(standingKey(teamExtId, leagueExtId));
 ```
 
 ## Connection Pattern
 
-`src/lib/db.ts` uses a module-level global cache to reuse MongoDB connections across serverless function invocations:
+`src/lib/prisma.ts` uses a module-level global to reuse the PrismaClient across serverless function invocations:
 
 ```typescript
-const cached = global.mongoose ?? { conn: null, promise: null };
-global.mongoose = cached;
-// Reuses existing connection or creates one — never opens multiple connections
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 ```
+
+`src/lib/db.ts` is a **no-op shim** left from the Mongoose migration. `connectDB()` does nothing. Never import from it.
+
+## Integer ID Serialization Rule
+
+All Prisma integer `id` fields **must be `.toString()`-ed** before returning to the frontend. The `serializeMatch()` function in `src/models/Match.ts` handles this for match objects. Admin and API routes must do it manually for other models.
+
+`$queryRaw` returns `BigInt` values — always wrap with `Number()` before JSON serialization, or JSON.stringify will throw.
