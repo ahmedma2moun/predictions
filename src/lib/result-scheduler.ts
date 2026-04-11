@@ -5,6 +5,8 @@ const INITIAL_DELAY_MS = 2 * 60 * 60 * 1000;   // 2 hours after kickoff
 const RETRY_DELAY_SECONDS = 30 * 60;             // 30 minutes between retries
 const MAX_HOURS_AFTER_KICKOFF = 6;               // give up after 6 hours
 
+const LOG = '[result-scheduler]';
+
 function getClient() {
   const token = process.env.QSTASH_TOKEN;
   if (!token) throw new Error('QSTASH_TOKEN is not set');
@@ -23,24 +25,39 @@ function getAppUrl() {
  * - Groups all matches with the same kickoffTime under one slot.
  * - If a job already exists for this slot it is cancelled first (dedup).
  * - Does nothing if the slot is already marked done, or if the kickoff time
- *   is beyond the MAX_HOURS_AFTER_KICKOFF safety window.
+ *   is beyond the MAX_HOURS_AFTER_KICKOFF safety window (auto-schedule only).
  *
  * @param kickoffTime  The shared kickoff time for the slot.
  * @param delaySeconds Override the delay. Defaults to kickoffTime + 2h from now.
+ *                     Passing this explicitly also bypasses the 6h safety cap.
  */
 export async function scheduleSlot(
   kickoffTime: Date,
   delaySeconds?: number,
 ): Promise<void> {
   const now = Date.now();
-  const maxCheckTime = kickoffTime.getTime() + MAX_HOURS_AFTER_KICKOFF * 60 * 60 * 1000;
-  if (now > maxCheckTime) {
-    console.log(`[result-scheduler] Slot ${kickoffTime.toISOString()} is beyond max window — skipping`);
-    return;
+  const isExplicit = delaySeconds !== undefined;
+
+  console.log(`${LOG} scheduleSlot called — kickoff=${kickoffTime.toISOString()} explicit=${isExplicit} delaySeconds=${delaySeconds ?? 'auto'}`);
+
+  // Enforce the 6h cap only for auto-scheduled jobs.
+  // Explicit triggers (delaySeconds provided) bypass it — they are recovery calls
+  // that must run regardless of how old the match is.
+  if (!isExplicit) {
+    const maxCheckTime = kickoffTime.getTime() + MAX_HOURS_AFTER_KICKOFF * 60 * 60 * 1000;
+    if (now > maxCheckTime) {
+      console.log(`${LOG} Beyond ${MAX_HOURS_AFTER_KICKOFF}h window — skipping auto-schedule for ${kickoffTime.toISOString()}`);
+      return;
+    }
   }
 
   const existing = await prisma.resultCheckSlot.findUnique({ where: { kickoffTime } });
-  if (existing?.status === 'done') return;
+  console.log(`${LOG} Existing slot: ${existing ? `id=${existing.id} status=${existing.status} jobId=${existing.qstashJobId ?? 'none'}` : 'none'}`);
+
+  if (existing?.status === 'done') {
+    console.log(`${LOG} Slot already done — nothing to schedule`);
+    return;
+  }
 
   const delay = Math.max(
     delaySeconds ??
@@ -49,15 +66,20 @@ export async function scheduleSlot(
   );
 
   const fireAt = new Date(now + delay * 1000);
-  const qstash = getClient();
+  console.log(`${LOG} Computed delay=${delay}s → fires at ${fireAt.toISOString()}`);
+
   const appUrl = getAppUrl();
+  console.log(`${LOG} Target URL: ${appUrl}/api/jobs/check-results`);
+
+  const qstash = getClient();
 
   // Cancel the existing QStash job before issuing a new one
   if (existing?.qstashJobId) {
     try {
       await qstash.messages.cancel(existing.qstashJobId);
-    } catch {
-      // Already delivered or gone — safe to ignore
+      console.log(`${LOG} Cancelled previous job ${existing.qstashJobId}`);
+    } catch (e) {
+      console.warn(`${LOG} Could not cancel job ${existing.qstashJobId} (may already be delivered):`, e);
     }
   }
 
@@ -67,22 +89,29 @@ export async function scheduleSlot(
     create: { kickoffTime, scheduledAt: fireAt, status: 'pending' },
     update: { scheduledAt: fireAt, status: 'pending', qstashJobId: null },
   });
+  console.log(`${LOG} Slot upserted — id=${slot.id}`);
 
   // Publish the job — body carries only the slotId
-  const res = await qstash.publishJSON({
-    url: `${appUrl}/api/jobs/check-results`,
-    delay,
-    body: { slotId: slot.id },
-  });
+  let messageId: string;
+  try {
+    const res = await qstash.publishJSON({
+      url: `${appUrl}/api/jobs/check-results`,
+      delay,
+      body: { slotId: slot.id },
+    });
+    messageId = res.messageId;
+    console.log(`${LOG} QStash job published — messageId=${messageId} delay=${delay}s`);
+  } catch (e) {
+    console.error(`${LOG} QStash publish FAILED for slot ${slot.id}:`, e);
+    throw e;
+  }
 
   await prisma.resultCheckSlot.update({
     where: { id: slot.id },
-    data: { qstashJobId: res.messageId },
+    data: { qstashJobId: messageId },
   });
 
-  console.log(
-    `[result-scheduler] Slot ${kickoffTime.toISOString()} → job ${res.messageId} fires in ${delay}s`,
-  );
+  console.log(`${LOG} ✓ Slot ${slot.id} scheduled — kickoff=${kickoffTime.toISOString()} job=${messageId} fireAt=${fireAt.toISOString()}`);
 }
 
 /**
@@ -90,8 +119,12 @@ export async function scheduleSlot(
  * Uses RETRY_DELAY_SECONDS (30 min) as the delay.
  */
 export async function rescheduleSlot(slotId: string): Promise<void> {
+  console.log(`${LOG} rescheduleSlot — id=${slotId}`);
   const slot = await prisma.resultCheckSlot.findUnique({ where: { id: slotId } });
-  if (!slot || slot.status === 'done') return;
+  if (!slot || slot.status === 'done') {
+    console.log(`${LOG} rescheduleSlot skipped — slot ${slotId} is ${slot?.status ?? 'not found'}`);
+    return;
+  }
   await scheduleSlot(slot.kickoffTime, RETRY_DELAY_SECONDS);
 }
 
@@ -99,6 +132,7 @@ export async function rescheduleSlot(slotId: string): Promise<void> {
  * Mark a slot as done — no further checks will be issued.
  */
 export async function markSlotDone(slotId: string): Promise<void> {
+  console.log(`${LOG} markSlotDone — id=${slotId}`);
   await prisma.resultCheckSlot.update({
     where: { id: slotId },
     data: { status: 'done', qstashJobId: null },
