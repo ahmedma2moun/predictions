@@ -55,6 +55,22 @@ type Standing = {
   form: string | null;
 } | null;
 
+type H2HMatch = {
+  date: string;
+  homeTeam: { name: string; logo: string };
+  awayTeam: { name: string; logo: string };
+  homeScore: number | null;
+  awayScore: number | null;
+  competition: string;
+  status: string;
+};
+
+function formatH2HDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: '2-digit',
+  });
+}
+
 function FormBadge({ char }: { char: string }) {
   const color =
     char === "W" ? "bg-green-500" :
@@ -96,6 +112,8 @@ export default function MatchPredictionPage() {
   const [saving, setSaving] = useState(false);
   // Reactive lock: starts false, set true once match loads, then auto-updates at kickoff.
   const [locked, setLocked] = useState(false);
+  const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
+  const [h2hLoading, setH2hLoading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/matches/${matchId}`)
@@ -112,6 +130,19 @@ export default function MatchPredictionPage() {
         setLocked(isMatchLocked(data.kickoffTime));
       });
   }, [matchId]);
+
+  // Fetch H2H lazily after the main match data is ready.
+  useEffect(() => {
+    if (!match) return;
+    setH2hLoading(true);
+    fetch(`/api/matches/${matchId}/h2h`)
+      .then(r => r.json())
+      .then(data => {
+        setH2h(data.matches ?? null);
+        setH2hLoading(false);
+      })
+      .catch(() => setH2hLoading(false));
+  }, [match, matchId]);
 
   // Auto-lock at kickoff if the page is left open — avoids a full re-fetch.
   useEffect(() => {
@@ -234,6 +265,62 @@ export default function MatchPredictionPage() {
           </div>
         </CardContent>
       </Card>
+
+      {h2hLoading && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Head to Head</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="space-y-1.5">
+                <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                <div className="h-5 w-full rounded bg-muted animate-pulse" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {!h2hLoading && h2h && h2h.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Head to Head</CardTitle>
+            <p className="text-xs text-muted-foreground">Last {h2h.length} meeting{h2h.length !== 1 ? 's' : ''}</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {h2h.map((m, i) => {
+              const winner =
+                m.homeScore !== null && m.awayScore !== null
+                  ? m.homeScore > m.awayScore ? 'home'
+                  : m.awayScore > m.homeScore ? 'away'
+                  : 'draw'
+                  : null;
+              return (
+                <div key={i} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{formatH2HDate(m.date)}</span>
+                    <span className="text-xs text-muted-foreground truncate max-w-[140px] text-right">{m.competition}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`flex-1 flex items-center gap-1.5 min-w-0 ${winner === 'home' ? 'font-semibold' : winner !== null && winner !== 'draw' ? 'text-muted-foreground' : ''}`}>
+                      {m.homeTeam.logo && <img src={m.homeTeam.logo} alt="" className="h-4 w-4 object-contain flex-shrink-0" />}
+                      <span className="truncate">{m.homeTeam.name}</span>
+                    </div>
+                    <span className="font-bold tabular-nums flex-shrink-0 w-14 text-center text-sm">
+                      {m.homeScore ?? '–'} – {m.awayScore ?? '–'}
+                    </span>
+                    <div className={`flex-1 flex items-center justify-end gap-1.5 min-w-0 ${winner === 'away' ? 'font-semibold' : winner !== null && winner !== 'draw' ? 'text-muted-foreground' : ''}`}>
+                      <span className="truncate text-right">{m.awayTeam.name}</span>
+                      {m.awayTeam.logo && <img src={m.awayTeam.logo} alt="" className="h-4 w-4 object-contain flex-shrink-0" />}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {hasStandings && (
         <Card>

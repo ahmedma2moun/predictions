@@ -64,3 +64,4 @@ A full-stack football match predictions app where friends predict scores and com
 - `docs/architecture/DATA_ARCHITECTURE.md` — PostgreSQL schema, indexes, access patterns
 - `docs/architecture/DEPLOYMENT_GUIDE.md` — Vercel deployment, env vars, cron setup
 - `docs/architecture/SECURITY_ARCHITECTURE.md` — Auth flow, role-based access, secrets
+- `docs/FOOTBALL_API_FREE_APIS.md` — Free football API options, current integration details, rate limits, and switching guide

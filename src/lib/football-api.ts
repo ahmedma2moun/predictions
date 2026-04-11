@@ -221,6 +221,14 @@ export async function fetchStandings(leagueId: number): Promise<{ season: number
   };
 }
 
+export async function fetchHeadToHead(matchId: number, limit = 5): Promise<APIFixture[]> {
+  const data = await apiGet<{ matches: FDMatch[] }>(
+    `/matches/${matchId}/head2head`,
+    { limit }
+  );
+  return (data.matches ?? []).map(mapFDMatch);
+}
+
 export function mapFixtureStatus(short: string): 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled' {
   if (['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE'].includes(short)) return 'live';
   if (['FT', 'AET', 'PEN'].includes(short)) return 'finished';
