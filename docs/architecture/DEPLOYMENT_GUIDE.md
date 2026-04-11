@@ -55,7 +55,14 @@ cd football-predictions
 vercel --prod
 ```
 
-### 6. Environment Variables (set in Vercel Dashboard)
+### 6. QStash (Upstash) Setup
+
+Result-check jobs are delivered via QStash — a serverless HTTP message queue.
+
+1. Sign up at upstash.com → create a QStash project
+2. Copy the three values from the QStash dashboard → set as env vars below
+
+### 7. Environment Variables (set in Vercel Dashboard)
 
 ```
 DATABASE_URL=postgres://user:pass@host:6543/db?pgbouncer=true
@@ -66,9 +73,12 @@ FOOTBALL_API_KEY=<your-football-data.org-key>
 CRON_SECRET=<32+ char random string>
 GMAIL_USER=your-gmail@gmail.com
 GMAIL_APP_PASSWORD=<16-char app password>
+QSTASH_TOKEN=<token from Upstash QStash dashboard>
+QSTASH_CURRENT_SIGNING_KEY=<current signing key>
+QSTASH_NEXT_SIGNING_KEY=<next signing key>
 ```
 
-### 7. Seed the Database
+### 8. Seed the Database
 
 ```bash
 # Run locally pointing at production DIRECT_URL
@@ -79,7 +89,7 @@ Creates: `admin@predictions.app` / `changeme123` + General group + 4 default sco
 
 **Change the admin password immediately after first login.**
 
-### 8. Initial Data Load
+### 9. Initial Data Load
 
 1. Log in as admin → `/admin/leagues` → "Fetch from API"
 2. Activate desired leagues (toggle switch)
@@ -93,12 +103,11 @@ Creates: `admin@predictions.app` / `changeme123` + General group + 4 default sco
 ```json
 {
   "crons": [
-    { "path": "/api/cron/db-export",           "schedule": "0 9 * * *"    },
-    { "path": "/api/cron/fetch-matches",        "schedule": "00 18 * * 4"  },
-    { "path": "/api/cron/fetch-results",        "schedule": "15 10 * * *"  },
-    { "path": "/api/cron/fetch-results",        "schedule": "0 21 * * *"   },
-    { "path": "/api/cron/prediction-reminder",  "schedule": "0 16 * * 5"   },
-    { "path": "/api/cron/daily-reminder",       "schedule": "0 9 * * *"    }
+    { "path": "/api/cron/db-export",           "schedule": "0 9 * * *"   },
+    { "path": "/api/cron/fetch-matches",        "schedule": "00 18 * * 4" },
+    { "path": "/api/cron/fetch-results",        "schedule": "0 23 * * *"  },
+    { "path": "/api/cron/prediction-reminder",  "schedule": "0 16 * * 5"  },
+    { "path": "/api/cron/daily-reminder",       "schedule": "0 9 * * *"   }
   ]
 }
 ```
@@ -106,19 +115,35 @@ Creates: `admin@predictions.app` / `changeme123` + General group + 4 default sco
 | Cron | UTC Schedule | CLT (UTC+2) | Purpose |
 |---|---|---|---|
 | db-export | 09:00 daily | 11:00 daily | JSON backup of all DB tables → email |
-| fetch-matches | 18:00 Thursday | 20:00 Thursday | Fetch upcoming week's fixtures |
-| fetch-results (1) | 10:15 daily | 12:15 daily | Update match results + score predictions |
-| fetch-results (2) | 21:00 daily | 23:00 daily | Second daily pass for late results |
+| fetch-matches | 18:00 Thursday | 20:00 Thursday | Fetch fixtures + schedule QStash slots |
+| fetch-results | 23:00 daily | 01:00 daily | Safety-net pass for any missed results |
 | prediction-reminder | 16:00 Friday | 18:00 Friday | Remind users with missing predictions |
 | daily-reminder | 09:00 daily | 11:00 daily | Urgent reminder for today's matches |
 
 Vercel calls these endpoints with `Authorization: Bearer {CRON_SECRET}`.
 
-> **Note**: The Vercel Hobby plan allows up to 2 cron jobs. You need a Pro plan (or higher) to use 6 crons. Running two crons at the same UTC time (db-export and daily-reminder at 09:00) is intentional — Vercel triggers them independently.
+> **Note**: The Vercel Hobby plan allows up to 2 cron jobs. You need a Pro plan (or higher) to run all 5 crons. Running two crons at the same UTC time (db-export and daily-reminder at 09:00) is intentional — Vercel triggers them independently.
 
-## Manual Cron Trigger (testing/recovery)
+## QStash Result-Check Jobs
+
+Result fetching is driven by **QStash** (Upstash), not crons. When `fetch-matches` inserts a fixture, it calls `scheduleSlot(kickoffTime)` which publishes a QStash job to fire at `kickoffTime + 2 hours`. QStash calls `POST /api/jobs/check-results` with the slot ID.
+
+| Endpoint | Auth | Called by | Purpose |
+|---|---|---|---|
+| `POST /api/jobs/check-results` | QStash signature | QStash | Check results for a kickoff-time slot, reschedule if unfinished |
+| `POST /api/jobs/reschedule-pending` | `Bearer CRON_SECRET` | Manual | Emergency: re-schedule all unfinished slots |
+
+**Automatic deployment recovery**: `src/instrumentation.ts` runs on every server start. It queries all matches with `kickoffTime < now` and `scoresProcessed = false` and re-schedules their slots immediately. No manual step required after deployment.
+
+**QStash retry logic**:
+- Initial check: `kickoffTime + 2h`
+- If unfinished: reschedule at `now + 30min`
+- Safety cap: abandon after `kickoffTime + 6h`
+
+## Manual Triggers (testing/recovery)
 
 ```bash
+# Cron endpoints
 curl https://your-app.vercel.app/api/cron/fetch-matches \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 
@@ -126,6 +151,10 @@ curl https://your-app.vercel.app/api/cron/fetch-results \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 
 curl https://your-app.vercel.app/api/cron/db-export \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
+
+# Re-schedule all unfinished match slots (emergency recovery)
+curl -X POST https://your-app.vercel.app/api/jobs/reschedule-pending \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 
@@ -159,6 +188,8 @@ For database rollbacks, restore from the daily JSON export (db-export cron) or u
 - [ ] Cron endpoints return 200 with CRON_SECRET
 - [ ] Test email endpoint `/api/admin/test-email` delivers to admin inbox
 - [ ] db-export cron delivers JSON backup to configured recipients
+- [ ] QStash env vars set (`QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`)
+- [ ] After deploying: check server logs for `[instrumentation]` line confirming slots were rescheduled (or "No pending matches")
 
 ## Vercel Plan Considerations
 

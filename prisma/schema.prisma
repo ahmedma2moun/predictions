@@ -144,6 +144,18 @@ model GroupMember {
   @@unique([groupId, userId])
 }
 
+model ResultCheckSlot {
+  id          String      @id @default(cuid())
+  kickoffTime DateTime    @unique
+  qstashJobId String?
+  scheduledAt DateTime
+  status      String      @default("pending")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([status, scheduledAt])
+}
+
 model TeamStanding {
   id               Int      @id @default(autoincrement())
   externalTeamId   Int

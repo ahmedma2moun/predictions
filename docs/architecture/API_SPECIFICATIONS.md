@@ -4,6 +4,7 @@
 All routes except `/api/auth/*` require a valid NextAuth session cookie.
 Admin routes additionally require `role === 'admin'` in the JWT.
 Cron routes require `Authorization: Bearer {CRON_SECRET}` header.
+Job routes (`/api/jobs/check-results`) are verified via QStash signature (`upstash-signature` header).
 
 ## Public API (session-authenticated)
 
@@ -89,12 +90,30 @@ Processes in batches of 100. Returns `{ updated: number }`.
 ## Cron API (CRON_SECRET bearer auth)
 
 ### GET /api/cron/fetch-matches
-Fetches upcoming week's fixtures for all active leagues. Idempotent via upsert.
+Fetches upcoming week's fixtures for all active leagues. Inserts new matches and schedules one QStash result-check slot per unique kickoff time. Idempotent.
 Returns `{ inserted, skipped, errors, timestamp }`.
 
 ### GET /api/cron/fetch-results
-Fetches yesterday's results, updates match statuses, scores unscored predictions.
+Safety-net pass. Finds all past unfinished matches, fetches results from the football API, scores predictions. Runs daily at 23:00 UTC to catch anything QStash missed.
 Returns `{ updated, scored, errors, timestamp }`.
+
+## Job API
+
+### POST /api/jobs/check-results
+**Auth**: QStash signature (`upstash-signature` header — verified via `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY`).
+
+Called by QStash when a result-check slot fires. Processes all matches sharing the slot's `kickoffTime`, scores predictions, and either marks the slot done or reschedules it for 30 minutes later.
+
+**Body**: `{ slotId: string }`
+
+**Response**: `{ slotId, updated, scored, remaining }`
+
+### POST /api/jobs/reschedule-pending
+**Auth**: `Authorization: Bearer {CRON_SECRET}`
+
+Emergency endpoint. Re-schedules QStash jobs for all unfinished past-kickoff matches, grouped by kickoff time. Called automatically by `src/instrumentation.ts` on every server start — manual use is only needed in error recovery scenarios.
+
+**Response**: `{ rescheduled, skipped, totalPendingMatches, timestamp }`
 
 ## Error Response Format
 ```json
