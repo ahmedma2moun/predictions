@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KickoffTime } from "@/components/KickoffTime";
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScoringBreakdown, type RuleBreakdown } from "@/components/ScoringBreakdown";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -25,8 +26,6 @@ type LeaderboardEntry = {
 type Group = { id: string; name: string; isDefault: boolean };
 
 type League = { id: string; externalId: number; name: string; country: string; logo?: string };
-
-type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
 
 type UserPrediction = {
   matchId: string;
@@ -94,25 +93,16 @@ function UserPredictionList({ predictions }: { predictions: UserPrediction[] }) 
           </div>
           <div className="flex items-center gap-3 text-muted-foreground">
             <KickoffTime date={p.kickoffTime} />
-            <span>
+            <span className="flex items-center gap-1">
               Pick: <span className="font-mono text-foreground">{p.homeScore}–{p.awayScore}</span>
+              {p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
+                <ScoringBreakdown rules={p.scoringBreakdown} />
+              )}
             </span>
             <span>
               Result: <span className="font-mono text-foreground">{p.result.homeScore}–{p.result.awayScore}</span>
             </span>
           </div>
-          {p.scoringBreakdown && (
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-0.5">
-              {p.scoringBreakdown.map((rule) => (
-                <span
-                  key={rule.ruleName}
-                  className={rule.matched ? "text-green-500 font-medium" : "text-muted-foreground line-through"}
-                >
-                  {rule.ruleName} +{rule.pointsAwarded}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       ))}
     </div>

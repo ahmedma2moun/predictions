@@ -81,9 +81,12 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Your pick</p>
-            <p className="font-bold text-lg">
-              {pred.homeScore} – {pred.awayScore}
-            </p>
+            <div className="flex items-center justify-center gap-1">
+              <span className="font-bold text-lg">{pred.homeScore} – {pred.awayScore}</span>
+              {isFinished && pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
+                <ScoringBreakdown rules={pred.scoringBreakdown} />
+              )}
+            </div>
             {isFinished && match.result && (
               <p className="text-xs text-muted-foreground">
                 Result: {match.result.homeScore} – {match.result.awayScore}
@@ -95,11 +98,6 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
             <p className="font-medium text-sm">{match.awayTeam?.name}</p>
           </div>
         </div>
-        {isFinished && pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
-          <div className="mt-3 pt-3 border-t">
-            <ScoringBreakdown rules={pred.scoringBreakdown} />
-          </div>
-        )}
         {isLocked && (
           <button
             onClick={toggle}
@@ -128,6 +126,9 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
                     <span className="font-mono tabular-nums">
                       {o.homeScore} – {o.awayScore}
                     </span>
+                    {isFinished && o.scoringBreakdown && o.scoringBreakdown.length > 0 && (
+                      <ScoringBreakdown rules={o.scoringBreakdown} />
+                    )}
                     {isFinished && (
                       <span
                         className={`font-medium ${
@@ -139,9 +140,6 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
                     )}
                   </div>
                 </div>
-                {isFinished && o.scoringBreakdown && o.scoringBreakdown.length > 0 && (
-                  <ScoringBreakdown rules={o.scoringBreakdown} />
-                )}
               </div>
             ))}
           </div>

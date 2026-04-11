@@ -268,8 +268,11 @@ export default function MatchPredictionPage() {
                   <div key={p.userId} className="px-4 py-3 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">{p.userName}</span>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <span className="tabular-nums text-sm">{p.homeScore} – {p.awayScore}</span>
+                        {!isKnockout && match.result && p.scoringBreakdown?.rules?.length > 0 && (
+                          <ScoringBreakdown rules={p.scoringBreakdown.rules} />
+                        )}
                         {!isKnockout && match.result && (
                           p.pointsAwarded > 0
                             ? <span className="text-yellow-500 font-bold text-sm">+{p.pointsAwarded} pts</span>
@@ -277,9 +280,6 @@ export default function MatchPredictionPage() {
                         )}
                       </div>
                     </div>
-                    {!isKnockout && match.result && p.scoringBreakdown?.rules?.length > 0 && (
-                      <ScoringBreakdown rules={p.scoringBreakdown.rules} />
-                    )}
                   </div>
                 ))}
               </div>
