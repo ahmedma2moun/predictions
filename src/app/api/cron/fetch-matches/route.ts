@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     from,
     to,
     weekStart,
-    filterByTeams: false,
+    filterByTeams: true,
     logPrefix: 'cron/fetch-matches',
   });
 
