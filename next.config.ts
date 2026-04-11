@@ -3,9 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     staleTimes: { dynamic: 0 },
-    // Required to trigger src/instrumentation.ts on server startup.
-    // Vercel warns this is "no longer needed" but without it register() is not called.
-    instrumentationHook: true,
   },
   images: {
     remotePatterns: [

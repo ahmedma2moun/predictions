@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football-api';
 import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
-import { scheduleSlot } from '@/lib/result-scheduler';
 
 // Stages that are always single-leg (no leg numbers shown)
 const SINGLE_LEG_STAGES = new Set(['FINAL', 'THIRD_PLACE', 'THIRD_PLACE_PLAY_OFF']);
@@ -119,16 +118,6 @@ export async function fetchAndInsertMatches(params: {
         });
         inserted += toCreate.length;
         console.log(`[${logPrefix}] ${league.name}: inserted=${toCreate.length}, skipped=${fixtures.length - toCreate.length}`);
-
-        // Schedule one result-check job per unique kickoff time slot
-        const uniqueKickoffs = [...new Set(toCreate.map(f => f.fixture.date))];
-        for (const dateStr of uniqueKickoffs) {
-          try {
-            await scheduleSlot(new Date(dateStr));
-          } catch (e) {
-            console.error(`[${logPrefix}] Failed to schedule slot for ${dateStr}:`, e);
-          }
-        }
 
         await assignKnockoutLegs(league.externalId);
       }
