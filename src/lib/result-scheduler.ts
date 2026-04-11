@@ -13,10 +13,18 @@ function getClient() {
   return new Client({ token });
 }
 
-function getAppUrl() {
+function getAppUrl(): string {
+  // VERCEL_URL is auto-set by Vercel on every deployment (no https:// prefix)
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  // Fallback to explicit NEXTAUTH_URL (must be a public URL in production)
   const url = process.env.NEXTAUTH_URL;
-  if (!url) throw new Error('NEXTAUTH_URL is not set');
+  if (!url) throw new Error('Neither VERCEL_URL nor NEXTAUTH_URL is set');
   return url.replace(/\/$/, '');
+}
+
+function isLocalDev(): boolean {
+  const url = getAppUrl();
+  return url.includes('localhost') || url.includes('127.0.0.1');
 }
 
 /**
@@ -70,6 +78,17 @@ export async function scheduleSlot(
 
   const appUrl = getAppUrl();
   console.log(`${LOG} Target URL: ${appUrl}/api/jobs/check-results`);
+
+  // QStash cannot reach localhost — skip publishing in local dev
+  if (isLocalDev()) {
+    console.warn(`${LOG} Local dev detected — skipping QStash publish (localhost is unreachable from QStash). Slot will be picked up on next deployment.`);
+    await prisma.resultCheckSlot.upsert({
+      where: { kickoffTime },
+      create: { kickoffTime, scheduledAt: fireAt, status: 'pending' },
+      update: { scheduledAt: fireAt, status: 'pending' },
+    });
+    return;
+  }
 
   const qstash = getClient();
 
