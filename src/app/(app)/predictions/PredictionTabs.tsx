@@ -5,8 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KickoffTime } from "@/components/KickoffTime";
 import { ChevronDown, ChevronUp } from "lucide-react";
-
-type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
+import { ScoringBreakdown, type RuleBreakdown } from "@/components/ScoringBreakdown";
 
 export type SerializedPrediction = {
   _id: string;
@@ -96,20 +95,9 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
             <p className="font-medium text-sm">{match.awayTeam?.name}</p>
           </div>
         </div>
-        {isFinished && pred.scoringBreakdown && (
-          <div className="mt-3 pt-3 border-t flex flex-wrap gap-x-3 gap-y-1">
-            {pred.scoringBreakdown.map((rule) => (
-              <span
-                key={rule.ruleName}
-                className={`text-xs ${
-                  rule.matched
-                    ? "text-green-500 font-medium"
-                    : "text-muted-foreground line-through"
-                }`}
-              >
-                {rule.ruleName} +{rule.pointsAwarded}
-              </span>
-            ))}
+        {isFinished && pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
+          <div className="mt-3 pt-3 border-t">
+            <ScoringBreakdown rules={pred.scoringBreakdown} />
           </div>
         )}
         {isLocked && (
@@ -152,20 +140,7 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
                   </div>
                 </div>
                 {isFinished && o.scoringBreakdown && o.scoringBreakdown.length > 0 && (
-                  <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                    {o.scoringBreakdown.map((rule) => (
-                      <span
-                        key={rule.ruleName}
-                        className={
-                          rule.matched
-                            ? "text-green-500 font-medium"
-                            : "text-muted-foreground line-through"
-                        }
-                      >
-                        {rule.ruleName} +{rule.pointsAwarded}
-                      </span>
-                    ))}
-                  </div>
+                  <ScoringBreakdown rules={o.scoringBreakdown} />
                 )}
               </div>
             ))}

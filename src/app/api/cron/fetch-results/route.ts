@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processMatchResults } from '@/lib/results-processor';
-import { sendCronRunEmail } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -19,12 +18,6 @@ export async function GET(req: NextRequest) {
   const result = { ...summary, timestamp: new Date().toISOString() };
 
   console.log('[cron/fetch-results] Done —', JSON.stringify(result));
-
-  try {
-    await sendCronRunEmail('fetch-results', result);
-  } catch (e) {
-    console.error('[cron/fetch-results] Failed to send cron notification email:', e);
-  }
 
   return NextResponse.json(result);
 }

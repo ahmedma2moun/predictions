@@ -8,6 +8,7 @@ import { isMatchLocked, formatStage, isKnockoutStage } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
 import { ChevronLeft, Minus, Plus, Lock, MapPin } from "lucide-react";
+import { ScoringBreakdown } from "@/components/ScoringBreakdown";
 
 function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
   return (
@@ -276,17 +277,8 @@ export default function MatchPredictionPage() {
                         )}
                       </div>
                     </div>
-                    {!isKnockout && match.result && p.scoringBreakdown?.rules && (
-                      <div className="flex flex-wrap gap-x-3 gap-y-1">
-                        {(p.scoringBreakdown.rules as Array<{ ruleName: string; pointsAwarded: number; matched: boolean }>).map((rule) => (
-                          <span
-                            key={rule.ruleName}
-                            className={`text-xs ${rule.matched ? "text-green-500" : "text-muted-foreground line-through"}`}
-                          >
-                            {rule.ruleName}{rule.matched ? ` +${rule.pointsAwarded}` : ""}
-                          </span>
-                        ))}
-                      </div>
+                    {!isKnockout && match.result && p.scoringBreakdown?.rules?.length > 0 && (
+                      <ScoringBreakdown rules={p.scoringBreakdown.rules} />
                     )}
                   </div>
                 ))}
