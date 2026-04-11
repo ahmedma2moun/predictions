@@ -76,6 +76,7 @@ GMAIL_APP_PASSWORD=<16-char app password>
 QSTASH_TOKEN=<token from Upstash QStash dashboard>
 QSTASH_CURRENT_SIGNING_KEY=<current signing key>
 QSTASH_NEXT_SIGNING_KEY=<next signing key>
+TRIGGER_SECRET=<32+ char random string — used by cron-job.org to authenticate fetch-results calls>
 ```
 
 ### 8. Seed the Database
@@ -123,6 +124,31 @@ Creates: `admin@predictions.app` / `changeme123` + General group + 4 default sco
 Vercel calls these endpoints with `Authorization: Bearer {CRON_SECRET}`.
 
 > **Note**: The Vercel Hobby plan allows up to 2 cron jobs. You need a Pro plan (or higher) to run all 5 crons. Running two crons at the same UTC time (db-export and daily-reminder at 09:00) is intentional — Vercel triggers them independently.
+
+## External Cron Provider (cron-job.org)
+
+`fetch-results` is also triggered by **[cron-job.org](https://console.cron-job.org/jobs)** on a fine-grained schedule (e.g. every hour during match windows) to supplement or replace the Vercel cron slots.
+
+### Setup
+
+1. Sign up at [cron-job.org](https://cron-job.org) and go to the Jobs console
+2. Create a new job with:
+   - **URL**: `https://your-app.vercel.app/api/cron/fetch-results`
+   - **Method**: GET
+   - **Header**: `Authorization: Bearer <TRIGGER_SECRET>`
+3. Set `TRIGGER_SECRET` in Vercel environment variables (a strong random string, **different** from `CRON_SECRET`)
+
+### How it authenticates
+
+The `fetch-results` handler accepts three sources:
+
+| Source | Header |
+|---|---|
+| Vercel internal cron | `x-vercel-cron-schedule` header (set automatically) |
+| Manual / internal scripts | `Authorization: Bearer CRON_SECRET` |
+| cron-job.org | `Authorization: Bearer TRIGGER_SECRET` |
+
+Add `TRIGGER_SECRET` to the environment variables table above and to your Vercel dashboard.
 
 ## QStash Result-Check Jobs
 
@@ -189,6 +215,7 @@ For database rollbacks, restore from the daily JSON export (db-export cron) or u
 - [ ] Test email endpoint `/api/admin/test-email` delivers to admin inbox
 - [ ] db-export cron delivers JSON backup to configured recipients
 - [ ] QStash env vars set (`QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`)
+- [ ] `TRIGGER_SECRET` set in Vercel dashboard and matching the header configured in cron-job.org
 - [ ] After deploying: check server logs for `[instrumentation]` line confirming slots were rescheduled (or "No pending matches")
 
 ## Vercel Plan Considerations
