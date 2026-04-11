@@ -4,10 +4,12 @@
  * haven't been scored yet, so no jobs are lost across deployments.
  */
 export async function register() {
+  // This log is intentionally before ALL guards — if you don't see it, Next.js
+  // is not calling register() at all (missing experimentalInstrumentationHook flag).
+  console.log('[instrumentation] register() called — runtime:', process.env.NEXT_RUNTIME ?? 'undefined (local dev)');
+
   // Skip only for edge runtime — allow 'nodejs' and undefined (local dev)
   if (process.env.NEXT_RUNTIME === 'edge') return;
-
-  console.log('[instrumentation] register() called — runtime:', process.env.NEXT_RUNTIME ?? 'undefined');
 
   // Dynamic imports keep this out of the edge bundle
   const { prisma } = await import('@/lib/prisma');
