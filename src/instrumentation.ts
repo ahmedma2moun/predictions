@@ -4,7 +4,8 @@
  * haven't been scored yet, so no jobs are lost across deployments.
  */
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== 'nodejs') return;
+  // Skip only for edge runtime — allow 'nodejs' and undefined (local dev)
+  if (process.env.NEXT_RUNTIME === 'edge') return;
 
   // Dynamic imports keep this out of the edge bundle
   const { prisma } = await import('@/lib/prisma');

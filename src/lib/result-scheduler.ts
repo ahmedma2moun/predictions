@@ -42,9 +42,11 @@ export async function scheduleSlot(
   const existing = await prisma.resultCheckSlot.findUnique({ where: { kickoffTime } });
   if (existing?.status === 'done') return;
 
-  const delay =
+  const delay = Math.max(
     delaySeconds ??
-    Math.max(Math.round((kickoffTime.getTime() + INITIAL_DELAY_MS - now) / 1000), 30);
+      Math.max(Math.round((kickoffTime.getTime() + INITIAL_DELAY_MS - now) / 1000), 30),
+    1, // QStash requires at least 1 second
+  );
 
   const fireAt = new Date(now + delay * 1000);
   const qstash = getClient();
