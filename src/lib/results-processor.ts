@@ -81,11 +81,34 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
           continue;
         }
 
-        const winner = homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
+        const isPenalty = f.score.duration === 'PENALTY_SHOOTOUT';
+        const penaltyHomeScore = isPenalty ? (f.score.penalties?.home ?? null) : null;
+        const penaltyAwayScore = isPenalty ? (f.score.penalties?.away ?? null) : null;
+
+        // Full-time winner (used for scoring — penalties are ignored)
+        const scoringWinner: 'home' | 'away' | 'draw' =
+          homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
+
+        // Stored winner: if match ended level and went to penalties, penalty winner is recorded
+        let winner: 'home' | 'away' | 'draw';
+        if (scoringWinner !== 'draw') {
+          winner = scoringWinner;
+        } else if (isPenalty && penaltyHomeScore !== null && penaltyAwayScore !== null) {
+          winner = penaltyHomeScore > penaltyAwayScore ? 'home' : 'away';
+        } else {
+          winner = 'draw';
+        }
 
         const updatedMatch = await prisma.match.update({
           where: { id: match.id },
-          data: { status: 'finished', resultHomeScore: homeScore, resultAwayScore: awayScore, resultWinner: winner },
+          data: {
+            status: 'finished',
+            resultHomeScore: homeScore,
+            resultAwayScore: awayScore,
+            resultPenaltyHomeScore: penaltyHomeScore,
+            resultPenaltyAwayScore: penaltyAwayScore,
+            resultWinner: winner,
+          },
         });
         updated++;
         console.log(`[${logPrefix}] Result saved: ${match.homeTeamName} ${homeScore}–${awayScore} ${match.awayTeamName}`);
@@ -101,7 +124,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
         for (const pred of predictions) {
           const { totalPoints, breakdown } = calculateScore(
             { homeScore: pred.homeScore, awayScore: pred.awayScore },
-            { homeScore, awayScore, winner },
+            { homeScore, awayScore, winner: scoringWinner },
             rules
           );
           await prisma.prediction.update({

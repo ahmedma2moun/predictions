@@ -9,6 +9,8 @@ export type H2HMatch = {
   awayTeam: { name: string; logo: string };
   homeScore: number | null;
   awayScore: number | null;
+  penaltyHomeScore: number | null;
+  penaltyAwayScore: number | null;
   competition: string;
   status: string;
 };
@@ -25,6 +27,8 @@ function mapFixture(f: APIFixture): H2HMatch {
     awayTeam: { name: f.teams.away.name, logo: f.teams.away.logo },
     homeScore: f.goals.home,
     awayScore: f.goals.away,
+    penaltyHomeScore: f.score.penalties?.home ?? null,
+    penaltyAwayScore: f.score.penalties?.away ?? null,
     competition: f.league.name,
     status: f.fixture.status.short,
   };

@@ -19,7 +19,7 @@ export type SerializedPrediction = {
     status: string;
     homeTeam: { name: string };
     awayTeam: { name: string };
-    result?: { homeScore: number; awayScore: number };
+    result?: { homeScore: number; awayScore: number; penaltyHomeScore?: number | null; penaltyAwayScore?: number | null };
   };
 };
 
@@ -90,6 +90,9 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
             {isFinished && match.result && (
               <p className="text-xs text-muted-foreground">
                 Result: {match.result.homeScore} – {match.result.awayScore}
+                {match.result.penaltyHomeScore != null && (
+                  <> ({match.result.penaltyHomeScore} – {match.result.penaltyAwayScore} pen)</>
+                )}
               </p>
             )}
           </div>

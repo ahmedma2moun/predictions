@@ -29,7 +29,12 @@ export default async function PredictionsPage() {
       awayTeam: { name: p.match.awayTeamName },
       result:
         p.match.resultHomeScore !== null && p.match.resultHomeScore !== undefined
-          ? { homeScore: p.match.resultHomeScore, awayScore: p.match.resultAwayScore! }
+          ? {
+              homeScore: p.match.resultHomeScore,
+              awayScore: p.match.resultAwayScore!,
+              penaltyHomeScore: p.match.resultPenaltyHomeScore ?? null,
+              penaltyAwayScore: p.match.resultPenaltyAwayScore ?? null,
+            }
           : undefined,
     },
   }));

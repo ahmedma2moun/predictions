@@ -61,6 +61,8 @@ type H2HMatch = {
   awayTeam: { name: string; logo: string };
   homeScore: number | null;
   awayScore: number | null;
+  penaltyHomeScore: number | null;
+  penaltyAwayScore: number | null;
   competition: string;
   status: string;
 };
@@ -243,6 +245,11 @@ export default function MatchPredictionPage() {
               <div className="bg-accent rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Final Result</p>
                 <p className="text-2xl font-bold">{match.result.homeScore} – {match.result.awayScore}</p>
+                {match.result.penaltyHomeScore != null && (
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Penalties: {match.result.penaltyHomeScore} – {match.result.penaltyAwayScore}
+                  </p>
+                )}
                 {!isAdmin && !isKnockout && match.prediction && (
                   <p className="text-sm mt-1">
                     <span className="text-yellow-500 font-bold">+{match.prediction.pointsAwarded} pts</span>
@@ -307,9 +314,16 @@ export default function MatchPredictionPage() {
                       {m.homeTeam.logo && <img src={m.homeTeam.logo} alt="" className="h-4 w-4 object-contain flex-shrink-0" />}
                       <span className="truncate">{m.homeTeam.name}</span>
                     </div>
-                    <span className="font-bold tabular-nums flex-shrink-0 w-14 text-center text-sm">
-                      {m.homeScore ?? '–'} – {m.awayScore ?? '–'}
-                    </span>
+                    <div className="flex-shrink-0 w-14 text-center">
+                      <span className="font-bold tabular-nums text-sm">
+                        {m.homeScore ?? '–'} – {m.awayScore ?? '–'}
+                      </span>
+                      {m.penaltyHomeScore != null && (
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                          ({m.penaltyHomeScore} – {m.penaltyAwayScore} pen)
+                        </p>
+                      )}
+                    </div>
                     <div className={`flex-1 flex items-center justify-end gap-1.5 min-w-0 ${winner === 'away' ? 'font-semibold' : winner !== null && winner !== 'draw' ? 'text-muted-foreground' : ''}`}>
                       <span className="truncate text-right">{m.awayTeam.name}</span>
                       {m.awayTeam.logo && <img src={m.awayTeam.logo} alt="" className="h-4 w-4 object-contain flex-shrink-0" />}

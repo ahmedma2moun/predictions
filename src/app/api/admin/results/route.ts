@@ -27,6 +27,8 @@ export async function GET() {
     kickoffTime: m.kickoffTime.toISOString(),
     resultHomeScore: m.resultHomeScore,
     resultAwayScore: m.resultAwayScore,
+    resultPenaltyHomeScore: m.resultPenaltyHomeScore,
+    resultPenaltyAwayScore: m.resultPenaltyAwayScore,
     predictions: m.predictions.map((p) => ({
       id: p.id.toString(),
       userId: p.userId.toString(),

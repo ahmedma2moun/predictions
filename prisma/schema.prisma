@@ -86,9 +86,11 @@ model Match {
   stage            String?
   leg              Int?
   venue            String?
-  resultHomeScore  Int?
-  resultAwayScore  Int?
-  resultWinner     Winner?
+  resultHomeScore        Int?
+  resultAwayScore        Int?
+  resultPenaltyHomeScore Int?
+  resultPenaltyAwayScore Int?
+  resultWinner           Winner?
   scoresProcessed  Boolean      @default(false)
   weekStart        DateTime
   createdAt        DateTime     @default(now())

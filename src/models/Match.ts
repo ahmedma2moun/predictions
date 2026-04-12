@@ -17,6 +17,8 @@ export interface IMatch {
   venue?: string | null;
   resultHomeScore?: number | null;
   resultAwayScore?: number | null;
+  resultPenaltyHomeScore?: number | null;
+  resultPenaltyAwayScore?: number | null;
   resultWinner?: 'home' | 'away' | 'draw' | null;
   scoresProcessed: boolean;
   weekStart: Date;
@@ -41,7 +43,13 @@ export function serializeMatch(m: IMatch) {
     venue: m.venue ?? null,
     result:
       m.resultHomeScore !== null && m.resultHomeScore !== undefined
-        ? { homeScore: m.resultHomeScore, awayScore: m.resultAwayScore!, winner: m.resultWinner! }
+        ? {
+            homeScore: m.resultHomeScore,
+            awayScore: m.resultAwayScore!,
+            winner: m.resultWinner!,
+            penaltyHomeScore: m.resultPenaltyHomeScore ?? null,
+            penaltyAwayScore: m.resultPenaltyAwayScore ?? null,
+          }
         : undefined,
     scoresProcessed: m.scoresProcessed,
     weekStart: m.weekStart,

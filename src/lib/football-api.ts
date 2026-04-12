@@ -32,7 +32,12 @@ interface FDMatch {
   season: { startDate: string };
   homeTeam: { id: number; name?: string; crest?: string };
   awayTeam: { id: number; name?: string; crest?: string };
-  score: { fullTime: { home: number | null; away: number | null } };
+  score: {
+    winner?: string | null;
+    duration?: string | null;
+    fullTime: { home: number | null; away: number | null };
+    penalties?: { home: number | null; away: number | null } | null;
+  };
 }
 
 interface FDStandingEntry {
@@ -92,7 +97,11 @@ function mapFDMatch(m: FDMatch): APIFixture {
       away: { id: m.awayTeam.id, name: m.awayTeam.name ?? '', logo: m.awayTeam.crest ?? '' },
     },
     goals:  { home: m.score.fullTime.home, away: m.score.fullTime.away },
-    score:  { fulltime: { home: m.score.fullTime.home, away: m.score.fullTime.away } },
+    score:  {
+      fulltime:  { home: m.score.fullTime.home, away: m.score.fullTime.away },
+      penalties: m.score.penalties ?? null,
+      duration:  m.score.duration ?? null,
+    },
   };
 }
 
@@ -130,7 +139,11 @@ export interface APIFixture {
     away: { id: number; name: string; logo: string };
   };
   goals: { home: number | null; away: number | null };
-  score: { fulltime: { home: number | null; away: number | null } };
+  score: {
+    fulltime: { home: number | null; away: number | null };
+    penalties?: { home: number | null; away: number | null } | null;
+    duration?: string | null;
+  };
 }
 
 export interface APIStandingEntry {

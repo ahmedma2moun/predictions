@@ -24,6 +24,8 @@ type MatchRow = {
   kickoffTime: string;
   resultHomeScore: number;
   resultAwayScore: number;
+  resultPenaltyHomeScore: number | null;
+  resultPenaltyAwayScore: number | null;
   predictions: PredictionRow[];
 };
 
@@ -80,9 +82,16 @@ export default function AdminResultsPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant="secondary" className="text-sm font-bold tabular-nums">
-                          {match.resultHomeScore} – {match.resultAwayScore}
-                        </Badge>
+                        <div className="text-right">
+                          <Badge variant="secondary" className="text-sm font-bold tabular-nums">
+                            {match.resultHomeScore} – {match.resultAwayScore}
+                          </Badge>
+                          {match.resultPenaltyHomeScore != null && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Pen: {match.resultPenaltyHomeScore} – {match.resultPenaltyAwayScore}
+                            </p>
+                          )}
+                        </div>
                         <span className="text-xs text-muted-foreground">
                           {totalPredictions} prediction{totalPredictions !== 1 ? "s" : ""}
                         </span>
