@@ -21,14 +21,24 @@ const cache = new Map<number, { data: H2HMatch[]; fetchedAt: number }>();
 const TTL = 24 * 60 * 60 * 1000;
 
 function mapFixture(f: APIFixture): H2HMatch {
+  const isPenalty = f.score.duration === 'PENALTY_SHOOTOUT';
+  const penaltyHomeScore = isPenalty ? (f.score.penalties?.home ?? null) : null;
+  const penaltyAwayScore = isPenalty ? (f.score.penalties?.away ?? null) : null;
+
+  // The API adds penalty goals to fullTime — subtract to get the actual match score
+  const rawHome = f.goals.home;
+  const rawAway = f.goals.away;
+  const homeScore = isPenalty && penaltyHomeScore !== null && rawHome !== null ? rawHome - penaltyHomeScore : rawHome;
+  const awayScore = isPenalty && penaltyAwayScore !== null && rawAway !== null ? rawAway - penaltyAwayScore : rawAway;
+
   return {
     date: f.fixture.date,
     homeTeam: { name: f.teams.home.name, logo: f.teams.home.logo },
     awayTeam: { name: f.teams.away.name, logo: f.teams.away.logo },
-    homeScore: f.goals.home,
-    awayScore: f.goals.away,
-    penaltyHomeScore: f.score.penalties?.home ?? null,
-    penaltyAwayScore: f.score.penalties?.away ?? null,
+    homeScore,
+    awayScore,
+    penaltyHomeScore,
+    penaltyAwayScore,
     competition: f.league.name,
     status: f.fixture.status.short,
   };

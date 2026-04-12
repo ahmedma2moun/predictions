@@ -74,9 +74,9 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
         }
         if (mapFixtureStatus(f.fixture.status.short) !== 'finished') continue;
 
-        const homeScore = f.score.fulltime.home ?? f.goals.home;
-        const awayScore = f.score.fulltime.away ?? f.goals.away;
-        if (homeScore === null || awayScore === null) {
+        const rawHomeScore = f.score.fulltime.home ?? f.goals.home;
+        const rawAwayScore = f.score.fulltime.away ?? f.goals.away;
+        if (rawHomeScore === null || rawAwayScore === null) {
           console.warn(`[${logPrefix}] Fixture ${f.fixture.id} — scores not available yet`);
           continue;
         }
@@ -84,6 +84,10 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
         const isPenalty = f.score.duration === 'PENALTY_SHOOTOUT';
         const penaltyHomeScore = isPenalty ? (f.score.penalties?.home ?? null) : null;
         const penaltyAwayScore = isPenalty ? (f.score.penalties?.away ?? null) : null;
+
+        // The API adds penalty goals to fullTime for PENALTY_SHOOTOUT matches — subtract to get the actual match score
+        const homeScore = isPenalty && penaltyHomeScore !== null ? rawHomeScore - penaltyHomeScore : rawHomeScore;
+        const awayScore = isPenalty && penaltyAwayScore !== null ? rawAwayScore - penaltyAwayScore : rawAwayScore;
 
         // Full-time winner (used for scoring — penalties are ignored)
         const scoringWinner: 'home' | 'away' | 'draw' =
