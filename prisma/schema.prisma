@@ -96,6 +96,9 @@ model Match {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   predictions      Prediction[]
+
+  @@index([status, kickoffTime])
+  @@index([externalLeagueId, kickoffTime])
 }
 
 model Prediction {
@@ -113,6 +116,8 @@ model Prediction {
   updatedAt        DateTime @updatedAt
 
   @@unique([userId, matchId])
+  @@index([matchId])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model ScoringRule {

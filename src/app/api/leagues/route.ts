@@ -12,5 +12,8 @@ export async function GET() {
     select: { id: true, externalId: true, name: true, country: true, logo: true },
   });
 
-  return NextResponse.json(leagues.map(l => ({ ...l, id: l.id.toString() })));
+  return NextResponse.json(
+    leagues.map(l => ({ ...l, id: l.id.toString() })),
+    { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=120' } },
+  );
 }

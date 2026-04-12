@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -155,6 +155,8 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
   );
 }
 
+const PAGE_SIZE = 20;
+
 export function PredictionTabs({
   futurePreds,
   pastPreds,
@@ -162,6 +164,12 @@ export function PredictionTabs({
   futurePreds: SerializedPrediction[];
   pastPreds: SerializedPrediction[];
 }) {
+  const [pastVisible, setPastVisible] = useState(PAGE_SIZE);
+  const showMore = useCallback(() => setPastVisible(n => n + PAGE_SIZE), []);
+
+  const visiblePast = pastPreds.slice(0, pastVisible);
+  const hasMore = pastVisible < pastPreds.length;
+
   return (
     <Tabs defaultValue="past">
       <TabsList className="w-full">
@@ -191,7 +199,17 @@ export function PredictionTabs({
         {pastPreds.length === 0 ? (
           <p className="text-muted-foreground text-sm">No past predictions yet.</p>
         ) : (
-          pastPreds.map((pred) => <PredictionCard key={pred._id} pred={pred} />)
+          <>
+            {visiblePast.map((pred) => <PredictionCard key={pred._id} pred={pred} />)}
+            {hasMore && (
+              <button
+                onClick={showMore}
+                className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Show more ({pastPreds.length - pastVisible} remaining)
+              </button>
+            )}
+          </>
         )}
       </TabsContent>
     </Tabs>

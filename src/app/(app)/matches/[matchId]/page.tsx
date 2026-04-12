@@ -117,34 +117,25 @@ export default function MatchPredictionPage() {
   const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
   const [h2hLoading, setH2hLoading] = useState(false);
 
+  // Fetch match data and H2H in parallel — both only need matchId.
   useEffect(() => {
-    fetch(`/api/matches/${matchId}`)
-      .then(r => r.json())
-      .then(data => {
-        setMatch(data);
-        setAllPredictions(data.allPredictions ?? null);
-        if (data.prediction) {
-          setHomeScore(data.prediction.homeScore);
-          setAwayScore(data.prediction.awayScore);
-        }
-        setLoading(false);
-        // Compute initial lock state from server data
-        setLocked(isMatchLocked(data.kickoffTime));
-      });
-  }, [matchId]);
-
-  // Fetch H2H lazily after the main match data is ready.
-  useEffect(() => {
-    if (!match) return;
     setH2hLoading(true);
-    fetch(`/api/matches/${matchId}/h2h`)
-      .then(r => r.json())
-      .then(data => {
-        setH2h(data.matches ?? null);
-        setH2hLoading(false);
-      })
-      .catch(() => setH2hLoading(false));
-  }, [match, matchId]);
+    Promise.all([
+      fetch(`/api/matches/${matchId}`).then(r => r.json()),
+      fetch(`/api/matches/${matchId}/h2h`).then(r => r.json()).catch(() => ({ matches: null })),
+    ]).then(([matchData, h2hData]) => {
+      setMatch(matchData);
+      setAllPredictions(matchData.allPredictions ?? null);
+      if (matchData.prediction) {
+        setHomeScore(matchData.prediction.homeScore);
+        setAwayScore(matchData.prediction.awayScore);
+      }
+      setLocked(isMatchLocked(matchData.kickoffTime));
+      setLoading(false);
+      setH2h(h2hData.matches ?? null);
+      setH2hLoading(false);
+    });
+  }, [matchId]);
 
   // Auto-lock at kickoff if the page is left open — avoids a full re-fetch.
   useEffect(() => {

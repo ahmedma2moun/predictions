@@ -10,7 +10,21 @@ export default async function PredictionsPage() {
 
   const predictions = await prisma.prediction.findMany({
     where: { userId },
-    include: { match: true },
+    include: {
+      match: {
+        select: {
+          id: true,
+          kickoffTime: true,
+          status: true,
+          homeTeamName: true,
+          awayTeamName: true,
+          resultHomeScore: true,
+          resultAwayScore: true,
+          resultPenaltyHomeScore: true,
+          resultPenaltyAwayScore: true,
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
     take: 200,
   });

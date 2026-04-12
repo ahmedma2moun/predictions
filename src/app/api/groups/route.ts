@@ -9,13 +9,16 @@ export async function GET() {
 
   const isAdmin = (session.user as any).role === 'admin';
 
+  const headers = { 'Cache-Control': 's-maxage=60, stale-while-revalidate=120' };
+
   if (isAdmin) {
     const allGroups = await prisma.group.findMany({
       select: { id: true, name: true, isDefault: true },
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
     });
     return NextResponse.json(
-      allGroups.map(g => ({ id: g.id.toString(), name: g.name, isDefault: g.isDefault }))
+      allGroups.map(g => ({ id: g.id.toString(), name: g.name, isDefault: g.isDefault })),
+      { headers },
     );
   }
 
@@ -31,6 +34,7 @@ export async function GET() {
       id:        m.group.id.toString(),
       name:      m.group.name,
       isDefault: m.group.isDefault,
-    }))
+    })),
+    { headers },
   );
 }

@@ -1,30 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const period    = searchParams.get('period') || 'all';
   const leagueIds = searchParams.getAll('leagueId').map(Number).filter(Boolean);
   const groupId   = searchParams.get('groupId');
-
-  const matchWhere: any = { status: 'finished' };
-  if (leagueIds.length === 1) matchWhere.externalLeagueId = leagueIds[0];
-  else if (leagueIds.length > 1) matchWhere.externalLeagueId = { in: leagueIds };
-
   const fromParam = searchParams.get('from');
   const toParam   = searchParams.get('to');
-  if (fromParam || toParam) {
-    matchWhere.kickoffTime = {};
-    if (fromParam) matchWhere.kickoffTime.gte = new Date(fromParam);
-    if (toParam)   matchWhere.kickoffTime.lt  = new Date(toParam);
-  }
 
-  // Restrict to group members when a group is selected
+  // Resolve group constraints
   let userIdFilter: number[] | null = null;
+  let groupKickoffGte: Date | null = null;
+
   if (groupId) {
     const group = await prisma.group.findUnique({
       where: { id: Number(groupId) },
@@ -32,61 +24,57 @@ export async function GET(req: NextRequest) {
     });
     if (!group) return NextResponse.json([]);
 
-    // For non-general groups, only count matches that kicked off after the group was created.
-    // If a period filter (week/month) is already applied, use whichever lower bound is later.
     if (!group.isDefault) {
-      const existingGte: Date | undefined = matchWhere.kickoffTime?.gte;
-      const groupGte = group.createdAt;
-      matchWhere.kickoffTime = {
-        ...(matchWhere.kickoffTime ?? {}),
-        gte: existingGte && existingGte > groupGte ? existingGte : groupGte,
-      };
+      const existingGte = fromParam ? new Date(fromParam) : null;
+      const groupGte    = group.createdAt;
+      groupKickoffGte   = existingGte && existingGte > groupGte ? existingGte : groupGte;
     }
 
     userIdFilter = group.members.map(m => m.userId);
     if (userIdFilter.length === 0) return NextResponse.json([]);
   }
 
-  const finishedMatches = await prisma.match.findMany({ where: matchWhere, select: { id: true } });
-  const matchIds = finishedMatches.map(m => m.id);
+  // Build WHERE conditions — all filters pushed into a single JOIN query,
+  // eliminating the previous two-step "fetch matchIds → pass giant array to SQL" pattern.
+  const conditions: Prisma.Sql[] = [Prisma.sql`m.status = 'finished'`];
+
+  if (leagueIds.length === 1) {
+    conditions.push(Prisma.sql`m."externalLeagueId" = ${leagueIds[0]}`);
+  } else if (leagueIds.length > 1) {
+    conditions.push(Prisma.sql`m."externalLeagueId" = ANY(${leagueIds})`);
+  }
+
+  const effectiveFrom = groupKickoffGte ?? (fromParam ? new Date(fromParam) : null);
+  if (effectiveFrom) conditions.push(Prisma.sql`m."kickoffTime" >= ${effectiveFrom}`);
+  if (toParam)       conditions.push(Prisma.sql`m."kickoffTime" < ${new Date(toParam)}`);
+
+  if (userIdFilter !== null) {
+    conditions.push(Prisma.sql`p."userId" = ANY(${userIdFilter})`);
+  }
+
+  const whereClause = Prisma.join(conditions, ' AND ');
 
   type AggRow = { userId: number; totalPoints: bigint; predictionsCount: bigint; correctPredictions: bigint };
 
-  let rows: AggRow[] = [];
-  if (matchIds.length > 0) {
-    if (userIdFilter !== null) {
-      rows = await prisma.$queryRaw<AggRow[]>`
-        SELECT
-          "userId",
-          SUM("pointsAwarded")                                  AS "totalPoints",
-          COUNT(*)                                               AS "predictionsCount",
-          SUM(CASE WHEN "pointsAwarded" > 0 THEN 1 ELSE 0 END) AS "correctPredictions"
-        FROM "Prediction"
-        WHERE "matchId" = ANY(${matchIds})
-          AND "userId"  = ANY(${userIdFilter})
-        GROUP BY "userId"
-        ORDER BY "totalPoints" DESC
-        LIMIT 100
-      `;
-    } else {
-      rows = await prisma.$queryRaw<AggRow[]>`
-        SELECT
-          "userId",
-          SUM("pointsAwarded")                                  AS "totalPoints",
-          COUNT(*)                                               AS "predictionsCount",
-          SUM(CASE WHEN "pointsAwarded" > 0 THEN 1 ELSE 0 END) AS "correctPredictions"
-        FROM "Prediction"
-        WHERE "matchId" = ANY(${matchIds})
-        GROUP BY "userId"
-        ORDER BY "totalPoints" DESC
-        LIMIT 100
-      `;
-    }
-  }
+  const rows = await prisma.$queryRaw<AggRow[]>(
+    Prisma.sql`
+      SELECT
+        p."userId",
+        SUM(p."pointsAwarded")                                  AS "totalPoints",
+        COUNT(*)                                                 AS "predictionsCount",
+        SUM(CASE WHEN p."pointsAwarded" > 0 THEN 1 ELSE 0 END) AS "correctPredictions"
+      FROM "Prediction" p
+      JOIN "Match" m ON m.id = p."matchId"
+      WHERE ${whereClause}
+      GROUP BY p."userId"
+      ORDER BY "totalPoints" DESC
+      LIMIT 100
+    `
+  );
 
-  // Collect all user IDs we need: scored members + zero-score group members
+  // Collect all user IDs: scored members + zero-score group members
   const scoredUserIds = new Set(rows.map(r => Number(r.userId)));
-  const allUserIds = userIdFilter
+  const allUserIds    = userIdFilter
     ? [...new Set([...scoredUserIds, ...userIdFilter])]
     : [...scoredUserIds];
 
@@ -100,14 +88,14 @@ export async function GET(req: NextRequest) {
 
   const result = rows.flatMap((entry) => {
     const user = userMap.get(Number(entry.userId));
-    if (!user) return []; // skip admins
+    if (!user) return [];
     const predictionsCount   = Number(entry.predictionsCount);
     const correctPredictions = Number(entry.correctPredictions);
     return [{
       userId: Number(entry.userId),
-      name: user?.name ?? 'Unknown',
-      email: user?.email ?? '',
-      avatarUrl: user?.avatarUrl ?? undefined,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl ?? undefined,
       totalPoints: Number(entry.totalPoints),
       predictionsCount,
       correctPredictions,
@@ -115,17 +103,17 @@ export async function GET(req: NextRequest) {
     }];
   });
 
-  // Append group members who have no predictions yet (only when a group is selected)
+  // Append group members with zero predictions (only when a group is selected)
   if (userIdFilter !== null) {
     for (const uid of userIdFilter) {
       if (!scoredUserIds.has(uid)) {
         const user = userMap.get(uid);
-        if (!user) continue; // skip admins and unknown users
+        if (!user) continue;
         result.push({
           userId: uid,
-          name: user?.name ?? 'Unknown',
-          email: user?.email ?? '',
-          avatarUrl: user?.avatarUrl ?? undefined,
+          name: user.name,
+          email: user.email,
+          avatarUrl: user.avatarUrl ?? undefined,
           totalPoints: 0,
           predictionsCount: 0,
           correctPredictions: 0,
@@ -137,6 +125,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(
     result.map((entry, idx) => ({ rank: idx + 1, ...entry, userId: entry.userId.toString() })),
-    { headers: { "Cache-Control": "s-maxage=30, stale-while-revalidate=60" } },
+    { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' } },
   );
 }

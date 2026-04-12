@@ -27,23 +27,24 @@ export default async function MatchesPage() {
     orderBy: { kickoffTime: "asc" },
   });
 
-  const predMap = new Map<number, { homeScore: number; awayScore: number }>();
-  if (!isAdmin && matches.length > 0) {
-    const matchIds = matches.map((m) => m.id);
-    const predictions = await prisma.prediction.findMany({
-      where: { userId, matchId: { in: matchIds } },
-      select: { matchId: true, homeScore: true, awayScore: true },
-    });
-    predictions.forEach((p) => predMap.set(p.matchId, p));
-  }
-
-  // Fetch standings on the fly (cached in DB for 2 h to protect rate limits)
+  const matchIds = matches.map((m) => m.id);
   const uniqueLeagues = [
     ...new Map(matches.map((m) => [m.externalLeagueId, { externalLeagueId: m.externalLeagueId, season: 0 }])).values(),
   ];
-  const standingMap = matches.length > 0
-    ? await getStandingsMap(uniqueLeagues)
-    : new Map();
+
+  // Fetch predictions and standings in parallel — both are independent once we have matchIds
+  const [predictions, standingMap] = await Promise.all([
+    !isAdmin && matchIds.length > 0
+      ? prisma.prediction.findMany({
+          where: { userId, matchId: { in: matchIds } },
+          select: { matchId: true, homeScore: true, awayScore: true },
+        })
+      : Promise.resolve([] as { matchId: number; homeScore: number; awayScore: number }[]),
+    matches.length > 0 ? getStandingsMap(uniqueLeagues) : Promise.resolve(new Map()),
+  ]);
+
+  const predMap = new Map<number, { homeScore: number; awayScore: number }>();
+  predictions.forEach((p) => predMap.set(p.matchId, p));
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
