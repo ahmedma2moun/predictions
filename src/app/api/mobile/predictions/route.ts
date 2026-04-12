@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getMobileSession } from '@/lib/mobile-auth';
-import { serializeMatch } from '@/models/Match';
+import { serializeMatchForMobile } from '@/models/Match';
 import { getWinner } from '@/lib/utils';
 
 export async function GET(req: NextRequest) {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     id: p.id.toString(),
     userId: p.userId.toString(),
     matchId: p.matchId.toString(),
-    match: serializeMatch(p.match),
+    match: serializeMatchForMobile(p.match),
   })));
 }
 

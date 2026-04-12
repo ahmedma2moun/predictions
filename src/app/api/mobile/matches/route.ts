@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getMobileSession } from '@/lib/mobile-auth';
-import { serializeMatch } from '@/models/Match';
+import { serializeMatchForMobile } from '@/models/Match';
 import { MatchStatus } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   }
 
   const result = matches.map(m => ({
-    ...serializeMatch(m),
+    ...serializeMatchForMobile(m),
     prediction: predMap.has(m.id)
       ? {
           homeScore: predMap.get(m.id)!.homeScore,

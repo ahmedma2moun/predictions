@@ -26,6 +26,22 @@ export interface IMatch {
   updatedAt: Date;
 }
 
+/** Converts a flat Prisma match row to the flat shape expected by the mobile API. */
+export function serializeMatchForMobile(m: IMatch) {
+  return {
+    id: m.id.toString(),
+    homeTeamName: m.homeTeamName,
+    awayTeamName: m.awayTeamName,
+    homeTeamLogo: m.homeTeamLogo ?? null,
+    awayTeamLogo: m.awayTeamLogo ?? null,
+    kickoffTime: m.kickoffTime,
+    status: m.status,
+    leagueId: m.leagueId?.toString() ?? null,
+    resultHomeScore: m.resultHomeScore ?? null,
+    resultAwayScore: m.resultAwayScore ?? null,
+  };
+}
+
 /** Converts a flat Prisma match row to the nested shape expected by the frontend. */
 export function serializeMatch(m: IMatch) {
   return {
