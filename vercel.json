@@ -1,16 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/db-export",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/prediction-reminder",
-      "schedule": "0 16 * * 5"
-    },
-    {
-      "path": "/api/cron/daily-reminder",
-      "schedule": "0 9 * * *"
-    }
-  ]
-}
+{}
