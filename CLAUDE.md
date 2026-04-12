@@ -49,6 +49,21 @@ A full-stack football match predictions app where friends predict scores and com
 | `prisma/schema.prisma` | Database schema — source of truth for all models |
 | `scripts/seed.ts` | One-time setup: admin user, General group, scoring rules |
 
+## Cross-Layer Implementation Rule
+
+**Any feature, fix, or API change must be fully implemented across ALL three layers:**
+
+| Layer | Path |
+|---|---|
+| Web frontend | `src/app/` |
+| API / backend | `src/app/api/` |
+| Android mobile | `../football-predictions-android/app/src/` |
+
+Do NOT implement a feature in only one layer and leave the others outdated.  
+Do NOT change an API contract without updating both the web frontend and the Android app.  
+Do NOT add a screen in the Android app without the equivalent web page (and vice versa).  
+When a task targets only one layer, flag it and ask which other layers need updating before proceeding.
+
 ## Anti-Patterns (Do NOT)
 - Never import `connectDB` from `src/lib/db.ts` — it is a no-op; use `prisma` from `@/lib/prisma`
 - Never call `fetchFixtures()` or any football API function from user-facing page routes — rate limits apply to the whole app
