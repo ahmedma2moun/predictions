@@ -39,6 +39,7 @@ model User {
   updatedAt    DateTime      @updatedAt
   predictions  Prediction[]
   groupMembers GroupMember[]
+  deviceTokens DeviceToken[]
 }
 
 model League {
@@ -169,4 +170,16 @@ model TeamStanding {
   updatedAt        DateTime @updatedAt
 
   @@unique([externalTeamId, externalLeagueId])
+}
+
+model DeviceToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   @default("android")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }

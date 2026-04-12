@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football-api';
 import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
+import { sendPushToUsers } from './fcm';
 
 // Stages that are always single-leg (no leg numbers shown)
 const SINGLE_LEG_STAGES = new Set(['FINAL', 'THIRD_PLACE', 'THIRD_PLACE_PLAY_OFF']);
@@ -150,6 +151,21 @@ export async function fetchAndInsertMatches(params: {
           await sendNewMatchesEmail(user.notificationEmail, matchesForEmail);
           console.log(`[${logPrefix}] Notification sent to ${user.notificationEmail}`);
         }
+      }
+      // FCM push — send to ALL users with device tokens, independent of email recipients
+      const mobileUserIds = await prisma.deviceToken.findMany({
+        select: { userId: true },
+        distinct: ['userId'],
+      });
+      const pushUserIds = mobileUserIds.map(d => d.userId);
+      try {
+        await sendPushToUsers(pushUserIds, {
+          title: 'New matches this week',
+          body: `${inserted} match${inserted > 1 ? 'es' : ''} added — place your predictions!`,
+          data: { type: 'new_matches' },
+        });
+      } catch (e) {
+        console.error(`[${logPrefix}] FCM push failed:`, e);
       }
     } catch (e) {
       console.error(`[${logPrefix}] Failed to send new matches emails:`, e);

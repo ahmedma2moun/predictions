@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendDailyReminderEmail, sendCronRunEmail, type UnpredictedMatch } from '@/lib/email';
+import { sendPushToUsers } from '@/lib/fcm';
 
 export async function GET(req: NextRequest) {
   const authHeader    = req.headers.get('authorization');
@@ -86,6 +87,21 @@ export async function GET(req: NextRequest) {
       console.error(`[cron/daily-reminder] Failed to email user ${user.id}:`, e);
       errors++;
     }
+  }
+
+  // FCM push — send to all mobile users (app shows current state when opened)
+  const allMobileUsers = await prisma.deviceToken.findMany({
+    select: { userId: true },
+    distinct: ['userId'],
+  });
+  try {
+    await sendPushToUsers(allMobileUsers.map(d => d.userId), {
+      title: 'Matches today!',
+      body: `${todayMatches.length} match${todayMatches.length > 1 ? 'es kick' : ' kicks'} off today — predict before the whistle!`,
+      data: { type: 'daily_reminder' },
+    });
+  } catch (e) {
+    console.error('[cron/daily-reminder] FCM push failed:', e);
   }
 
   const summary = {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendPredictionReminderEmail, sendCronRunEmail, type UnpredictedMatch } from '@/lib/email';
 import { addDays } from 'date-fns';
+import { sendPushToUsers } from '@/lib/fcm';
 
 export async function GET(req: NextRequest) {
   const authHeader    = req.headers.get('authorization');
@@ -48,6 +49,7 @@ export async function GET(req: NextRequest) {
   });
 
   let remindedUsers = 0, skippedUsers = 0, errors = 0;
+  const remindedUserIds: number[] = [];
 
   for (const user of users) {
     if (!user.notificationEmail) continue;
@@ -78,11 +80,27 @@ export async function GET(req: NextRequest) {
     try {
       await sendPredictionReminderEmail(user.notificationEmail, matchesForEmail);
       remindedUsers++;
+      remindedUserIds.push(user.id);
       console.log(`[cron/prediction-reminder] Reminder sent to user ${user.id} (${missing.length} missing predictions)`);
     } catch (e) {
       console.error(`[cron/prediction-reminder] Failed to email user ${user.id}:`, e);
       errors++;
     }
+  }
+
+  // FCM push — send to all mobile users regardless of email setting
+  const allMobileUsers = await prisma.deviceToken.findMany({
+    select: { userId: true },
+    distinct: ['userId'],
+  });
+  try {
+    await sendPushToUsers(allMobileUsers.map(d => d.userId), {
+      title: "Don't forget to predict!",
+      body: 'You still have matches without a prediction this week.',
+      data: { type: 'prediction_reminder' },
+    });
+  } catch (e) {
+    console.error('[cron/prediction-reminder] FCM push failed:', e);
   }
 
   const summary = {

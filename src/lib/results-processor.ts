@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
+import { sendPushToUsers } from './fcm';
 import { getStandingsMap } from '@/lib/standings';
 import { calculateScore } from '@/lib/scoring-engine';
 import { sendResultsEmail, type ResultMatchForEmail } from '@/lib/email';
@@ -176,6 +177,17 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
           await sendResultsEmail(user.notificationEmail, matches, leaderboards);
           console.log(`[${logPrefix}] Results email sent to ${user.notificationEmail}`);
         }
+      }
+      // FCM push — send results notification to all users who had predictions scored
+      const scoredUserIds = [...userMatchMap.keys()];
+      try {
+        await sendPushToUsers(scoredUserIds, {
+          title: 'Results are in!',
+          body: 'Your predictions have been scored — tap to see how you did.',
+          data: { type: 'results' },
+        });
+      } catch (e) {
+        console.error(`[${logPrefix}] FCM push failed:`, e);
       }
     } catch (e) {
       console.error(`[${logPrefix}] Failed to send results emails:`, e);

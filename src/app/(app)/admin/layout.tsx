@@ -12,6 +12,7 @@ const adminLinks = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/groups", label: "Groups" },
   { href: "/admin/scoring", label: "Scoring" },
+  { href: "/admin/notifications", label: "Notifications" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
