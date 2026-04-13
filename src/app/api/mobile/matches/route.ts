@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { serializeMatchForMobile } from '@/models/Match';
+import { getStandingsMap, standingKey } from '@/lib/standings';
 import { MatchStatus } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
@@ -33,25 +34,49 @@ export async function GET(req: NextRequest) {
   const userId = Number(session.id);
   const matchIds = matches.map(m => m.id);
 
-  const predMap = new Map<number, any>();
-  if (!isAdmin && matchIds.length > 0) {
-    const predictions = await prisma.prediction.findMany({
-      where: { userId, matchId: { in: matchIds } },
-    });
-    predictions.forEach(p => predMap.set(p.matchId, p));
-  }
+  // Fetch predictions and standings in parallel
+  const uniqueLeagues = [
+    ...new Map(matches.map(m => [m.externalLeagueId, { externalLeagueId: m.externalLeagueId, season: 0 }])).values(),
+  ];
 
-  const result = matches.map(m => ({
-    ...serializeMatchForMobile({ ...m, leagueName: m.league?.name ?? null }),
-    prediction: predMap.has(m.id)
-      ? {
-          homeScore: predMap.get(m.id)!.homeScore,
-          awayScore: predMap.get(m.id)!.awayScore,
-          predictedWinner: predMap.get(m.id)!.predictedWinner,
-          pointsAwarded: predMap.get(m.id)!.pointsAwarded,
-        }
-      : null,
-  }));
+  const [predMap, standingMap] = await Promise.all([
+    (async () => {
+      const map = new Map<number, any>();
+      if (!isAdmin && matchIds.length > 0) {
+        const predictions = await prisma.prediction.findMany({
+          where: { userId, matchId: { in: matchIds } },
+        });
+        predictions.forEach(p => map.set(p.matchId, p));
+      }
+      return map;
+    })(),
+    matches.length > 0
+      ? getStandingsMap(uniqueLeagues)
+      : Promise.resolve(new Map<string, any>()),
+  ]);
+
+  const result = matches.map(m => {
+    const homeStanding = standingMap.get(standingKey(m.homeTeamExtId, m.externalLeagueId)) ?? null;
+    const awayStanding = standingMap.get(standingKey(m.awayTeamExtId, m.externalLeagueId)) ?? null;
+
+    return {
+      ...serializeMatchForMobile({ ...m, leagueName: m.league?.name ?? null }),
+      prediction: predMap.has(m.id)
+        ? {
+            homeScore:       predMap.get(m.id)!.homeScore,
+            awayScore:       predMap.get(m.id)!.awayScore,
+            predictedWinner: predMap.get(m.id)!.predictedWinner,
+            pointsAwarded:   predMap.get(m.id)!.pointsAwarded,
+          }
+        : null,
+      homeStanding: homeStanding
+        ? { position: homeStanding.position, points: homeStanding.points }
+        : null,
+      awayStanding: awayStanding
+        ? { position: awayStanding.position, points: awayStanding.points }
+        : null,
+    };
+  });
 
   return NextResponse.json(result);
 }
