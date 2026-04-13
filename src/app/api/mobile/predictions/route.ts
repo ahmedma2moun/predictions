@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
     id: p.id.toString(),
     userId: p.userId.toString(),
     matchId: p.matchId.toString(),
-    scoringBreakdown: (p.scoringBreakdown as { rules?: unknown[] } | null)?.rules ?? null,
+    scoringBreakdown: ((p.scoringBreakdown as { rules?: Array<{ key?: string; ruleId?: number; ruleName: string; pointsAwarded: number; matched: boolean }> } | null)?.rules ?? null)
+      ?.map(r => ({ key: r.key ?? String(r.ruleId ?? ''), name: r.ruleName, points: r.pointsAwarded, awarded: r.matched })) ?? null,
     match: serializeMatchForMobile({ ...p.match, leagueName: p.match.league?.name ?? null }),
   })));
 }

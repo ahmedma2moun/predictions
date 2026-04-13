@@ -31,7 +31,8 @@ export async function GET(
     homeScore: p.homeScore,
     awayScore: p.awayScore,
     pointsAwarded: p.pointsAwarded,
-    scoringBreakdown: (p.scoringBreakdown as { rules?: unknown[] } | null)?.rules ?? null,
+    scoringBreakdown: ((p.scoringBreakdown as { rules?: Array<{ key?: string; ruleId?: number; ruleName: string; pointsAwarded: number; matched: boolean }> } | null)?.rules ?? null)
+      ?.map(r => ({ key: r.key ?? String(r.ruleId ?? ''), name: r.ruleName, points: r.pointsAwarded, awarded: r.matched })) ?? null,
   }));
 
   return NextResponse.json(result);

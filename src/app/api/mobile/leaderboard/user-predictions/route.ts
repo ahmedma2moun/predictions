@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getMobileSession } from '@/lib/mobile-auth';
 
-type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
+type RuleBreakdown = { key?: string; ruleId?: number; ruleName: string; pointsAwarded: number; matched: boolean };
 
 export async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
@@ -53,7 +53,8 @@ export async function GET(req: NextRequest) {
         awayScore: p.match.resultAwayScore!,
       },
       pointsAwarded:    p.pointsAwarded,
-      scoringBreakdown: ((p.scoringBreakdown as { rules?: RuleBreakdown[] } | null)?.rules ?? null),
+      scoringBreakdown: ((p.scoringBreakdown as { rules?: RuleBreakdown[] } | null)?.rules ?? null)
+        ?.map(r => ({ key: r.key ?? String(r.ruleId ?? ''), name: r.ruleName, points: r.pointsAwarded, awarded: r.matched })) ?? null,
     }));
 
   return NextResponse.json(result);
