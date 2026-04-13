@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
 
   const matches = await prisma.match.findMany({
     where,
+    include: { league: { select: { name: true } } },
     orderBy: { kickoffTime: 'asc' },
     take: 100,
   });
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
   }
 
   const result = matches.map(m => ({
-    ...serializeMatchForMobile(m),
+    ...serializeMatchForMobile({ ...m, leagueName: m.league?.name ?? null }),
     prediction: predMap.has(m.id)
       ? {
           homeScore: predMap.get(m.id)!.homeScore,

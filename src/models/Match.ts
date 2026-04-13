@@ -27,7 +27,7 @@ export interface IMatch {
 }
 
 /** Converts a flat Prisma match row to the flat shape expected by the mobile API. */
-export function serializeMatchForMobile(m: IMatch) {
+export function serializeMatchForMobile(m: IMatch & { leagueName?: string | null }) {
   return {
     id: m.id.toString(),
     homeTeamName: m.homeTeamName,
@@ -37,6 +37,10 @@ export function serializeMatchForMobile(m: IMatch) {
     kickoffTime: m.kickoffTime,
     status: m.status,
     leagueId: m.leagueId?.toString() ?? null,
+    leagueName: m.leagueName ?? null,
+    matchday: m.matchday ?? null,
+    stage: m.stage ?? null,
+    leg: m.leg ?? null,
     resultHomeScore: m.resultHomeScore ?? null,
     resultAwayScore: m.resultAwayScore ?? null,
   };

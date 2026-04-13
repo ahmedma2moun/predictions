@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const userId = Number(session.id);
   const predictions = await prisma.prediction.findMany({
     where: { userId },
-    include: { match: true },
+    include: { match: { include: { league: { select: { name: true } } } } },
     orderBy: { createdAt: 'desc' },
     take: 100,
   });
@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
     id: p.id.toString(),
     userId: p.userId.toString(),
     matchId: p.matchId.toString(),
-    match: serializeMatchForMobile(p.match),
+    scoringBreakdown: (p.scoringBreakdown as { rules?: unknown[] } | null)?.rules ?? null,
+    match: serializeMatchForMobile({ ...p.match, leagueName: p.match.league?.name ?? null }),
   })));
 }
 

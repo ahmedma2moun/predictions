@@ -9,6 +9,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const groupId = searchParams.get('groupId');
+  const from    = searchParams.get('from');
+  const to      = searchParams.get('to');
 
   let userIdFilter: number[] | null = null;
 
@@ -22,16 +24,24 @@ export async function GET(req: NextRequest) {
     if (userIdFilter.length === 0) return NextResponse.json([]);
   }
 
-  const conditions: Prisma.Sql[] = [Prisma.sql`m.status = 'finished'`];
-  if (userIdFilter !== null) {
-    conditions.push(Prisma.sql`p."userId" = ANY(${userIdFilter})`);
-  }
-  const whereClause = Prisma.join(conditions, ' AND ');
+  const matchConditions: Prisma.Sql[] = [Prisma.sql`m.status = 'finished'`];
+  if (from) matchConditions.push(Prisma.sql`m."kickoffTime" >= ${new Date(from)}`);
+  if (to)   matchConditions.push(Prisma.sql`m."kickoffTime" < ${new Date(to)}`);
 
-  type AggRow = { userId: number; totalPoints: bigint };
+  const predConditions: Prisma.Sql[] = [...matchConditions];
+  if (userIdFilter !== null) {
+    predConditions.push(Prisma.sql`p."userId" = ANY(${userIdFilter})`);
+  }
+  const whereClause = Prisma.join(predConditions, ' AND ');
+
+  type AggRow = { userId: number; totalPoints: bigint; predictions: bigint; scoredPredictions: bigint };
   const rows = await prisma.$queryRaw<AggRow[]>(
     Prisma.sql`
-      SELECT p."userId", SUM(p."pointsAwarded") AS "totalPoints"
+      SELECT
+        p."userId",
+        SUM(p."pointsAwarded")                              AS "totalPoints",
+        COUNT(*)                                            AS "predictions",
+        COUNT(*) FILTER (WHERE p."pointsAwarded" > 0)      AS "scoredPredictions"
       FROM "Prediction" p
       JOIN "Match" m ON m.id = p."matchId"
       WHERE ${whereClause}
@@ -46,14 +56,25 @@ export async function GET(req: NextRequest) {
 
   const users = await prisma.user.findMany({
     where: { id: { in: userIds }, role: { not: 'admin' } },
-    select: { id: true, name: true },
+    select: { id: true, name: true, avatarUrl: true },
   });
   const userMap = new Map(users.map(u => [u.id, u]));
 
   const result = rows.flatMap((entry, idx) => {
     const user = userMap.get(Number(entry.userId));
     if (!user) return [];
-    return [{ userId: user.id.toString(), name: user.name, totalPoints: Number(entry.totalPoints), rank: idx + 1 }];
+    const predictionsCount = Number(entry.predictions);
+    const scoredCount = Number(entry.scoredPredictions);
+    const accuracy = predictionsCount > 0 ? Math.round((scoredCount / predictionsCount) * 100) : 0;
+    return [{
+      userId: user.id.toString(),
+      name: user.name,
+      avatarUrl: user.avatarUrl ?? null,
+      totalPoints: Number(entry.totalPoints),
+      predictionsCount,
+      accuracy,
+      rank: idx + 1,
+    }];
   });
 
   return NextResponse.json(result);
