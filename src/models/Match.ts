@@ -26,14 +26,11 @@ export interface IMatch {
   updatedAt: Date;
 }
 
-/** Converts a flat Prisma match row to the flat shape expected by the mobile API. */
+/** Converts a flat Prisma match row to the nested shape expected by the mobile app. */
 export function serializeMatchForMobile(m: IMatch & { leagueName?: string | null }) {
+  const hasResult = m.resultHomeScore !== null && m.resultHomeScore !== undefined;
   return {
-    id: m.id.toString(),
-    homeTeamName: m.homeTeamName,
-    awayTeamName: m.awayTeamName,
-    homeTeamLogo: m.homeTeamLogo ?? null,
-    awayTeamLogo: m.awayTeamLogo ?? null,
+    _id: m.id.toString(),
     kickoffTime: m.kickoffTime,
     status: m.status,
     leagueId: m.leagueId?.toString() ?? null,
@@ -41,8 +38,23 @@ export function serializeMatchForMobile(m: IMatch & { leagueName?: string | null
     matchday: m.matchday ?? null,
     stage: m.stage ?? null,
     leg: m.leg ?? null,
-    resultHomeScore: m.resultHomeScore ?? null,
-    resultAwayScore: m.resultAwayScore ?? null,
+    venue: m.venue ?? null,
+    homeTeam: {
+      name: m.homeTeamName,
+      logo: m.homeTeamLogo ?? null,
+    },
+    awayTeam: {
+      name: m.awayTeamName,
+      logo: m.awayTeamLogo ?? null,
+    },
+    result: hasResult
+      ? {
+          homeScore: m.resultHomeScore!,
+          awayScore: m.resultAwayScore!,
+          penaltyHomeScore: m.resultPenaltyHomeScore ?? null,
+          penaltyAwayScore: m.resultPenaltyAwayScore ?? null,
+        }
+      : null,
   };
 }
 

@@ -341,6 +341,95 @@ export async function sendDailyReminderEmail(
   });
 }
 
+// ─── Result Correction Email ──────────────────────────────────────────────────
+
+export async function sendResultCorrectionEmail(
+  to: string | null | undefined,
+  match: ResultMatchForEmail,
+  groupLeaderboards: GroupLeaderboard[] = [],
+): Promise<void> {
+  if (!to) return;
+
+  const hasPrediction = match.predictionHomeScore !== null && match.predictionAwayScore !== null;
+  const predStr = hasPrediction
+    ? `${match.predictionHomeScore} – ${match.predictionAwayScore}`
+    : '<em style="color:#aaa;">no prediction</em>';
+  const resultStr = `${match.resultHomeScore} – ${match.resultAwayScore}`;
+
+  const pointsBadge = hasPrediction
+    ? `<span style="display:inline-block;background:${match.pointsAwarded > 0 ? '#22c55e' : '#e5e7eb'};color:${match.pointsAwarded > 0 ? '#fff' : '#555'};border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;">${match.pointsAwarded} pt${match.pointsAwarded !== 1 ? 's' : ''}</span>`
+    : `<span style="display:inline-block;background:#e5e7eb;color:#555;border-radius:999px;padding:2px 10px;font-size:12px;">—</span>`;
+
+  const breakdownStr = match.scoringBreakdown
+    ? match.scoringBreakdown
+        .filter(r => r.matched)
+        .map(r => `<span style="font-size:11px;color:#22c55e;">✓ ${r.ruleName} (+${r.pointsAwarded})</span>`)
+        .join('&nbsp;&nbsp;') || '<span style="font-size:11px;color:#aaa;">no rules matched</span>'
+    : '';
+
+  const leaderboardBlocks = groupLeaderboards.map(({ groupName, entries }) => {
+    const rows = entries.map((e, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+      return `
+        <tr style="background:${i % 2 === 0 ? '#fff' : '#f9f9f9'};">
+          <td style="padding:8px 12px;font-size:13px;width:32px;">${medal}</td>
+          <td style="padding:8px 12px;font-size:13px;font-weight:500;">${e.userName}</td>
+          <td style="padding:8px 12px;font-size:13px;text-align:right;font-weight:600;">${e.totalPoints} pts</td>
+        </tr>`;
+    }).join('');
+    return `
+      <div style="margin-bottom:20px;">
+        <h3 style="margin:0 0 8px;font-size:15px;color:#1a1a1a;background:#f5f5f5;padding:8px 12px;border-radius:6px;">${groupName}</h3>
+        <table style="width:100%;border-collapse:collapse;border:1px solid #e5e5e5;border-radius:6px;overflow:hidden;">
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
+      <div style="background:#f59e0b;padding:20px 24px;border-radius:8px 8px 0 0;">
+        <h2 style="margin:0;color:#fff;font-size:20px;">⚠️ Result Correction</h2>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.9);font-size:13px;">The result for <strong>${match.homeTeamName} vs ${match.awayTeamName}</strong> has been corrected — your prediction score has been updated.</p>
+      </div>
+      <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
+          <thead>
+            <tr style="color:#888;font-size:12px;">
+              <th style="padding:8px 12px;text-align:left;font-weight:500;">Match</th>
+              <th style="padding:8px 12px;text-align:left;font-weight:500;">Corrected Result</th>
+              <th style="padding:8px 12px;text-align:left;font-weight:500;">Your Prediction</th>
+              <th style="padding:8px 12px;text-align:left;font-weight:500;">New Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-weight:500;">${match.homeTeamName} vs ${match.awayTeamName}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:16px;font-weight:700;">${resultStr}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">${predStr}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">${pointsBadge}${breakdownStr ? `<br/><div style="margin-top:4px;">${breakdownStr}</div>` : ''}</td>
+            </tr>
+          </tbody>
+        </table>
+        ${leaderboardBlocks ? `
+        <div style="margin-top:16px;">
+          <h2 style="margin:0 0 16px;font-size:17px;color:#1a1a1a;">Updated Leaderboard</h2>
+          ${leaderboardBlocks}
+        </div>` : ''}
+        <div style="margin-top:20px;text-align:center;">
+          <a href="${process.env.NEXTAUTH_URL}/predictions" style="display:inline-block;background:#f59e0b;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">View My Picks &rarr;</a>
+        </div>
+      </div>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `⚠️ Result correction: ${match.homeTeamName} vs ${match.awayTeamName}`,
+    html,
+  });
+}
+
 // ─── Cron Run Notification ────────────────────────────────────────────────────
 
 export async function sendCronRunEmail(

@@ -3,9 +3,138 @@ import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
 import { sendPushToUsers } from './fcm';
 import { getStandingsMap } from '@/lib/standings';
 import { calculateScore } from '@/lib/scoring-engine';
-import { sendResultsEmail, type ResultMatchForEmail } from '@/lib/email';
+import { sendResultsEmail, sendResultCorrectionEmail, type ResultMatchForEmail } from '@/lib/email';
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format } from 'date-fns';
+
+type CorrectedPrediction = {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  homeScore: number;
+  awayScore: number;
+  pointsAwarded: number;
+  scoringBreakdown: Array<{ ruleName: string; pointsAwarded: number; matched: boolean }> | null;
+};
+
+/**
+ * Corrects a finished match's result, recalculates all prediction scores,
+ * and sends a correction email to every user who predicted on that match.
+ */
+export async function correctMatchResult(
+  matchId: number,
+  homeScore: number,
+  awayScore: number,
+  penaltyHomeScore: number | null,
+  penaltyAwayScore: number | null,
+): Promise<{ emailsSent: number; predictions: CorrectedPrediction[] }> {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    include: { league: { select: { name: true } } },
+  });
+  if (!match) throw new Error(`Match ${matchId} not found`);
+
+  // Scoring winner uses regular time only (penalties don't affect points)
+  const scoringWinner: 'home' | 'away' | 'draw' =
+    homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
+
+  let resultWinner: 'home' | 'away' | 'draw';
+  if (scoringWinner !== 'draw') {
+    resultWinner = scoringWinner;
+  } else if (penaltyHomeScore !== null && penaltyAwayScore !== null) {
+    resultWinner = penaltyHomeScore > penaltyAwayScore ? 'home' : 'away';
+  } else {
+    resultWinner = 'draw';
+  }
+
+  await prisma.match.update({
+    where: { id: matchId },
+    data: {
+      resultHomeScore: homeScore,
+      resultAwayScore: awayScore,
+      resultPenaltyHomeScore: penaltyHomeScore,
+      resultPenaltyAwayScore: penaltyAwayScore,
+      resultWinner,
+      status: 'finished',
+      scoresProcessed: false,
+    },
+  });
+
+  const [rules, preds] = await Promise.all([
+    prisma.scoringRule.findMany({ where: { isActive: true } }),
+    prisma.prediction.findMany({
+      where: { matchId },
+      include: { user: { select: { id: true, name: true, email: true, notificationEmail: true } } },
+    }),
+  ]);
+
+  if (preds.length > 0) {
+    await prisma.$transaction(
+      preds.map(pred => {
+        const { totalPoints, breakdown } = calculateScore(
+          { homeScore: pred.homeScore, awayScore: pred.awayScore },
+          { homeScore, awayScore, winner: scoringWinner },
+          rules,
+        );
+        return prisma.prediction.update({
+          where: { id: pred.id },
+          data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
+        });
+      }),
+    );
+  }
+
+  await prisma.match.update({ where: { id: matchId }, data: { scoresProcessed: true } });
+
+  // Reload with final values
+  const updated = await prisma.prediction.findMany({
+    where: { matchId },
+    include: { user: { select: { id: true, name: true, email: true, notificationEmail: true } } },
+    orderBy: { pointsAwarded: 'desc' },
+  });
+
+  // Send correction emails
+  let emailsSent = 0;
+  const leagueName = match.league?.name ?? 'Unknown League';
+
+  for (const pred of updated) {
+    if (!pred.user.notificationEmail) continue;
+    try {
+      const breakdown = (pred.scoringBreakdown as { rules?: Array<{ ruleName: string; pointsAwarded: number; matched: boolean }> } | null)?.rules ?? null;
+      const leaderboards = await getUserGroupLeaderboards(pred.userId);
+      await sendResultCorrectionEmail(pred.user.notificationEmail, {
+        homeTeamName: match.homeTeamName,
+        awayTeamName: match.awayTeamName,
+        kickoffTime: match.kickoffTime,
+        leagueName,
+        resultHomeScore: homeScore,
+        resultAwayScore: awayScore,
+        predictionHomeScore: pred.homeScore,
+        predictionAwayScore: pred.awayScore,
+        pointsAwarded: pred.pointsAwarded,
+        scoringBreakdown: breakdown,
+      }, leaderboards);
+      emailsSent++;
+    } catch (e) {
+      console.error(`[result-correction] Email failed for user ${pred.userId}:`, e);
+    }
+  }
+
+  return {
+    emailsSent,
+    predictions: updated.map(p => ({
+      id: p.id.toString(),
+      userId: p.userId.toString(),
+      userName: p.user.name,
+      userEmail: p.user.email,
+      homeScore: p.homeScore,
+      awayScore: p.awayScore,
+      pointsAwarded: p.pointsAwarded,
+      scoringBreakdown: (p.scoringBreakdown as { rules?: Array<{ ruleName: string; pointsAwarded: number; matched: boolean }> } | null)?.rules ?? null,
+    })),
+  };
+}
 
 export interface ProcessResultsSummary {
   updated: number;

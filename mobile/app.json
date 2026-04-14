@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Football Predictions",
+    "slug": "football-predictions",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "football-predictions",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#151d28"
+    },
+    "userInterfaceStyle": "dark",
+    "platforms": [
+      "android",
+      "web"
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#151d28"
+      },
+      "package": "com.maamoun.footballpredictions",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4ade80",
+          "androidMode": "default"
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9960a25c-d1cf-40e8-b03b-d1c3eb2c2950"
+      },
+      "apiBaseUrl": "https://predictions-virid.vercel.app",
+      "router": {}
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "owner": "ahmdma2mou"
+  }
+}

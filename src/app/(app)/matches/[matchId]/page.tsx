@@ -4,10 +4,11 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { isMatchLocked, formatStage, isKnockoutStage } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
-import { ChevronLeft, Minus, Plus, Lock, MapPin } from "lucide-react";
+import { ChevronLeft, Minus, Plus, Lock, MapPin, Pencil, Check, X } from "lucide-react";
 import { ScoringBreakdown } from "@/components/ScoringBreakdown";
 
 function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
@@ -112,6 +113,10 @@ export default function MatchPredictionPage() {
   const [awayScore, setAwayScore] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingResult, setEditingResult] = useState(false);
+  const [editHome, setEditHome] = useState("");
+  const [editAway, setEditAway] = useState("");
+  const [savingResult, setSavingResult] = useState(false);
   // Reactive lock: starts false, set true once match loads, then auto-updates at kickoff.
   const [locked, setLocked] = useState(false);
   const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
@@ -152,6 +157,50 @@ export default function MatchPredictionPage() {
   const isKnockout = isKnockoutStage(match.stage);
   const standings: { home: Standing; away: Standing } = match.standings ?? { home: null, away: null };
   const hasStandings = !isKnockout && (standings.home !== null || standings.away !== null);
+
+  async function handleSaveResult() {
+    const h = parseInt(editHome, 10);
+    const a = parseInt(editAway, 10);
+    if (isNaN(h) || isNaN(a) || h < 0 || a < 0) {
+      toast.error("Invalid scores");
+      return;
+    }
+    setSavingResult(true);
+    try {
+      const res = await fetch(`/api/admin/results/${matchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ homeScore: h, awayScore: a }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Failed to update");
+      }
+      const data = await res.json();
+      setMatch((prev: any) => ({
+        ...prev,
+        result: { homeScore: h, awayScore: a },
+        resultHomeScore: h,
+        resultAwayScore: a,
+      }));
+      setAllPredictions(
+        data.predictions.map((p: any) => ({
+          userId: p.userId,
+          userName: p.userName,
+          homeScore: p.homeScore,
+          awayScore: p.awayScore,
+          pointsAwarded: p.pointsAwarded,
+          scoringBreakdown: p.scoringBreakdown,
+        }))
+      );
+      toast.success(`Result updated — ${data.emailsSent} correction email${data.emailsSent !== 1 ? "s" : ""} sent`);
+      setEditingResult(false);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to update result");
+    } finally {
+      setSavingResult(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -233,9 +282,44 @@ export default function MatchPredictionPage() {
             )}
 
             {match.result && (
-              <div className="bg-accent rounded-lg p-3 text-center">
+              <div className="bg-accent rounded-lg p-3 text-center relative">
+                {isAdmin && !editingResult && (
+                  <button
+                    onClick={() => { setEditHome(String(match.result.homeScore)); setEditAway(String(match.result.awayScore)); setEditingResult(true); }}
+                    className="absolute top-2 right-2 p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    aria-label="Edit result"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <p className="text-xs text-muted-foreground mb-1">Final Result</p>
-                <p className="text-2xl font-bold">{match.result.homeScore} – {match.result.awayScore}</p>
+                {editingResult ? (
+                  <div className="flex items-center justify-center gap-2 my-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={editHome}
+                      onChange={(e) => setEditHome(e.target.value)}
+                      className="w-16 h-9 text-center text-lg font-bold tabular-nums px-1"
+                    />
+                    <span className="text-xl font-bold text-muted-foreground">–</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={editAway}
+                      onChange={(e) => setEditAway(e.target.value)}
+                      className="w-16 h-9 text-center text-lg font-bold tabular-nums px-1"
+                    />
+                    <Button size="icon" variant="default" className="h-8 w-8" onClick={handleSaveResult} disabled={savingResult}>
+                      <Check className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingResult(false)} disabled={savingResult}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-2xl font-bold">{match.result.homeScore} – {match.result.awayScore}</p>
+                )}
                 {match.result.penaltyHomeScore != null && (
                   <p className="text-sm text-muted-foreground mt-0.5">
                     Penalties: {match.result.penaltyHomeScore} – {match.result.penaltyAwayScore}
@@ -362,8 +446,8 @@ export default function MatchPredictionPage() {
                       <span className="font-medium text-sm">{p.userName}</span>
                       <div className="flex items-center gap-2">
                         <span className="tabular-nums text-sm">{p.homeScore} – {p.awayScore}</span>
-                        {!isKnockout && match.result && p.scoringBreakdown?.rules?.length > 0 && (
-                          <ScoringBreakdown rules={p.scoringBreakdown.rules} />
+                        {!isKnockout && match.result && p.scoringBreakdown?.length > 0 && (
+                          <ScoringBreakdown rules={p.scoringBreakdown} />
                         )}
                         {!isKnockout && match.result && (
                           p.pointsAwarded > 0

@@ -4,6 +4,7 @@ import { getMobileSession } from '@/lib/mobile-auth';
 import { serializeMatchForMobile } from '@/models/Match';
 import { isMatchLocked, isKnockoutStage } from '@/lib/utils';
 import { getStandingsMap, standingKey } from '@/lib/standings';
+import { correctMatchResult } from '@/lib/results-processor';
 
 export async function GET(
   req: NextRequest,
@@ -92,4 +93,42 @@ export async function GET(
       : null,
     allPredictions,
   });
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ matchId: string }> },
+) {
+  const session = await getMobileSession(req);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { matchId } = await params;
+  const body = await req.json();
+  const { homeScore, awayScore, penaltyHomeScore = null, penaltyAwayScore = null } = body;
+
+  if (
+    typeof homeScore !== 'number' || typeof awayScore !== 'number' ||
+    homeScore < 0 || awayScore < 0 ||
+    !Number.isInteger(homeScore) || !Number.isInteger(awayScore)
+  ) {
+    return NextResponse.json({ error: 'Invalid scores' }, { status: 400 });
+  }
+
+  try {
+    const result = await correctMatchResult(
+      Number(matchId),
+      homeScore,
+      awayScore,
+      penaltyHomeScore,
+      penaltyAwayScore,
+    );
+    return NextResponse.json(result);
+  } catch (e: any) {
+    if (e.message?.includes('not found')) {
+      return NextResponse.json({ error: 'Match not found' }, { status: 404 });
+    }
+    console.error('[PATCH /api/mobile/matches/:id]', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
