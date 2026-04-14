@@ -160,8 +160,7 @@ export default function LeaderboardPage() {
       .then((data: Group[]) => {
         const sorted = [...data.filter(g => !g.isDefault), ...data.filter(g => g.isDefault)];
         setGroups(sorted);
-        const def = data.find(g => g.isDefault);
-        if (def) setGroupId(def.id);
+        if (sorted.length > 0) setGroupId(sorted[0].id);
         setGroupsReady(true);
       })
       .catch(() => setGroupsReady(true));

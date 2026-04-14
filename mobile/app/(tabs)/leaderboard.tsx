@@ -185,8 +185,7 @@ export default function LeaderboardScreen() {
       .then((res) => {
         const sorted = [...res.data.filter(g => !g.isDefault), ...res.data.filter(g => g.isDefault)];
         setGroups(sorted);
-        const def = res.data.find(g => g.isDefault);
-        if (def) setGroupId(def.id);
+        if (sorted.length > 0) setGroupId(sorted[0].id);
       })
       .catch(() => {})
       .finally(() => setGroupsReady(true));
