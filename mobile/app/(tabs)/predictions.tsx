@@ -12,6 +12,7 @@ import {
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Badge, Card, Muted } from '@/components/ui';
+import { ScoringBreakdown } from '@/components/ScoringBreakdown';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { MatchDetail, PredictionHistoryItem } from '@/types/api';
@@ -228,9 +229,14 @@ function PredictionCard({ pred, token }: { pred: PredictionHistoryItem; token: s
             {match.status.toUpperCase()}
           </Badge>
           {isFinished && (
-            <Badge variant={pred.pointsAwarded > 0 ? 'default' : 'secondary'}>
-              +{pred.pointsAwarded} pts
-            </Badge>
+            <View style={styles.pointsWithInfo}>
+              <Badge variant={pred.pointsAwarded > 0 ? 'default' : 'secondary'}>
+                +{pred.pointsAwarded} pts
+              </Badge>
+              {pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
+                <ScoringBreakdown rules={pred.scoringBreakdown} />
+              )}
+            </View>
           )}
         </View>
       </View>
@@ -259,35 +265,6 @@ function PredictionCard({ pred, token }: { pred: PredictionHistoryItem; token: s
           <Text style={styles.teamName} numberOfLines={2}>{match.awayTeam.name}</Text>
         </View>
       </View>
-
-      {isFinished && pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
-        <View style={styles.breakdown}>
-          {pred.scoringBreakdown.map(rule => (
-            <View
-              key={rule.key}
-              style={[
-                styles.breakdownRow,
-                !rule.awarded && { opacity: 0.45 },
-              ]}
-            >
-              <Ionicons
-                name={rule.awarded ? 'checkmark-circle' : 'close-circle-outline'}
-                size={12}
-                color={rule.awarded ? colors.success : colors.mutedForeground}
-              />
-              <Text style={styles.breakdownName} numberOfLines={1}>{rule.name}</Text>
-              <Text
-                style={[
-                  styles.breakdownPoints,
-                  { color: rule.awarded ? colors.success : colors.mutedForeground },
-                ]}
-              >
-                {rule.awarded ? `+${rule.points}` : '0'}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
 
       {isLocked && (
         <Pressable
@@ -321,14 +298,19 @@ function PredictionCard({ pred, token }: { pred: PredictionHistoryItem; token: s
                   {o.homeScore} – {o.awayScore}
                 </Text>
                 {isFinished && (
-                  <Text
-                    style={[
-                      styles.otherPts,
-                      { color: (o.pointsAwarded ?? 0) > 0 ? colors.success : colors.mutedForeground },
-                    ]}
-                  >
-                    +{o.pointsAwarded ?? 0} pts
-                  </Text>
+                  <>
+                    <Text
+                      style={[
+                        styles.otherPts,
+                        { color: (o.pointsAwarded ?? 0) > 0 ? colors.success : colors.mutedForeground },
+                      ]}
+                    >
+                      +{o.pointsAwarded ?? 0} pts
+                    </Text>
+                    {o.scoringBreakdown && o.scoringBreakdown.length > 0 && (
+                      <ScoringBreakdown rules={o.scoringBreakdown} />
+                    )}
+                  </>
                 )}
               </View>
             </View>
@@ -398,6 +380,7 @@ function makeStyles(c: Palette) {
       alignItems: 'center',
     },
     cardTopRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    pointsWithInfo: { flexDirection: 'row', alignItems: 'center', gap: 2 },
 
     grid: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     sideCol: { flex: 1, alignItems: 'center', gap: 2 },
@@ -413,21 +396,6 @@ function makeStyles(c: Palette) {
       color: c.foreground,
       fontSize: font.size.lg,
       fontWeight: font.weight.bold,
-      fontVariant: ['tabular-nums'],
-    },
-
-    breakdown: {
-      marginTop: spacing.xs,
-      paddingTop: spacing.sm,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: c.border,
-      gap: 4,
-    },
-    breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-    breakdownName: { flex: 1, color: c.foreground, fontSize: font.size.xs },
-    breakdownPoints: {
-      fontSize: font.size.xs,
-      fontWeight: font.weight.semibold,
       fontVariant: ['tabular-nums'],
     },
 

@@ -13,6 +13,7 @@ import {
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Badge, Card, Muted } from '@/components/ui';
+import { ScoringBreakdown } from '@/components/ScoringBreakdown';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type {
@@ -521,9 +522,14 @@ function UserPredRow({ p }: { p: LeaderboardUserPrediction }) {
         <Text style={styles.predTeams} numberOfLines={1}>
           {p.homeTeamName} <Text style={{ color: colors.mutedForeground, fontWeight: font.weight.regular }}>vs</Text> {p.awayTeamName}
         </Text>
-        <Badge variant={awarded ? 'default' : 'secondary'}>
-          +{p.pointsAwarded} pts
-        </Badge>
+        <View style={styles.predTilePts}>
+          <Badge variant={awarded ? 'default' : 'secondary'}>
+            +{p.pointsAwarded} pts
+          </Badge>
+          {p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
+            <ScoringBreakdown rules={p.scoringBreakdown} />
+          )}
+        </View>
       </View>
       <View style={styles.predTileMeta}>
         <Muted style={{ fontSize: font.size.xs }}>{formatKickoff(p.kickoffTime)}</Muted>
@@ -680,6 +686,7 @@ function makeStyles(c: Palette) {
       justifyContent: 'space-between',
       gap: spacing.sm,
     },
+    predTilePts: { flexDirection: 'row', alignItems: 'center', gap: 2 },
     predTeams: {
       flex: 1,
       color: c.foreground,

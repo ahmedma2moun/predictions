@@ -9,6 +9,7 @@ const LAST_REGISTERED_TOKEN = 'fp_last_fcm_token';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
+    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
