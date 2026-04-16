@@ -2,51 +2,60 @@
   "expo": {
     "name": "Football Predictions",
     "slug": "football-predictions",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "scheme": "football-predictions",
+    "scheme": "footballpredictions",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#151d28"
+      "backgroundColor": "#0b1220"
     },
-    "userInterfaceStyle": "dark",
-    "platforms": [
-      "android",
-      "web"
-    ],
+    "ios": {
+      "bundleIdentifier": "com.maamoun.footballpredictions",
+      "supportsTablet": true
+    },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#151d28"
-      },
       "package": "com.maamoun.footballpredictions",
       "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#0b1220"
+      },
       "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "INTERNET"
       ]
+    },
+    "web": {
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",
+      "expo-secure-store",
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
-          "color": "#4ade80",
-          "androidMode": "default"
+          "color": "#10b981"
         }
       ],
-      "expo-secure-store"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25"
+          }
+        }
+      ]
     ],
     "extra": {
+      "apiBaseUrl": "https://predictions-virid.vercel.app",
+      "apiBaseUrlDev": "http://10.0.2.2:3000",
+      "router": {
+        "origin": false
+      },
       "eas": {
         "projectId": "9960a25c-d1cf-40e8-b03b-d1c3eb2c2950"
-      },
-      "apiBaseUrl": "https://predictions-virid.vercel.app",
-      "router": {}
+      }
     },
     "experiments": {
       "typedRoutes": true
