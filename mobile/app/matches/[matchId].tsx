@@ -15,7 +15,7 @@ import { apiRequest, ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Badge, Button, Card, Muted } from '@/components/ui';
 import { colors, font, radius, spacing } from '@/theme/colors';
-import type { MatchDetail } from '@/types/api';
+import type { H2HMatch, MatchDetail } from '@/types/api';
 import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked, ordinal } from '@/utils/format';
 
 export default function MatchPredictionScreen() {
@@ -28,20 +28,28 @@ export default function MatchPredictionScreen() {
   const [away, setAway] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
+  const [h2hLoading, setH2hLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!token || !matchId) return;
+    setH2hLoading(true);
     try {
-      const data = await apiRequest<MatchDetail>(`/api/mobile/matches/${matchId}`, { token });
+      const [data, h2hData] = await Promise.all([
+        apiRequest<MatchDetail>(`/api/mobile/matches/${matchId}`, { token }),
+        apiRequest<H2HMatch[]>(`/api/mobile/matches/${matchId}/h2h`, { token }).catch(() => null),
+      ]);
       setMatch(data);
       if (data.prediction) {
         setHome(data.prediction.homeScore);
         setAway(data.prediction.awayScore);
       }
+      setH2h(h2hData);
     } catch (e: any) {
       Alert.alert('Failed to load match', e?.message ?? 'Unknown error');
     } finally {
       setLoading(false);
+      setH2hLoading(false);
     }
   }, [token, matchId]);
 
@@ -174,6 +182,23 @@ export default function MatchPredictionScreen() {
         ) : null}
       </Card>
 
+      {h2hLoading && (
+        <Card>
+          <Text style={styles.sectionTitle}>Head to Head</Text>
+          <ActivityIndicator color={colors.primary} />
+        </Card>
+      )}
+
+      {!h2hLoading && h2h && h2h.length > 0 && (
+        <Card>
+          <Text style={styles.sectionTitle}>Head to Head</Text>
+          <Muted style={{ fontSize: font.size.xs, marginBottom: spacing.sm }}>
+            Last {h2h.length} meeting{h2h.length !== 1 ? 's' : ''}
+          </Muted>
+          {h2h.map((m, i) => <H2HRow key={i} m={m} />)}
+        </Card>
+      )}
+
       {!knockout && (match.homeStanding || match.awayStanding) && (
         <Card>
           <Text style={styles.sectionTitle}>League Standings</Text>
@@ -260,6 +285,73 @@ function TeamColumn({
         >
           <Ionicons name="add" size={18} color={colors.foreground} />
         </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function formatH2HDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: '2-digit',
+  });
+}
+
+function H2HRow({ m }: { m: H2HMatch }) {
+  const winner =
+    m.homeScore !== null && m.awayScore !== null
+      ? m.homeScore > m.awayScore ? 'home'
+        : m.awayScore > m.homeScore ? 'away'
+        : 'draw'
+      : null;
+  const homeStrong = winner === 'home';
+  const awayStrong = winner === 'away';
+  const homeDim = winner !== null && winner !== 'draw' && winner !== 'home';
+  const awayDim = winner !== null && winner !== 'draw' && winner !== 'away';
+
+  return (
+    <View style={styles.h2hRow}>
+      <View style={styles.h2hMeta}>
+        <Muted style={{ fontSize: font.size.xs }}>{formatH2HDate(m.date)}</Muted>
+        <Muted style={{ fontSize: font.size.xs, maxWidth: 140 }} numberOfLines={1}>{m.competition}</Muted>
+      </View>
+      <View style={styles.h2hTeams}>
+        <View style={styles.h2hTeamLeft}>
+          {m.homeTeamLogo && <Image source={{ uri: m.homeTeamLogo }} style={styles.h2hLogo} resizeMode="contain" />}
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.h2hTeamName,
+              homeStrong && { fontWeight: font.weight.semibold },
+              homeDim && { color: colors.mutedForeground },
+            ]}
+          >
+            {m.homeTeamName}
+          </Text>
+        </View>
+        <View style={styles.h2hScoreBox}>
+          <Text style={styles.h2hScore}>
+            {m.homeScore ?? '–'} – {m.awayScore ?? '–'}
+          </Text>
+          {m.penaltyHomeScore != null && (
+            <Muted style={{ fontSize: 10, textAlign: 'center' }}>
+              ({m.penaltyHomeScore} – {m.penaltyAwayScore} pen)
+            </Muted>
+          )}
+        </View>
+        <View style={styles.h2hTeamRight}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.h2hTeamName,
+              { textAlign: 'right' },
+              awayStrong && { fontWeight: font.weight.semibold },
+              awayDim && { color: colors.mutedForeground },
+            ]}
+          >
+            {m.awayTeamName}
+          </Text>
+          {m.awayTeamLogo && <Image source={{ uri: m.awayTeamLogo }} style={styles.h2hLogo} resizeMode="contain" />}
+        </View>
       </View>
     </View>
   );
@@ -395,6 +487,48 @@ const styles = StyleSheet.create({
   predScore: {
     color: colors.foreground,
     fontSize: font.size.sm,
+    fontVariant: ['tabular-nums'],
+  },
+  h2hRow: {
+    gap: 4,
+    paddingVertical: spacing.xs,
+  },
+  h2hMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  h2hTeams: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  h2hTeamLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 0,
+  },
+  h2hTeamRight: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    minWidth: 0,
+  },
+  h2hLogo: { width: 16, height: 16 },
+  h2hTeamName: {
+    color: colors.foreground,
+    fontSize: font.size.sm,
+    flexShrink: 1,
+  },
+  h2hScoreBox: { width: 64, alignItems: 'center' },
+  h2hScore: {
+    color: colors.foreground,
+    fontSize: font.size.sm,
+    fontWeight: font.weight.bold,
     fontVariant: ['tabular-nums'],
   },
 });

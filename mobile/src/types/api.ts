@@ -67,6 +67,20 @@ export interface MatchDetail extends MatchListItem {
   }> | null;
 }
 
+export interface H2HMatch {
+  date: string;
+  homeTeamName: string;
+  homeTeamLogo: string | null;
+  awayTeamName: string;
+  awayTeamLogo: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  penaltyHomeScore: number | null;
+  penaltyAwayScore: number | null;
+  competition: string;
+  status: string;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
