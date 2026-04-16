@@ -1,86 +1,83 @@
-import { useEffect, useRef, useState } from 'react';
-import { Stack, router } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
-import { Colors } from '@/lib/constants';
-import { getToken, onAuthCleared } from '@/lib/auth';
-import { addNotificationResponseListener, setupNotifications } from '@/lib/notifications';
+import React, { useEffect, useRef } from 'react';
+import { View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider, useAuth } from '@/auth/AuthContext';
+import { colors } from '@/theme/colors';
+import { registerForPushNotifications } from '@/notifications/push';
 
-SplashScreen.preventAutoHideAsync();
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { token, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    const inAuthGroup = segments[0] === 'login';
+    if (!token && !inAuthGroup) {
+      router.replace('/login');
+    } else if (token && inAuthGroup) {
+      router.replace('/(tabs)/matches');
+    }
+  }, [token, loading, segments, router]);
+
+  return <>{children}</>;
+}
+
+function PushRegistrar() {
+  const { token } = useAuth();
+  const registered = useRef<string | null>(null);
+  const router = useRouter();
+
+  // Register FCM token once per JWT.
+  useEffect(() => {
+    if (!token || registered.current === token) return;
+    registered.current = token;
+    registerForPushNotifications(token).catch(() => {});
+  }, [token]);
+
+  // Route notification taps to the relevant screen.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(response => {
+      const type = (response.notification.request.content.data as any)?.type as string | undefined;
+      if (type === 'results') router.push('/(tabs)/predictions' as any);
+      else router.push('/(tabs)/matches');
+    });
+    return () => sub.remove();
+  }, [router]);
+
+  return null;
+}
 
 export default function RootLayout() {
-  const [ready, setReady] = useState(false);
-  const [authed, setAuthed]  = useState(false);
-  const notifSub = useRef<Notifications.Subscription | null>(null);
-
-  useEffect(() => {
-    async function init() {
-      try {
-        const token = await getToken();
-        if (token) {
-          setAuthed(true);
-          // Best-effort; errors are swallowed inside setupNotifications
-          setupNotifications().catch(() => {});
-        }
-      } finally {
-        setReady(true);
-        await SplashScreen.hideAsync();
-      }
-    }
-    init();
-  }, []);
-
-  // Navigate to /login whenever a 401 clears credentials
-  useEffect(() => {
-    return onAuthCleared(() => {
-      setAuthed(false);
-      router.replace('/login');
-    });
-  }, []);
-
-  // Route to the correct screen on notification tap
-  useEffect(() => {
-    notifSub.current = addNotificationResponseListener((matchId) => {
-      router.push(`/match/${matchId}`);
-    });
-    return () => { notifSub.current?.remove(); };
-  }, []);
-
-  // Redirect once we know auth state
-  useEffect(() => {
-    if (!ready) return;
-    if (authed) router.replace('/(tabs)');
-    else router.replace('/login');
-  }, [ready, authed]);
-
-  if (!ready) return null;
-
   return (
-    <>
-      <StatusBar style="light" backgroundColor={Colors.bg} />
-      <Stack
-        screenOptions={{
-          headerStyle:      { backgroundColor: Colors.card },
-          headerTintColor:  Colors.text,
-          headerTitleStyle: { color: Colors.text, fontWeight: '700' },
-          contentStyle:     { backgroundColor: Colors.bg },
-          animation:        'slide_from_right',
-        }}
-      >
-        <Stack.Screen name="index"             options={{ headerShown: false }} />
-        <Stack.Screen name="login"            options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)"           options={{ headerShown: false }} />
-        <Stack.Screen
-          name="match/[matchId]"
-          options={{
-            title:       'Match',
-            headerShown: true,
-            headerBackTitle: 'Back',
-          }}
-        />
-        <Stack.Screen name="+not-found" options={{ headerShown: true }} />
-      </Stack>
-    </>
+    <SafeAreaProvider>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <StatusBar style="light" />
+        <AuthProvider>
+          <AuthGate>
+            <PushRegistrar />
+            <Stack
+              screenOptions={{
+                headerStyle: { backgroundColor: colors.card },
+                headerTintColor: colors.foreground,
+                headerTitleStyle: { fontWeight: '700' },
+                contentStyle: { backgroundColor: colors.background },
+              }}
+            >
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="matches/[matchId]"
+                options={{ title: 'Predict Score', headerBackTitle: 'Back' }}
+              />
+            </Stack>
+          </AuthGate>
+        </AuthProvider>
+      </View>
+    </SafeAreaProvider>
   );
 }

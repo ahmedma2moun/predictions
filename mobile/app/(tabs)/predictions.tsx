@@ -1,11 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, font, spacing } from '@/theme/colors';
 
-export default function LeaderboardScreen() {
+export default function PredictionsScreen() {
   return (
     <View style={styles.center}>
-      <Text style={styles.title}>Leaderboard</Text>
-      <Text style={styles.subtitle}>Coming in Phase 3.</Text>
+      <Text style={styles.title}>My Predictions</Text>
+      <Text style={styles.subtitle}>Coming in Phase 2.</Text>
     </View>
   );
 }

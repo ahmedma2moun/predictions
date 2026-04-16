@@ -1,67 +1,80 @@
 import { Tabs } from 'expo-router';
+import { Pressable, Text, View } from 'react-native';
+import { colors, font, spacing } from '@/theme/colors';
+import { useAuth } from '@/auth/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/lib/constants';
 
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
-function TabIcon({ name, focused }: { name: IoniconName; focused: boolean }) {
+function HeaderRight() {
+  const { user, signOut } = useAuth();
   return (
-    <Ionicons
-      name={focused ? name : (`${name}-outline` as IoniconName)}
-      size={24}
-      color={focused ? Colors.primary : Colors.textMuted}
-    />
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingRight: spacing.md }}>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text style={{ color: colors.foreground, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
+          {user?.name ?? ''}
+        </Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
+          {user?.role === 'admin' ? 'Admin' : 'Player'}
+        </Text>
+      </View>
+      <Pressable
+        onPress={signOut}
+        hitSlop={10}
+        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 4 })}
+      >
+        <Ionicons name="log-out-outline" size={22} color={colors.foreground} />
+      </Pressable>
+    </View>
   );
 }
 
-export default function TabLayout() {
+function HeaderTitle() {
+  return (
+    <Text style={{ color: colors.foreground, fontSize: font.size.lg, fontWeight: font.weight.bold }}>
+      ⚽ Predictions
+    </Text>
+  );
+}
+
+export default function TabsLayout() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   return (
     <Tabs
       screenOptions={{
-        headerStyle:      { backgroundColor: Colors.card },
-        headerTintColor:  Colors.text,
-        headerTitleStyle: { fontWeight: '700', color: Colors.text },
+        headerStyle: { backgroundColor: colors.card, borderBottomColor: colors.border },
+        headerTintColor: colors.foreground,
+        headerTitle: HeaderTitle,
+        headerRight: HeaderRight,
         tabBarStyle: {
-          backgroundColor:  Colors.tabBar,
-          borderTopColor:   Colors.tabBarBorder,
-          borderTopWidth:   1,
-          height:           60,
-          paddingBottom:    8,
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
         },
-        tabBarActiveTintColor:   Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarLabelStyle: { fontSize: font.size.xs, fontWeight: font.weight.medium },
       }}
     >
       <Tabs.Screen
         name="matches"
         options={{
-          title:     'Matches',
-          headerTitle: 'Upcoming Matches',
-          tabBarIcon: ({ focused }) => <TabIcon name="football" focused={focused} />,
+          title: 'Matches',
+          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="picks"
+        name="predictions"
         options={{
-          title:     'My Picks',
-          headerTitle: 'My Predictions',
-          tabBarIcon: ({ focused }) => <TabIcon name="list" focused={focused} />,
+          title: 'My Picks',
+          href: isAdmin ? null : undefined,
+          tabBarIcon: ({ color, size }) => <Ionicons name="trending-up-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="leaderboard"
         options={{
-          title:     'Leaderboard',
-          tabBarIcon: ({ focused }) => <TabIcon name="trophy" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="account"
-        options={{
-          title:      'Account',
-          headerTitle: 'My Account',
-          tabBarIcon: ({ focused }) => <TabIcon name="person" focused={focused} />,
+          title: 'Leaders',
+          tabBarIcon: ({ color, size }) => <Ionicons name="trophy-outline" color={color} size={size} />,
         }}
       />
     </Tabs>

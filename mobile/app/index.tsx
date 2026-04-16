@@ -1,12 +1,25 @@
-import { View, ActivityIndicator } from 'react-native';
-import { Colors } from '@/lib/constants';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Redirect } from 'expo-router';
+import { useAuth } from '@/auth/AuthContext';
+import { colors } from '@/theme/colors';
 
-// Initial route required by Expo Router.
-// The root _layout.tsx handles auth-based redirection to /(tabs) or /login.
 export default function Index() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg }}>
-      <ActivityIndicator size="large" color={Colors.primary} />
-    </View>
-  );
+  const { token, loading } = useAuth();
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
+  return token ? <Redirect href="/(tabs)/matches" /> : <Redirect href="/login" />;
 }
+
+const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+});

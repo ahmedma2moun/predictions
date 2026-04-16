@@ -1,91 +1,78 @@
 import { useState } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, ActivityIndicator, Alert, ScrollView,
-} from 'react-native';
-import { router } from 'expo-router';
-import { Colors } from '@/lib/constants';
-import { saveToken, saveUser } from '@/lib/auth';
-import { loginRequest } from '@/lib/api';
-import { setupNotifications } from '@/lib/notifications';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, Card, Input } from '@/components/ui';
+import { useAuth } from '@/auth/AuthContext';
+import { colors, font, spacing } from '@/theme/colors';
+import { ApiError } from '@/api/client';
 
 export default function LoginScreen() {
-  const [email,    setEmail]    = useState('');
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading,  setLoading]  = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
-    const emailTrimmed = email.trim().toLowerCase();
-    if (!emailTrimmed || !password) {
-      Alert.alert('Missing fields', 'Please enter your email and password.');
+  async function handleSubmit() {
+    if (!email.trim() || !password) {
+      Alert.alert('Missing info', 'Email and password are required.');
       return;
     }
     setLoading(true);
     try {
-      const { token, user } = await loginRequest(emailTrimmed, password);
-      await saveToken(token);
-      await saveUser(user);
-      setupNotifications().catch(() => {});
-      router.replace('/(tabs)/matches');
-    } catch (err: any) {
-      const msg = err?.response?.data?.error ?? 'Login failed. Check your credentials.';
-      Alert.alert('Login failed', msg);
+      await signIn(email.trim(), password);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : 'Invalid email or password';
+      Alert.alert('Sign in failed', msg);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior="padding">
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo / Title */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>⚽</Text>
-          <Text style={styles.title}>Football Predictions</Text>
-          <Text style={styles.subtitle}>Sign in to predict & compete</Text>
-        </View>
+        <View style={styles.container}>
+          <Card style={styles.card}>
+            <View style={styles.header}>
+              <Text style={styles.emoji}>⚽</Text>
+              <Text style={styles.title}>Football Predictions</Text>
+              <Text style={styles.subtitle}>Sign in to your account</Text>
+            </View>
 
-        {/* Form */}
-        <View style={styles.form}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            placeholderTextColor={Colors.textDim}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="next"
-          />
+            <View style={styles.field}>
+              <Text style={styles.label}>Email</Text>
+              <Input
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                textContentType="emailAddress"
+              />
+            </View>
 
-          <Text style={[styles.label, { marginTop: 16 }]}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor={Colors.textDim}
-            secureTextEntry
-            returnKeyType="done"
-            onSubmitEditing={handleLogin}
-          />
+            <View style={styles.field}>
+              <Text style={styles.label}>Password</Text>
+              <Input
+                placeholder="••••••••"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="password"
+                textContentType="password"
+              />
+            </View>
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            {loading
-              ? <ActivityIndicator color={Colors.bg} />
-              : <Text style={styles.buttonText}>Sign In</Text>
-            }
-          </TouchableOpacity>
+            <Button fullWidth onPress={handleSubmit} loading={loading}>
+              Sign In
+            </Button>
+          </Card>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -93,44 +80,22 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: Colors.bg },
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 48,
+  root: { flex: 1, backgroundColor: colors.background },
+  scroll: { flexGrow: 1, justifyContent: 'center' },
+  container: { padding: spacing.lg },
+  card: { gap: spacing.md, maxWidth: 420, alignSelf: 'center', width: '100%' },
+  header: { alignItems: 'center', marginBottom: spacing.md, gap: 4 },
+  emoji: { fontSize: 40 },
+  title: {
+    color: colors.foreground,
+    fontSize: font.size.xl,
+    fontWeight: font.weight.bold,
   },
-  header: { alignItems: 'center', marginBottom: 40 },
-  logo:   { fontSize: 56, marginBottom: 12 },
-  title:  { fontSize: 26, fontWeight: '800', color: Colors.text, textAlign: 'center' },
-  subtitle: { fontSize: 14, color: Colors.textMuted, marginTop: 6 },
-
-  form: { gap: 0 },
+  subtitle: { color: colors.mutedForeground, fontSize: font.size.sm },
+  field: { gap: spacing.xs },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textMuted,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: colors.foreground,
+    fontSize: font.size.sm,
+    fontWeight: font.weight.medium,
   },
-  input: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 15,
-    color: Colors.text,
-  },
-  button: {
-    marginTop: 28,
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { fontSize: 16, fontWeight: '700', color: Colors.bg },
 });

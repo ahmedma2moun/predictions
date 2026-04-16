@@ -1,0 +1,80 @@
+// Types mirror responses from football-predictions/src/app/api/mobile/*
+
+export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled';
+
+export interface Team {
+  name: string;
+  logo: string | null;
+}
+
+export interface MatchResult {
+  homeScore: number;
+  awayScore: number;
+  penaltyHomeScore: number | null;
+  penaltyAwayScore: number | null;
+}
+
+export interface PredictionSummary {
+  homeScore: number;
+  awayScore: number;
+  predictedWinner: 'home' | 'away' | 'draw' | null;
+  pointsAwarded: number;
+}
+
+export interface Standing {
+  position: number;
+  points: number;
+  played?: number;
+  won?: number;
+  drawn?: number;
+  lost?: number;
+  goalDifference?: number;
+  form?: string | null;
+}
+
+export interface MatchListItem {
+  _id: string;
+  kickoffTime: string;
+  status: MatchStatus;
+  leagueId: string | null;
+  leagueName: string | null;
+  matchday: number | null;
+  stage: string | null;
+  leg: number | null;
+  venue: string | null;
+  homeTeam: Team;
+  awayTeam: Team;
+  result: MatchResult | null;
+  prediction: PredictionSummary | null;
+  homeStanding: { position: number; points: number } | null;
+  awayStanding: { position: number; points: number } | null;
+}
+
+export interface MatchDetail extends MatchListItem {
+  isAdmin: boolean;
+  isKnockout: boolean;
+  homeStanding: Standing | null;
+  awayStanding: Standing | null;
+  resultPenaltyHomeScore: number | null;
+  resultPenaltyAwayScore: number | null;
+  allPredictions: Array<{
+    userId: string;
+    userName: string;
+    homeScore: number;
+    awayScore: number;
+    pointsAwarded: number;
+    scoringBreakdown: Array<{ key: string; name: string; points: number; awarded: boolean }> | null;
+  }> | null;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: AuthUser;
+}
