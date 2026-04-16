@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,8 @@ import {
 import { apiRequest, ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Badge, Button, Card, Muted } from '@/components/ui';
-import { colors, font, radius, spacing } from '@/theme/colors';
+import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { useTheme } from '@/theme/theme';
 import type { H2HMatch, MatchDetail } from '@/types/api';
 import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked, ordinal } from '@/utils/format';
 
@@ -22,6 +23,8 @@ export default function MatchPredictionScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const router = useRouter();
   const { token } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [match, setMatch] = useState<MatchDetail | null>(null);
   const [home, setHome] = useState(0);
@@ -252,6 +255,8 @@ function TeamColumn({
   onChange: (v: number) => void;
   disabled: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.teamCol}>
       {logo ? (
@@ -297,6 +302,8 @@ function formatH2HDate(dateStr: string) {
 }
 
 function H2HRow({ m }: { m: H2HMatch }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const winner =
     m.homeScore !== null && m.awayScore !== null
       ? m.homeScore > m.awayScore ? 'home'
@@ -358,6 +365,8 @@ function H2HRow({ m }: { m: H2HMatch }) {
 }
 
 function StandingsRow({ label, s }: { label: string; s: MatchDetail['homeStanding'] }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (!s) return null;
   const form = (s.form ?? '').slice(-5).split('');
   return (
@@ -385,150 +394,153 @@ function StandingsRow({ label, s }: { label: string; s: MatchDetail['homeStandin
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  title: {
-    color: colors.foreground,
-    fontSize: font.size.lg,
-    fontWeight: font.weight.bold,
-  },
-  teamsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-  },
-  dash: { color: colors.mutedForeground, fontSize: font.size.xl, fontWeight: font.weight.bold },
-  teamCol: { flex: 1, alignItems: 'center', gap: spacing.sm },
-  teamLogo: { width: 56, height: 56 },
-  teamName: {
-    color: colors.foreground,
-    fontSize: font.size.sm,
-    fontWeight: font.weight.semibold,
-    textAlign: 'center',
-  },
-  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 4 },
-  scoreBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.cardElevated,
-  },
-  scoreBtnDisabled: { opacity: 0.4 },
-  scoreValue: {
-    color: colors.foreground,
-    fontSize: font.size.xxl,
-    fontWeight: font.weight.bold,
-    fontVariant: ['tabular-nums'],
-    width: 40,
-    textAlign: 'center',
-  },
-  outcome: {
-    textAlign: 'center',
-    color: colors.mutedForeground,
-    fontSize: font.size.sm,
-    marginTop: spacing.md,
-  },
-  outcomeStrong: { color: colors.foreground, fontWeight: font.weight.medium },
-  resultBox: {
-    marginTop: spacing.md,
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    gap: 2,
-  },
-  resultScore: {
-    color: colors.foreground,
-    fontSize: font.size.xxl,
-    fontWeight: font.weight.bold,
-    fontVariant: ['tabular-nums'],
-  },
-  points: { color: colors.warning, fontWeight: font.weight.bold, fontSize: font.size.sm, marginTop: 4 },
-  zeroPoints: { color: colors.mutedForeground, fontSize: font.size.sm },
-  sectionTitle: {
-    color: colors.foreground,
-    fontSize: font.size.md,
-    fontWeight: font.weight.semibold,
-    marginBottom: spacing.sm,
-  },
-  standingsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  standingLabel: { flex: 1, color: colors.mutedForeground, fontSize: font.size.xs },
-  standingCol: { color: colors.foreground, fontSize: font.size.xs, minWidth: 56, textAlign: 'center' },
-  standingPts: { color: colors.foreground, fontSize: font.size.sm, fontWeight: font.weight.semibold, minWidth: 48, textAlign: 'center' },
-  formRow: { flexDirection: 'row', gap: 2 },
-  formDot: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  formText: { color: '#fff', fontSize: 9, fontWeight: font.weight.bold },
-  predRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  predName: { color: colors.foreground, fontSize: font.size.sm, fontWeight: font.weight.medium },
-  predScore: {
-    color: colors.foreground,
-    fontSize: font.size.sm,
-    fontVariant: ['tabular-nums'],
-  },
-  h2hRow: {
-    gap: 4,
-    paddingVertical: spacing.xs,
-  },
-  h2hMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  h2hTeams: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  h2hTeamLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minWidth: 0,
-  },
-  h2hTeamRight: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 6,
-    minWidth: 0,
-  },
-  h2hLogo: { width: 16, height: 16 },
-  h2hTeamName: {
-    color: colors.foreground,
-    fontSize: font.size.sm,
-    flexShrink: 1,
-  },
-  h2hScoreBox: { width: 64, alignItems: 'center' },
-  h2hScore: {
-    color: colors.foreground,
-    fontSize: font.size.sm,
-    fontWeight: font.weight.bold,
-    fontVariant: ['tabular-nums'],
-  },
-});
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.background,
+    },
+    content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.xs,
+    },
+    title: {
+      color: c.foreground,
+      fontSize: font.size.lg,
+      fontWeight: font.weight.bold,
+    },
+    teamsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      marginTop: spacing.lg,
+    },
+    dash: { color: c.mutedForeground, fontSize: font.size.xl, fontWeight: font.weight.bold },
+    teamCol: { flex: 1, alignItems: 'center', gap: spacing.sm },
+    teamLogo: { width: 56, height: 56 },
+    teamName: {
+      color: c.foreground,
+      fontSize: font.size.sm,
+      fontWeight: font.weight.semibold,
+      textAlign: 'center',
+    },
+    scoreRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 4 },
+    scoreBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.cardElevated,
+    },
+    scoreBtnDisabled: { opacity: 0.4 },
+    scoreValue: {
+      color: c.foreground,
+      fontSize: font.size.xxl,
+      fontWeight: font.weight.bold,
+      fontVariant: ['tabular-nums'],
+      width: 40,
+      textAlign: 'center',
+    },
+    outcome: {
+      textAlign: 'center',
+      color: c.mutedForeground,
+      fontSize: font.size.sm,
+      marginTop: spacing.md,
+    },
+    outcomeStrong: { color: c.foreground, fontWeight: font.weight.medium },
+    resultBox: {
+      marginTop: spacing.md,
+      backgroundColor: c.accent,
+      borderRadius: radius.md,
+      padding: spacing.md,
+      alignItems: 'center',
+      gap: 2,
+    },
+    resultScore: {
+      color: c.foreground,
+      fontSize: font.size.xxl,
+      fontWeight: font.weight.bold,
+      fontVariant: ['tabular-nums'],
+    },
+    points: {
+      color: c.warning,
+      fontWeight: font.weight.bold,
+      fontSize: font.size.sm,
+      marginTop: 4,
+    },
+    zeroPoints: { color: c.mutedForeground, fontSize: font.size.sm },
+    sectionTitle: {
+      color: c.foreground,
+      fontSize: font.size.md,
+      fontWeight: font.weight.semibold,
+      marginBottom: spacing.sm,
+    },
+    standingsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    standingLabel: { flex: 1, color: c.mutedForeground, fontSize: font.size.xs },
+    standingCol: { color: c.foreground, fontSize: font.size.xs, minWidth: 56, textAlign: 'center' },
+    standingPts: {
+      color: c.foreground,
+      fontSize: font.size.sm,
+      fontWeight: font.weight.semibold,
+      minWidth: 48,
+      textAlign: 'center',
+    },
+    formRow: { flexDirection: 'row', gap: 2 },
+    formDot: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    formText: { color: '#fff', fontSize: 9, fontWeight: font.weight.bold },
+    predRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.border,
+    },
+    predName: { color: c.foreground, fontSize: font.size.sm, fontWeight: font.weight.medium },
+    predScore: {
+      color: c.foreground,
+      fontSize: font.size.sm,
+      fontVariant: ['tabular-nums'],
+    },
+    h2hRow: { gap: 4, paddingVertical: spacing.xs },
+    h2hMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    h2hTeams: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    h2hTeamLeft: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      minWidth: 0,
+    },
+    h2hTeamRight: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 6,
+      minWidth: 0,
+    },
+    h2hLogo: { width: 16, height: 16 },
+    h2hTeamName: { color: c.foreground, fontSize: font.size.sm, flexShrink: 1 },
+    h2hScoreBox: { width: 64, alignItems: 'center' },
+    h2hScore: {
+      color: c.foreground,
+      fontSize: font.size.sm,
+      fontWeight: font.weight.bold,
+      fontVariant: ['tabular-nums'],
+    },
+  });
+}

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,12 +14,15 @@ import {
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Badge, Card, Muted } from '@/components/ui';
-import { colors, font, radius, spacing } from '@/theme/colors';
+import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { useTheme } from '@/theme/theme';
 import type { MatchListItem } from '@/types/api';
 import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked, ordinal } from '@/utils/format';
 
 export default function MatchesScreen() {
   const { token } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const router = useRouter();
   const [matches, setMatches] = useState<MatchListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +33,6 @@ export default function MatchesScreen() {
     if (!token) return;
     setError(null);
     try {
-      // Web Matches page shows scheduled + live only; match that.
       const data = await apiRequest<MatchListItem[]>(
         '/api/mobile/matches?status=scheduled',
         { token },
@@ -71,6 +73,7 @@ export default function MatchesScreen() {
       data={matches}
       keyExtractor={item => item._id}
       contentContainerStyle={styles.list}
+      style={{ backgroundColor: colors.background }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -94,6 +97,8 @@ export default function MatchesScreen() {
 }
 
 function MatchRow({ match, onPress }: { match: MatchListItem; onPress: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const locked = isMatchLocked(match.kickoffTime);
   const knockout = isKnockoutStage(match.stage);
   const headerLabel = knockout
@@ -165,6 +170,8 @@ function TeamSide({
   logo: string | null;
   standing: { position: number; points: number } | null;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.teamSide}>
       <Text style={styles.teamName} numberOfLines={2}>{name}</Text>
@@ -182,44 +189,55 @@ function TeamSide({
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
-  heading: {
-    color: colors.foreground,
-    fontSize: font.size.xl,
-    fontWeight: font.weight.bold,
-    marginBottom: spacing.sm,
-  },
-  matchCard: { marginBottom: spacing.md, paddingVertical: spacing.md },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTopRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  headerLabel: {
-    textAlign: 'center',
-    color: colors.mutedForeground,
-    fontSize: font.size.xs,
-    marginTop: spacing.xs,
-  },
-  teamsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  teamSide: { flex: 1, alignItems: 'center', gap: 6 },
-  teamName: {
-    color: colors.foreground,
-    fontSize: font.size.sm,
-    fontWeight: font.weight.semibold,
-    textAlign: 'center',
-  },
-  logo: { width: 32, height: 32 },
-  standing: { color: colors.mutedForeground, fontSize: font.size.xs },
-  scoreCenter: { paddingHorizontal: spacing.md, minWidth: 70, alignItems: 'center' },
-  predictionScore: {
-    color: colors.foreground,
-    fontSize: font.size.lg,
-    fontWeight: font.weight.bold,
-    fontVariant: ['tabular-nums'],
-  },
-});
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.background,
+    },
+    list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+    heading: {
+      color: c.foreground,
+      fontSize: font.size.xl,
+      fontWeight: font.weight.bold,
+      marginBottom: spacing.sm,
+    },
+    matchCard: { marginBottom: spacing.md, paddingVertical: spacing.md },
+    cardTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    cardTopRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    headerLabel: {
+      textAlign: 'center',
+      color: c.mutedForeground,
+      fontSize: font.size.xs,
+      marginTop: spacing.xs,
+    },
+    teamsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+      gap: spacing.sm,
+    },
+    teamSide: { flex: 1, alignItems: 'center', gap: 6 },
+    teamName: {
+      color: c.foreground,
+      fontSize: font.size.sm,
+      fontWeight: font.weight.semibold,
+      textAlign: 'center',
+    },
+    logo: { width: 32, height: 32 },
+    standing: { color: c.mutedForeground, fontSize: font.size.xs },
+    scoreCenter: { paddingHorizontal: spacing.md, minWidth: 70, alignItems: 'center' },
+    predictionScore: {
+      color: c.foreground,
+      fontSize: font.size.lg,
+      fontWeight: font.weight.bold,
+      fontVariant: ['tabular-nums'],
+    },
+  });
+}

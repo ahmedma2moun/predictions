@@ -1,12 +1,23 @@
-import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Button, Card, Input } from '@/components/ui';
 import { useAuth } from '@/auth/AuthContext';
-import { colors, font, spacing } from '@/theme/colors';
+import { font, spacing, type Palette } from '@/theme/colors';
+import { useTheme } from '@/theme/theme';
 import { ApiError } from '@/api/client';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -79,23 +90,25 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  scroll: { flexGrow: 1, justifyContent: 'center' },
-  container: { padding: spacing.lg },
-  card: { gap: spacing.md, maxWidth: 420, alignSelf: 'center', width: '100%' },
-  header: { alignItems: 'center', marginBottom: spacing.md, gap: 4 },
-  emoji: { fontSize: 40 },
-  title: {
-    color: colors.foreground,
-    fontSize: font.size.xl,
-    fontWeight: font.weight.bold,
-  },
-  subtitle: { color: colors.mutedForeground, fontSize: font.size.sm },
-  field: { gap: spacing.xs },
-  label: {
-    color: colors.foreground,
-    fontSize: font.size.sm,
-    fontWeight: font.weight.medium,
-  },
-});
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.background },
+    scroll: { flexGrow: 1, justifyContent: 'center' },
+    container: { padding: spacing.lg },
+    card: { gap: spacing.md, maxWidth: 420, alignSelf: 'center', width: '100%' },
+    header: { alignItems: 'center', marginBottom: spacing.md, gap: 4 },
+    emoji: { fontSize: 40 },
+    title: {
+      color: c.foreground,
+      fontSize: font.size.xl,
+      fontWeight: font.weight.bold,
+    },
+    subtitle: { color: c.mutedForeground, fontSize: font.size.sm },
+    field: { gap: spacing.xs },
+    label: {
+      color: c.foreground,
+      fontSize: font.size.sm,
+      fontWeight: font.weight.medium,
+    },
+  });
+}

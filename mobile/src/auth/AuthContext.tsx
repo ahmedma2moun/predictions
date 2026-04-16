@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '@/api/client';
+import { unregisterPushToken } from '@/notifications/push';
 import type { AuthUser, LoginResponse } from '@/types/api';
 
 const TOKEN_KEY = 'fp_token';
@@ -53,12 +54,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    const currentToken = state.token;
+    if (currentToken) {
+      await unregisterPushToken(currentToken);
+    }
     await Promise.all([
       SecureStore.deleteItemAsync(TOKEN_KEY),
       SecureStore.deleteItemAsync(USER_KEY),
     ]);
     setState({ token: null, user: null, loading: false });
-  }, []);
+  }, [state.token]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ ...state, signIn, signOut }),

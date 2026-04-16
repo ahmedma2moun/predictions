@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { apiRequest } from '@/api/client';
 
@@ -59,6 +60,7 @@ export async function registerForPushNotifications(jwt: string): Promise<string 
       body: { fcmToken },
       token: jwt,
     });
+    await SecureStore.setItemAsync(LAST_REGISTERED_TOKEN, fcmToken);
   } catch (e) {
     console.warn('[push] device registration failed', e);
     return null;
@@ -67,10 +69,12 @@ export async function registerForPushNotifications(jwt: string): Promise<string 
 }
 
 /**
- * Best-effort token removal on sign-out. Reads the last-registered token
- * from somewhere the caller tracks it — pass it in explicitly.
+ * Best-effort token removal on sign-out. Pulls the last-registered token from
+ * SecureStore so the caller doesn't have to track it.
  */
-export async function unregisterPushToken(jwt: string, fcmToken: string) {
+export async function unregisterPushToken(jwt: string) {
+  const fcmToken = await SecureStore.getItemAsync(LAST_REGISTERED_TOKEN);
+  if (!fcmToken) return;
   try {
     await apiRequest('/api/mobile/devices', {
       method: 'DELETE',
@@ -79,6 +83,8 @@ export async function unregisterPushToken(jwt: string, fcmToken: string) {
     });
   } catch {
     // token will expire naturally server-side; non-fatal.
+  } finally {
+    await SecureStore.deleteItemAsync(LAST_REGISTERED_TOKEN);
   }
 }
 

@@ -12,10 +12,13 @@ export async function GET(req: NextRequest) {
   const userId    = searchParams.get('userId');
   const fromParam = searchParams.get('from');
   const toParam   = searchParams.get('to');
+  const leagueIds = searchParams.getAll('leagueId').map(Number).filter(Boolean);
 
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 
   const matchWhere: any = { status: 'finished' };
+  if (leagueIds.length === 1) matchWhere.externalLeagueId = leagueIds[0];
+  else if (leagueIds.length > 1) matchWhere.externalLeagueId = { in: leagueIds };
   if (fromParam || toParam) {
     matchWhere.kickoffTime = {};
     if (fromParam) matchWhere.kickoffTime.gte = new Date(fromParam);

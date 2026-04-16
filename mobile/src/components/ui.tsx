@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,10 +11,64 @@ import {
   View,
   ViewProps,
 } from 'react-native';
-import { colors, font, radius, spacing } from '@/theme/colors';
+import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { useTheme } from '@/theme/theme';
+
+function makeStyles(c: Palette) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: c.card,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.lg,
+    },
+    button: {
+      minHeight: 44,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    buttonText: {
+      fontSize: font.size.md,
+      fontWeight: font.weight.semibold,
+    },
+    input: {
+      height: 46,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: c.input,
+      backgroundColor: c.cardElevated,
+      paddingHorizontal: spacing.md,
+      color: c.foreground,
+      fontSize: font.size.md,
+    },
+    badge: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      alignSelf: 'flex-start',
+    },
+    badgeText: {
+      fontSize: font.size.xs,
+      fontWeight: font.weight.semibold,
+    },
+  });
+}
 
 // ── Card ─────────────────────────────────────────────────────────────────────
 export function Card({ style, children, ...rest }: ViewProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.card, style]} {...rest}>
       {children}
@@ -39,6 +93,8 @@ export function Button({
   style,
   ...rest
 }: ButtonProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isDisabled = disabled || loading;
   const variantStyle = {
     primary: { bg: colors.primary, fg: colors.primaryForeground, border: colors.primary },
@@ -76,6 +132,8 @@ export const Input = React.forwardRef<TextInput, TextInputProps>(function Input(
   { style, ...rest },
   ref,
 ) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <TextInput
       ref={ref}
@@ -94,6 +152,8 @@ interface BadgeProps {
 }
 
 export function Badge({ variant = 'default', children, icon }: BadgeProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const v = {
     default: { bg: colors.primary, fg: colors.primaryForeground, border: colors.primary },
     outline: { bg: 'transparent', fg: colors.foreground, border: colors.border },
@@ -115,6 +175,7 @@ export function Badge({ variant = 'default', children, icon }: BadgeProps) {
 
 // ── Typography ───────────────────────────────────────────────────────────────
 export function Muted({ style, children, ...rest }: TextProps) {
+  const { colors } = useTheme();
   return (
     <Text style={[{ color: colors.mutedForeground, fontSize: font.size.sm }, style]} {...rest}>
       {children}
@@ -123,6 +184,7 @@ export function Muted({ style, children, ...rest }: TextProps) {
 }
 
 export function Heading({ style, children, ...rest }: TextProps) {
+  const { colors } = useTheme();
   return (
     <Text
       style={[
@@ -135,52 +197,3 @@ export function Heading({ style, children, ...rest }: TextProps) {
     </Text>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-  },
-  button: {
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  buttonText: {
-    fontSize: font.size.md,
-    fontWeight: font.weight.semibold,
-  },
-  input: {
-    height: 46,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.input,
-    backgroundColor: colors.cardElevated,
-    paddingHorizontal: spacing.md,
-    color: colors.foreground,
-    fontSize: font.size.md,
-  },
-  badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-  },
-  badgeText: {
-    fontSize: font.size.xs,
-    fontWeight: font.weight.semibold,
-  },
-});

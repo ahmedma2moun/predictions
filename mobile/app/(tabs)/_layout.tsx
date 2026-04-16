@@ -1,15 +1,42 @@
 import { Tabs } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
-import { colors, font, spacing } from '@/theme/colors';
+import { font, spacing } from '@/theme/colors';
 import { useAuth } from '@/auth/AuthContext';
+import { useTheme } from '@/theme/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 function HeaderRight() {
   const { user, signOut } = useAuth();
+  const { colors, mode, toggle } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingRight: spacing.md }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        paddingRight: spacing.md,
+      }}
+    >
+      <Pressable
+        onPress={toggle}
+        hitSlop={10}
+        accessibilityLabel={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 4 })}
+      >
+        <Ionicons
+          name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'}
+          size={20}
+          color={colors.foreground}
+        />
+      </Pressable>
       <View style={{ alignItems: 'flex-end' }}>
-        <Text style={{ color: colors.foreground, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
+        <Text
+          style={{
+            color: colors.foreground,
+            fontSize: font.size.xs,
+            fontWeight: font.weight.semibold,
+          }}
+        >
           {user?.name ?? ''}
         </Text>
         <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
@@ -28,8 +55,15 @@ function HeaderRight() {
 }
 
 function HeaderTitle() {
+  const { colors } = useTheme();
   return (
-    <Text style={{ color: colors.foreground, fontSize: font.size.lg, fontWeight: font.weight.bold }}>
+    <Text
+      style={{
+        color: colors.foreground,
+        fontSize: font.size.lg,
+        fontWeight: font.weight.bold,
+      }}
+    >
       ⚽ Predictions
     </Text>
   );
@@ -37,6 +71,7 @@ function HeaderTitle() {
 
 export default function TabsLayout() {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const isAdmin = user?.role === 'admin';
 
   return (
@@ -59,7 +94,9 @@ export default function TabsLayout() {
         name="matches"
         options={{
           title: 'Matches',
-          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -67,14 +104,18 @@ export default function TabsLayout() {
         options={{
           title: 'My Picks',
           href: isAdmin ? null : undefined,
-          tabBarIcon: ({ color, size }) => <Ionicons name="trending-up-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="trending-up-outline" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
         name="leaderboard"
         options={{
           title: 'Leaders',
-          tabBarIcon: ({ color, size }) => <Ionicons name="trophy-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="trophy-outline" color={color} size={size} />
+          ),
         }}
       />
     </Tabs>

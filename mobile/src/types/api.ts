@@ -92,3 +92,73 @@ export interface LoginResponse {
   token: string;
   user: AuthUser;
 }
+
+export interface ScoringRuleBreakdown {
+  key: string;
+  name: string;
+  points: number;
+  awarded: boolean;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  totalPoints: number;
+  predictionsCount: number;
+  accuracy: number;
+}
+
+export interface LeaderboardGroup {
+  id: string;
+  name: string;
+  isDefault: boolean;
+}
+
+export interface LeaderboardLeague {
+  id: string;
+  externalId: number;
+  name: string;
+  country: string;
+  logo: string | null;
+}
+
+export interface LeaderboardUserPrediction {
+  matchId: string;
+  kickoffTime: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeScore: number;
+  awayScore: number;
+  result: { homeScore: number; awayScore: number };
+  pointsAwarded: number;
+  scoringBreakdown: ScoringRuleBreakdown[] | null;
+}
+
+export interface PredictionHistoryItem {
+  id: string;
+  userId: string;
+  matchId: string;
+  homeScore: number;
+  awayScore: number;
+  predictedWinner: 'home' | 'away' | 'draw' | null;
+  pointsAwarded: number;
+  createdAt: string;
+  updatedAt: string;
+  scoringBreakdown: ScoringRuleBreakdown[] | null;
+  match: {
+    _id: string;
+    kickoffTime: string;
+    status: MatchStatus;
+    leagueId: string | null;
+    leagueName: string | null;
+    matchday: number | null;
+    stage: string | null;
+    leg: number | null;
+    venue: string | null;
+    homeTeam: Team;
+    awayTeam: Team;
+    result: MatchResult | null;
+  };
+}
