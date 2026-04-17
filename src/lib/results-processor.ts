@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { fetchFixtures, mapFixtureStatus } from '@/lib/football-api';
+import { fetchFixtures, mapFixtureStatus } from '@/lib/football/service';
 import { sendPushToUsers } from './fcm';
 import { getStandingsMap } from '@/lib/standings';
 import { calculateScore } from '@/lib/scoring-engine';

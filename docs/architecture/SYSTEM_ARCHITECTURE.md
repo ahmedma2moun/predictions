@@ -56,7 +56,12 @@ src/
 │   ├── db.ts               # No-op shim (Mongoose migration artifact — do not use)
 │   ├── auth.ts             # NextAuth config — JWT, credentials, role callbacks
 │   ├── mobile-auth.ts      # JWT sign/verify for mobile clients
-│   ├── football-api.ts     # football-data.org v4 client
+│   ├── football/           # Football external service layer
+│   │   ├── service.ts      # Public API — all callers import from here
+│   │   ├── factory.ts      # Provider factory (reads FOOTBALL_PROVIDER env var)
+│   │   ├── types.ts        # Normalized types + IFootballProvider interface + mapFixtureStatus
+│   │   └── providers/
+│   │       └── football-data.ts  # football-data.org v4 implementation
 │   ├── scoring-engine.ts   # calculateScore() — only place scoring logic lives
 │   ├── utils.ts            # formatKickoff(), isMatchLocked(), getWinner()
 │   ├── leaderboard.ts      # Leaderboard aggregation logic
@@ -326,3 +331,7 @@ fetch-matches cron runs
 ### ADR-9: Service layer between route handlers and the database
 **Decision**: All Prisma queries live in `src/lib/services/`. Route handlers do only: authenticate → call service → serialize.
 **Rationale**: Before this, `/api/matches` and `/api/mobile/matches` duplicated identical DB query logic, differing only in the auth check. Any business change (new filter, new field, DB query fix) had to be applied in two places and could drift. The service layer makes both route trees call the same method. Serialization (`serializeMatch` vs `serializeMatchForMobile`) stays in the route handler because the two clients genuinely need different response shapes.
+
+### ADR-10: Football provider abstraction layer
+**Decision**: Introduce `src/lib/football/` — a provider interface (`IFootballProvider`), a factory (`factory.ts`), and a thin service layer (`service.ts`). All callers import from `service.ts`; provider implementations live under `providers/`.
+**Rationale**: Previously `football-api.ts` was the single hardwired football-data.org client. Switching providers (e.g. to API-Football or OpenLigaDB) required modifying the client and verifying every caller still worked. With the abstraction: define `IFootballProvider`, implement it for the new provider, add one `case` in `factory.ts`, set `FOOTBALL_PROVIDER` in the environment — `service.ts` and all 6 callers remain unchanged. The normalized types (`APIFixture`, `APILeague`, etc.) in `types.ts` are the stable contract regardless of provider.

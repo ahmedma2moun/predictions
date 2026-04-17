@@ -41,7 +41,10 @@ A full-stack football match predictions app where friends predict scores and com
 | `src/app/api/cron/` | Vercel cron: `fetch-matches` (Fri 21:59 UTC), `fetch-results` (daily 23:00 UTC) |
 | `src/lib/prisma.ts` | Prisma singleton — the single source of DB access |
 | `src/lib/auth.ts` | NextAuth config — providers, JWT/session callbacks |
-| `src/lib/football-api.ts` | football-data.org v4 client — `fetchFixtures`, `fetchLeagues`, `fetchTeams` |
+| `src/lib/football/service.ts` | Football external service layer — all callers import from here; delegates to provider via factory |
+| `src/lib/football/factory.ts` | Provider factory — reads `FOOTBALL_PROVIDER` env var, returns `IFootballProvider` singleton |
+| `src/lib/football/types.ts` | Normalized types (`APIFixture`, `APILeague`, etc.), `IFootballProvider` interface, `mapFixtureStatus` |
+| `src/lib/football/providers/football-data.ts` | football-data.org v4 implementation of `IFootballProvider` |
 | `src/lib/scoring-engine.ts` | `calculateScore()` — the only place scoring logic lives |
 | `src/lib/utils.ts` | `formatKickoff()`, `isMatchLocked()`, `getWinner()` |
 | `src/models/Match.ts` | `IMatch` interface + `serializeMatch()` helper (not a Mongoose schema) |

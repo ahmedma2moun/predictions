@@ -25,7 +25,12 @@
              └────────────────────────────────────────────────────┘
                                       │
              ┌────────────────────────▼───────────────────────────┐
-             │         football-data.org v4 API                    │
+             │       lib/football/service.ts  (provider layer)     │
+             │  factory → IFootballProvider → providers/*          │
+             └────────────────────────┬───────────────────────────┘
+                                      │
+             ┌────────────────────────▼───────────────────────────┐
+             │         football-data.org v4 API  (default)         │
              │   Competitions · Matches · Teams · Standings        │
              └────────────────────────────────────────────────────┘
 
@@ -49,6 +54,7 @@ Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → Postgr
 | Auth strategy | JWT (NextAuth v5) | Stateless, works with Vercel serverless |
 | DB | PostgreSQL via Prisma | Relational integrity, free tiers on Supabase/Neon |
 | Football data | football-data.org v4 | Free tier (10 req/min), no RapidAPI middleman |
+| Football provider abstraction | `lib/football/` (service → factory → provider) | Swap providers by setting `FOOTBALL_PROVIDER`; `service.ts` and all callers unchanged |
 | Score prediction lock | Server + client side | Prevents race conditions around kickoff |
 | Scoring tiers | Exclusive (exact > diff > one_team) | Prevents double-counting overlapping rules |
 | Email | Nodemailer + Gmail | Zero-cost transactional emails for a small group |

@@ -1,4 +1,4 @@
-import { fetchHeadToHead, type APIFixture } from '@/lib/football-api';
+import { fetchHeadToHead, type APIFixture } from '@/lib/football/service';
 
 export type H2HMatch = {
   date: string;

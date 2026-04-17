@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { fetchLeagues, type APILeague } from '@/lib/football-api';
+import { fetchLeagues, type APILeague } from '@/lib/football/service';
 
 export async function GET() {
   const session = await auth();

@@ -8,7 +8,8 @@ This document covers the main free-tier football APIs available, their limits, a
 
 **Base URL:** `https://api.football-data.org/v4`  
 **Auth:** `X-Auth-Token: <key>` header  
-**Client:** `src/lib/football-api.ts`
+**Provider:** `src/lib/football/providers/football-data.ts` (implements `IFootballProvider`)  
+**Service layer:** `src/lib/football/service.ts` (all callers import from here)
 
 ### Free Tier Limits
 | Constraint | Value |
@@ -87,7 +88,7 @@ The API returns verbose statuses that are normalized to short codes internally:
 **Pros:** Very broad coverage, live updates on free tier, rich fixture data (lineups, events, statistics)  
 **Cons:** 100 req/day is very tight; shared key on RapidAPI has extra overhead; response schema is more complex
 
-> This was the original API for this project before migrating to football-data.org. See `src/lib/football-api.ts` — the `APIFixture`, `APILeague`, `APITeam` interfaces were originally designed to match API-Football's shape and are kept as the internal contract.
+> This was the original API for this project before migrating to football-data.org. The normalized types (`APIFixture`, `APILeague`, `APITeam`) in `src/lib/football/types.ts` are the stable provider-agnostic contract; the football-data.org implementation maps its raw response to these types internally.
 
 ---
 
@@ -178,7 +179,14 @@ Regardless of which API is used, the following constraints apply app-wide:
 3. **Always check `externalId` before inserting** — deduplication prevents duplicate matches when a cron runs multiple times.
 4. **`fetchFixtures` is the hot path** — called on the Friday cron (`fetch-matches`) and the daily results cron (`fetch-results`). Keep it lean.
 
-If you switch APIs, update:
-- `src/lib/football-api.ts` — adapter layer (keep the exported interface shapes stable)
-- `FOOTBALL_API_KEY` env var (and Vercel project settings)
-- This document
+## Switching Providers
+
+The app uses a provider abstraction (`src/lib/football/`). To switch:
+
+1. Create `src/lib/football/providers/<name>.ts` implementing `IFootballProvider` from `types.ts`
+2. Add a `case '<name>':` in `src/lib/football/factory.ts`
+3. Set `FOOTBALL_PROVIDER=<name>` in `.env.local` and Vercel project settings
+4. Update the relevant API key env var (e.g. replace `FOOTBALL_API_KEY` with the new provider's key)
+5. Update this document
+
+`service.ts` and all 6 callers (`matches-processor`, `results-processor`, `standings`, `h2h`, admin leagues/teams routes) require **no changes**.

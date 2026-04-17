@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football-api';
+import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football/service';
 import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
 import { sendPushToUsers } from './fcm';
 

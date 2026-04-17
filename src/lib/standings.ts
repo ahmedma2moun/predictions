@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { fetchStandings } from '@/lib/football-api';
+import { fetchStandings } from '@/lib/football/service';
 
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
