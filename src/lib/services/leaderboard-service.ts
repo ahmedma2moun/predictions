@@ -1,5 +1,7 @@
-import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { GroupRepository } from '@/lib/repositories/group-repository';
+import { UserRepository } from '@/lib/repositories/user-repository';
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 export interface LeaderboardFilters {
   leagueIds?: number[];
@@ -26,7 +28,7 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
   let groupKickoffGte: Date | null = null;
 
   if (groupId) {
-    const group = await prisma.group.findUnique({
+    const group = await GroupRepository.findUnique({
       where: { id: groupId },
       select: { isDefault: true, createdAt: true, members: { select: { userId: true } } },
     });
@@ -60,23 +62,7 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
 
   const whereClause = Prisma.join(conditions, ' AND ');
 
-  type AggRow = { userId: number; totalPoints: bigint; predictionsCount: bigint; correctPredictions: bigint };
-
-  const rows = await prisma.$queryRaw<AggRow[]>(
-    Prisma.sql`
-      SELECT
-        p."userId",
-        SUM(p."pointsAwarded")                                  AS "totalPoints",
-        COUNT(*)                                                 AS "predictionsCount",
-        SUM(CASE WHEN p."pointsAwarded" > 0 THEN 1 ELSE 0 END) AS "correctPredictions"
-      FROM "Prediction" p
-      JOIN "Match" m ON m.id = p."matchId"
-      WHERE ${whereClause}
-      GROUP BY p."userId"
-      ORDER BY "totalPoints" DESC
-      LIMIT 100
-    `,
-  );
+  const rows = await PredictionRepository.getLeaderboardStats(whereClause);
 
   const scoredUserIds = new Set(rows.map(r => Number(r.userId)));
   const allUserIds    = userIdFilter
@@ -85,8 +71,8 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
 
   if (allUserIds.length === 0) return [];
 
-  const users = await prisma.user.findMany({
-    where: { id: { in: allUserIds }, role: { not: 'admin' } },
+  const users = await UserRepository.findMany({
+    where: { id: { in: allUserIds } },
     select: { id: true, name: true, email: true, avatarUrl: true },
   });
   const userMap = new Map(users.map(u => [u.id, u]));

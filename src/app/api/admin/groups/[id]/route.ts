@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { GroupService } from '@/lib/services/group-service';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -13,12 +13,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const groupId = Number(id);
 
-  const group = await prisma.group.findUnique({
-    where: { id: groupId },
-    include: {
-      members: { include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } } },
-    },
-  });
+  const group = await GroupService.getGroupDetails(groupId);
 
   if (!group) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -45,25 +40,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const groupId = Number(id);
   const body = await req.json();
 
-  const group = await prisma.group.findUnique({ where: { id: groupId }, select: { id: true, isDefault: true } });
+  const group = await GroupService.getGroupExistence(groupId);
   if (!group) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const { action, name, userId } = body;
 
   if (name !== undefined) {
     if (!name.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-    await prisma.group.update({ where: { id: groupId }, data: { name: name.trim() } });
+    await GroupService.updateGroupName(groupId, name.trim());
   }
 
   if (action === 'add-member') {
-    await prisma.groupMember.upsert({
-      where: { groupId_userId: { groupId, userId: Number(userId) } },
-      create: { groupId, userId: Number(userId) },
-      update: {},
-    });
+    await GroupService.addGroupMember(groupId, Number(userId));
   } else if (action === 'remove-member') {
     if (group.isDefault) return NextResponse.json({ error: 'Cannot remove members from the default group' }, { status: 400 });
-    await prisma.groupMember.deleteMany({ where: { groupId, userId: Number(userId) } });
+    await GroupService.removeGroupMember(groupId, Number(userId));
   }
 
   return NextResponse.json({ ok: true });
@@ -78,10 +69,10 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const groupId = Number(id);
 
-  const group = await prisma.group.findUnique({ where: { id: groupId }, select: { id: true, isDefault: true } });
+  const group = await GroupService.getGroupExistence(groupId);
   if (!group) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (group.isDefault) return NextResponse.json({ error: 'Cannot delete the default group' }, { status: 400 });
 
-  await prisma.group.delete({ where: { id: groupId } });
+  await GroupService.deleteGroup(groupId);
   return NextResponse.json({ ok: true });
 }

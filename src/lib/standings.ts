@@ -1,7 +1,7 @@
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 import { fetchStandings } from '@/lib/football/service';
 import { logger } from '@/lib/logger';
+import { TeamStandingRepository } from '@/lib/repositories/team-standing-repository';
+import { Prisma } from '@prisma/client';
 
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -46,12 +46,12 @@ export async function getStandingsMap(
   const now = Date.now();
 
   // One query to get the latest updatedAt per league (replaces N findFirst queries)
-  const freshnessRows = await prisma.teamStanding.groupBy({
+  const freshnessRows = await TeamStandingRepository.groupBy({
     by: ['externalLeagueId'],
     where: { externalLeagueId: { in: leagueExternalIds } },
     _max: { updatedAt: true },
   });
-  const freshnessMap = new Map(freshnessRows.map(r => [r.externalLeagueId, r._max.updatedAt]));
+  const freshnessMap = new Map(freshnessRows.map(r => [r.externalLeagueId, r._max?.updatedAt]));
 
   // Refresh stale leagues
   for (const { externalLeagueId } of uniqueLeagues) {
@@ -73,7 +73,7 @@ export async function getStandingsMap(
         )`)
       );
 
-      await prisma.$executeRaw(Prisma.sql`
+      await TeamStandingRepository.executeRaw(Prisma.sql`
         INSERT INTO "TeamStanding" (
           "externalTeamId", "externalLeagueId", "season",
           "position", "played", "won", "drawn", "lost",
@@ -102,7 +102,7 @@ export async function getStandingsMap(
   }
 
   // Load all leagues in a single query (replaces N findMany queries)
-  const rows = await prisma.teamStanding.findMany({
+  const rows = await TeamStandingRepository.findMany({
     where: { externalLeagueId: { in: leagueExternalIds } },
   });
 

@@ -1,5 +1,6 @@
-import { prisma } from '@/lib/prisma';
 import type { GroupLeaderboard } from '@/lib/email';
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { GroupMemberRepository } from '@/lib/repositories/group-member-repository';
 
 /**
  * Returns leaderboard data for all non-default groups the given user belongs to.
@@ -12,7 +13,7 @@ import type { GroupLeaderboard } from '@/lib/email';
 export async function getUserGroupLeaderboards(userId: number): Promise<GroupLeaderboard[]> {
   // Single query: get all non-default groups the user belongs to,
   // with each group's full member list included.
-  const memberships = await prisma.groupMember.findMany({
+  const memberships = await GroupMemberRepository.findMany({
     where: { userId, group: { isDefault: false } },
     select: {
       group: {
@@ -34,11 +35,11 @@ export async function getUserGroupLeaderboards(userId: number): Promise<GroupLea
   ];
 
   // Single aggregation for all members — no more N per-group queries.
-  const pointRows = await prisma.prediction.groupBy({
+  const pointRows = (await PredictionRepository.groupBy({
     by: ['userId'],
     where: { userId: { in: allMemberIds } },
     _sum: { pointsAwarded: true },
-  });
+  })) as any[];
 
   const pointMap = new Map(pointRows.map(r => [r.userId, r._sum.pointsAwarded ?? 0]));
 

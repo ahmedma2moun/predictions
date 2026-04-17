@@ -10,13 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { KickoffTime } from "@/components/KickoffTime";
 import { LiveLockIcon } from "@/components/LiveLockIcon";
 import { CheckCircle } from "lucide-react";
+import { MatchRepository } from '@/lib/repositories/match-repository';
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 export default async function MatchesPage() {
   const session = await auth();
   const { id: userId, role } = getSessionUser(session!);
   const isAdmin = role === "admin";
 
-  const matches = await prisma.match.findMany({
+  const matches = await MatchRepository.findMany({
     where: { status: { in: ["scheduled", "live"] } },
     orderBy: { kickoffTime: "asc" },
   });
@@ -29,7 +31,7 @@ export default async function MatchesPage() {
   // Fetch predictions and standings in parallel — both are independent once we have matchIds
   const [predictions, standingMap] = await Promise.all([
     !isAdmin && matchIds.length > 0
-      ? prisma.prediction.findMany({
+      ? PredictionRepository.findMany({
           where: { userId, matchId: { in: matchIds } },
           select: { matchId: true, homeScore: true, awayScore: true },
         })

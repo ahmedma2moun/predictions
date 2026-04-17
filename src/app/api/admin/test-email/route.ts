@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { sendNewMatchesEmail, sendResultsEmail } from '@/lib/email';
+import { MatchRepository } from '@/lib/repositories/match-repository';
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     if (type === 'matches') {
       // Use real upcoming matches if any, otherwise use dummy data
-      const matches = await prisma.match.findMany({
+      const matches = await MatchRepository.findMany({
         where: { status: 'scheduled' },
         include: { league: { select: { name: true } } },
         orderBy: { kickoffTime: 'asc' },

@@ -1,13 +1,13 @@
+import { LeagueService } from '@/lib/services/league-service';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { fetchLeagues, type APILeague } from '@/lib/football/service';
 
 export async function GET() {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const leagues = await prisma.league.findMany({ orderBy: { name: 'asc' } });
+  const leagues = await LeagueService.getAll({ orderBy: { name: 'asc' } });
   return NextResponse.json(leagues.map(l => ({ ...l, _id: l.id.toString() })));
 }
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (body.action === 'fetch') {
     const [apiLeagues, dbLeagues] = await Promise.all([
       fetchLeagues(),
-      prisma.league.findMany(),
+      LeagueService.getAll(),
     ]);
     const activeSet = new Set(dbLeagues.map(l => l.externalId));
     const dbMap = new Map(dbLeagues.map(l => [l.externalId, l.id.toString()]));
@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest) {
   const { externalId, name, country, logo, season, isActive } = await req.json();
 
   if (isActive) {
-    const doc = await prisma.league.upsert({
+    const doc = await LeagueService.upsert({
       where: { externalId },
       create: { externalId, name, country, logo, season, isActive: true },
       update: { name, country, logo, season, isActive: true },
@@ -57,7 +57,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ...doc, _id: doc.id.toString() });
   } else {
     // onDelete: Cascade on Team handles team cleanup automatically
-    await prisma.league.delete({ where: { externalId } }).catch(() => null);
+    await LeagueService.remove({ where: { externalId } }).catch(() => null);
     return NextResponse.json({ success: true });
   }
 }

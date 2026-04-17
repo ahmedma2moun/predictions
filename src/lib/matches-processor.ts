@@ -1,8 +1,12 @@
-import { prisma } from '@/lib/prisma';
+import { TeamService } from '@/lib/services/team-service';
+import { LeagueService } from '@/lib/services/league-service';
 import { logger } from '@/lib/logger';
+import { UserRepository } from '@/lib/repositories/user-repository';
+import { DeviceTokenRepository } from '@/lib/repositories/device-repository';
 import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football/service';
 import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
 import { sendPushToUsers } from './fcm';
+import { MatchRepository } from '@/lib/repositories/match-repository';
 
 // Stages that are always single-leg (no leg numbers shown)
 const SINGLE_LEG_STAGES = new Set(['FINAL', 'THIRD_PLACE', 'THIRD_PLACE_PLAY_OFF']);
@@ -13,7 +17,7 @@ const SINGLE_LEG_STAGES = new Set(['FINAL', 'THIRD_PLACE', 'THIRD_PLACE_PLAY_OFF
  * Final / third-place stages never get a leg number.
  */
 async function assignKnockoutLegs(externalLeagueId: number) {
-  const knockoutMatches = await prisma.match.findMany({
+  const knockoutMatches = await MatchRepository.findMany({
     where: {
       externalLeagueId,
       stage: { not: null },
@@ -26,10 +30,10 @@ async function assignKnockoutLegs(externalLeagueId: number) {
   for (const m of knockoutMatches) {
     if (!m.stage) continue;
     const leg = SINGLE_LEG_STAGES.has(m.stage) || m.matchday == null ? null : m.matchday;
-    updates.push(prisma.match.update({ where: { id: m.id }, data: { leg } }));
+    updates.push(MatchRepository.update({ where: { id: m.id }, data: { leg } }));
   }
   if (updates.length > 0) {
-    await prisma.$transaction(updates);
+    await MatchRepository.transaction(updates);
   }
 }
 
@@ -64,8 +68,8 @@ export async function fetchAndInsertMatches(params: {
 
   const [leagues, activeTeamsByLeague] = await Promise.all([
     leagueId
-      ? prisma.league.findUnique({ where: { id: leagueId } }).then(l => (l ? [l] : []))
-      : prisma.league.findMany({ where: { isActive: true } }),
+      ? LeagueService.getById({ where: { id: leagueId } }).then(l => (l ? [l] : []))
+      : LeagueService.getAll({ where: { isActive: true } }),
     filterByTeams ? getActiveTeamsByLeague() : Promise.resolve(new Map<number, Set<number>>()),
   ]);
 
@@ -94,7 +98,7 @@ export async function fetchAndInsertMatches(params: {
 
       const fixtureIds = fixtures.map((f: APIFixture) => f.fixture.id);
       const existing = new Set(
-        (await prisma.match.findMany({ where: { externalId: { in: fixtureIds } }, select: { externalId: true } }))
+        (await MatchRepository.findMany({ where: { externalId: { in: fixtureIds } }, select: { externalId: true } }))
           .map(m => m.externalId)
       );
 
@@ -102,7 +106,7 @@ export async function fetchAndInsertMatches(params: {
       skipped += fixtures.length - toCreate.length;
 
       if (toCreate.length > 0) {
-        await prisma.match.createMany({
+        await MatchRepository.createMany({
           data: toCreate.map((f: APIFixture) => ({
             externalId: f.fixture.id,
             leagueId: league.id,
@@ -142,7 +146,7 @@ export async function fetchAndInsertMatches(params: {
 export async function sendNewMatchNotifications(weekStart: Date, insertedCount: number, logPrefix: string) {
   if (insertedCount === 0) return;
   try {
-    const newMatches = await prisma.match.findMany({
+    const newMatches = await MatchRepository.findMany({
       where: { weekStart, status: 'scheduled' },
       include: { league: { select: { name: true } } },
       orderBy: { kickoffTime: 'asc' },
@@ -153,7 +157,7 @@ export async function sendNewMatchNotifications(weekStart: Date, insertedCount: 
       kickoffTime: m.kickoffTime,
       leagueName: m.league?.name ?? 'Unknown League',
     }));
-    const recipients = await prisma.user.findMany({
+    const recipients = await UserRepository.findMany({
       where: { notificationEmail: { not: null } },
       select: { notificationEmail: true },
     });
@@ -164,7 +168,7 @@ export async function sendNewMatchNotifications(weekStart: Date, insertedCount: 
       }
     }
     // FCM push — send to ALL users with device tokens, independent of email recipients
-    const mobileUserIds = await prisma.deviceToken.findMany({
+    const mobileUserIds = await DeviceTokenRepository.findMany({
       select: { userId: true },
       distinct: ['userId'],
     });
@@ -186,7 +190,7 @@ export async function sendNewMatchNotifications(weekStart: Date, insertedCount: 
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
 async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
-  const teams = await prisma.team.findMany({
+  const teams = await TeamService.getAll({
     where: { isActive: true },
     select: { externalId: true, externalLeagueId: true },
   });

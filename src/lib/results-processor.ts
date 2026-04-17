@@ -1,5 +1,7 @@
-import { prisma } from '@/lib/prisma';
+import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
+import { LeagueService } from '@/lib/services/league-service';
 import { logger } from '@/lib/logger';
+import { UserRepository } from '@/lib/repositories/user-repository';
 import { fetchFixtures, mapFixtureStatus } from '@/lib/football/service';
 import { sendPushToUsers } from './fcm';
 import { getStandingsMap } from '@/lib/standings';
@@ -9,6 +11,8 @@ import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format } from 'date-fns';
 import { type ScoringRule, type Prediction } from '@prisma/client';
 import { NotFoundError } from '@/lib/errors';
+import { MatchRepository } from '@/lib/repositories/match-repository';
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 type CorrectedPrediction = {
   id: string;
@@ -32,7 +36,7 @@ export async function correctMatchResult(
   penaltyHomeScore: number | null,
   penaltyAwayScore: number | null,
 ): Promise<{ emailsSent: number; predictions: CorrectedPrediction[] }> {
-  const match = await prisma.match.findUnique({
+  const match = await MatchRepository.findUnique({
     where: { id: matchId },
     include: { league: { select: { name: true } } },
   });
@@ -51,7 +55,7 @@ export async function correctMatchResult(
     resultWinner = 'draw';
   }
 
-  await prisma.match.update({
+  await MatchRepository.update({
     where: { id: matchId },
     data: {
       resultHomeScore: homeScore,
@@ -65,8 +69,8 @@ export async function correctMatchResult(
   });
 
   const [rules, preds] = await Promise.all([
-    prisma.scoringRule.findMany({ where: { isActive: true } }),
-    prisma.prediction.findMany({
+    ScoringRuleService.getAll({ where: { isActive: true } }),
+    PredictionRepository.findMany({
       where: { matchId },
       include: { user: { select: { id: true, name: true, email: true, notificationEmail: true } } },
     }),
@@ -84,9 +88,9 @@ export async function correctMatchResult(
       return { pred, totalPoints, breakdown };
     });
 
-    await prisma.$transaction(
+    await PredictionRepository.transaction(
       scoredPreds.map(({ pred, totalPoints, breakdown }) =>
-        prisma.prediction.update({
+        PredictionRepository.update({
           where: { id: pred.id },
           data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
         })
@@ -102,7 +106,7 @@ export async function correctMatchResult(
       .sort((a, b) => (b.pointsAwarded ?? 0) - (a.pointsAwarded ?? 0));
   }
 
-  await prisma.match.update({ where: { id: matchId }, data: { scoresProcessed: true } });
+  await MatchRepository.update({ where: { id: matchId }, data: { scoresProcessed: true } });
 
   // Send correction emails
   let emailsSent = 0;
@@ -167,7 +171,7 @@ export interface ProcessResultsSummary {
 export async function processMatchResults(logPrefix: string): Promise<ProcessResultsSummary> {
   const now = new Date();
 
-  const pendingMatches = await prisma.match.findMany({
+  const pendingMatches = await MatchRepository.findMany({
     where: {
       kickoffTime: { lt: now },
       status: { notIn: ['finished', 'cancelled'] },
@@ -184,8 +188,8 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
   }
 
   const [rules, leagues] = await Promise.all([
-    prisma.scoringRule.findMany({ where: { isActive: true } }),
-    prisma.league.findMany({ where: { isActive: true } }),
+    ScoringRuleService.getAll({ where: { isActive: true } }),
+    LeagueService.getAll({ where: { isActive: true } }),
   ]);
   const leagueMap = new Map(leagues.map(l => [l.externalId, l]));
 
@@ -252,7 +256,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
           winner = 'draw';
         }
 
-        const updatedMatch = await prisma.match.update({
+        const updatedMatch = await MatchRepository.update({
           where: { id: match.id },
           data: {
             status: 'finished',
@@ -271,7 +275,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
           continue;
         }
 
-        const predictions = await prisma.prediction.findMany({ where: { matchId: match.id } });
+        const predictions = await PredictionRepository.findMany({ where: { matchId: match.id } });
         logger.info(`[${logPrefix}] Scoring ${predictions.length} predictions for match ${match.id}`);
 
         const { scoredCount, errorsCount, scoredDetails } = await batchScorePredictions(
@@ -296,12 +300,12 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
             predictionHomeScore: detail.predictionHomeScore,
             predictionAwayScore: detail.predictionAwayScore,
             pointsAwarded: detail.pointsAwarded,
-            scoringBreakdown: detail.scoringBreakdown,
+            scoringBreakdown: detail.scoringBreakdown as { ruleName: string; pointsAwarded: number; matched: boolean; }[] | null,
           });
           userMatchMap.set(detail.userId, list);
         }
 
-        await prisma.match.update({ where: { id: match.id }, data: { scoresProcessed: true } });
+        await MatchRepository.update({ where: { id: match.id }, data: { scoresProcessed: true } });
       }
     } catch (e) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${externalLeagueId}):`, { error: e instanceof Error ? e.message : String(e) });
@@ -347,7 +351,7 @@ export async function batchScorePredictions(
         result,
         rules
       );
-      await prisma.prediction.update({
+      await PredictionRepository.update({
         where: { id: pred.id },
         data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
       });
@@ -372,7 +376,7 @@ export async function sendResultNotifications(userMatchMap: Map<number, ResultMa
   if (userMatchMap.size === 0) return;
   try {
     const userIds = [...userMatchMap.keys()];
-    const users = await prisma.user.findMany({
+    const users = await UserRepository.findMany({
       where: { id: { in: userIds }, notificationEmail: { not: null } },
       select: { id: true, notificationEmail: true },
     });

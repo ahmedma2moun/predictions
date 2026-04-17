@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { GroupRepository } from '@/lib/repositories/group-repository';
 
 export interface GroupItem {
   id: string;
@@ -6,24 +6,52 @@ export interface GroupItem {
   isDefault: boolean;
 }
 
-export async function getUserGroups(userId: number, isAdmin: boolean): Promise<GroupItem[]> {
-  if (isAdmin) {
-    const allGroups = await prisma.group.findMany({
-      select: { id: true, name: true, isDefault: true },
-      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
-    });
-    return allGroups.map(g => ({ id: g.id.toString(), name: g.name, isDefault: g.isDefault }));
+export class GroupService {
+  static async getUserGroups(userId: number, isAdmin: boolean): Promise<GroupItem[]> {
+    if (isAdmin) {
+      const allGroups = await GroupRepository.findAllNames();
+      return allGroups.map(g => ({ id: g.id.toString(), name: g.name, isDefault: g.isDefault }));
+    }
+
+    const memberships = await GroupRepository.findMembershipsByUserId(userId);
+    return memberships.map(m => ({
+      id:        m.group.id.toString(),
+      name:      m.group.name,
+      isDefault: m.group.isDefault,
+    }));
   }
 
-  const memberships = await prisma.groupMember.findMany({
-    where: { userId },
-    include: { group: { select: { id: true, name: true, isDefault: true } } },
-    orderBy: { group: { isDefault: 'desc' } },
-  });
+  static async getAllGroupsWithCounts() {
+    return GroupRepository.findAllWithMemberCount();
+  }
 
-  return memberships.map(m => ({
-    id:        m.group.id.toString(),
-    name:      m.group.name,
-    isDefault: m.group.isDefault,
-  }));
+  static async createGroup(name: string) {
+    return GroupRepository.create({ data: { name } });
+  }
+
+  static async getGroupDetails(id: number) {
+    return GroupRepository.findByIdWithMembers(id);
+  }
+
+  static async getGroupExistence(id: number) {
+    return GroupRepository.findExistence(id);
+  }
+
+  static async updateGroupName(id: number, name: string) {
+    return GroupRepository.update({ where: { id }, data: { name } });
+  }
+
+  static async addGroupMember(groupId: number, userId: number) {
+    return GroupRepository.addMember(groupId, userId);
+  }
+
+  static async removeGroupMember(groupId: number, userId: number) {
+    return GroupRepository.removeMember(groupId, userId);
+  }
+
+  static async deleteGroup(id: number) {
+    return GroupRepository.delete({ where: { id } });
+  }
 }
+
+export const getUserGroups = GroupService.getUserGroups;

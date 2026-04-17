@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { pipeline } from 'stream/promises';
-import { prisma } from '@/lib/prisma';
 import { exportConfig } from './config';
+import { SystemRepository } from '@/lib/repositories/system-repository';
 
 // ---------------------------------------------------------------------------
 // PostgreSQL data_type → database-agnostic neutral type
@@ -94,7 +94,7 @@ interface TableInfo {
 }
 
 async function discoverTables(): Promise<TableInfo[]> {
-  const tableRows = await prisma.$queryRawUnsafe<{ table_name: string }[]>(`
+  const tableRows = await SystemRepository.queryRawUnsafe<{ table_name: string }[]>(`
     SELECT table_name
     FROM information_schema.tables
     WHERE table_schema = 'public'
@@ -106,7 +106,7 @@ async function discoverTables(): Promise<TableInfo[]> {
   const tables: TableInfo[] = [];
 
   for (const { table_name } of tableRows) {
-    const colRows = await prisma.$queryRawUnsafe<{
+    const colRows = await SystemRepository.queryRawUnsafe<{
       column_name: string;
       data_type: string;
       is_nullable: string;
@@ -190,7 +190,7 @@ export async function serializeDatabase(filePath: string): Promise<{ rowCount: n
 
   let totalRows = 0;
   for (const t of tables) {
-    const rows = await prisma.$queryRawUnsafe<[{ count: number | bigint }]>(
+    const rows = await SystemRepository.queryRawUnsafe<[{ count: number | bigint }]>(
       `SELECT COUNT(*)::int AS count FROM "${t.name}"`,
     );
     t.rowCount = Number(rows[0].count);
@@ -220,7 +220,7 @@ export async function serializeDatabase(filePath: string): Promise<{ rowCount: n
       `{"name":${JSON.stringify(t.name)},"primaryKey":${JSON.stringify(t.primaryKey)},"columns":${JSON.stringify(t.columns)},"rows":[`,
     );
 
-    const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
+    const rows = await SystemRepository.queryRawUnsafe<Record<string, unknown>[]>(
       `SELECT ${colList} FROM "${t.name}"`,
     );
 

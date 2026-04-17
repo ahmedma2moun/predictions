@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+import { UserService } from '@/lib/services/user-service';
 import { signMobileJwt } from '@/lib/mobile-auth';
 import { safeParseBody } from '@/lib/request';
 import { rateLimit } from '@/lib/rate-limit';
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await UserService.getByEmail(email);
   if (!user) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }

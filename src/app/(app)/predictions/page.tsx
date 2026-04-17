@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { isMatchLocked } from "@/lib/utils";
 import { PredictionTabs, type SerializedPrediction } from "./PredictionTabs";
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 export default async function PredictionsPage() {
   const session = await auth();
   const userId = Number((session!.user as { id: string }).id);
 
-  const predictions = await prisma.prediction.findMany({
+  const predictions = await PredictionRepository.findMany({
     where: { userId },
     include: {
       match: {

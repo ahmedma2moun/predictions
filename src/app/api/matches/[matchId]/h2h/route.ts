@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { getH2H, type H2HMatch } from '@/lib/h2h';
+import { MatchRepository } from '@/lib/repositories/match-repository';
 
 // Re-export the type so existing consumers keep working
 export type { H2HMatch };
@@ -14,7 +14,7 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { matchId } = await params;
-  const match = await prisma.match.findUnique({
+  const match = await MatchRepository.findUnique({
     where: { id: Number(matchId) },
     select: { externalId: true },
   });

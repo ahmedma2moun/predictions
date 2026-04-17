@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { getH2H } from '@/lib/h2h';
+import { MatchRepository } from '@/lib/repositories/match-repository';
 
 export async function GET(
   req: NextRequest,
@@ -11,7 +11,7 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { matchId } = await params;
-  const match = await prisma.match.findUnique({
+  const match = await MatchRepository.findUnique({
     where: { id: Number(matchId) },
     select: { externalId: true },
   });

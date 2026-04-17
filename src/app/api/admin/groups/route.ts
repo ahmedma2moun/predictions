@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { GroupService } from '@/lib/services/group-service';
 
 export async function GET() {
   const session = await auth();
   if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const groups = await prisma.group.findMany({
-    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-    include: { _count: { select: { members: true } } },
-  });
+  const groups = await GroupService.getAllGroupsWithCounts();
 
   return NextResponse.json(groups.map(g => ({
     _id: g.id.toString(),
@@ -30,6 +27,6 @@ export async function POST(req: NextRequest) {
   const { name } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
 
-  const group = await prisma.group.create({ data: { name: name.trim() } });
+  const group = await GroupService.createGroup(name.trim());
   return NextResponse.json({ _id: group.id.toString(), ...group });
 }

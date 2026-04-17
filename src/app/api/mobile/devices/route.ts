@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { DeviceTokenService } from '@/lib/services/device-service';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { safeParseBody } from '@/lib/request';
 
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'fcmToken is required' }, { status: 400 });
   }
 
-  await prisma.deviceToken.upsert({
+  await DeviceTokenService.upsert({
     where: { token: fcmToken },
     create: { userId: Number(session.id), token: fcmToken, platform: 'android' },
     update: { userId: Number(session.id), updatedAt: new Date() },
@@ -34,7 +34,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'fcmToken is required' }, { status: 400 });
   }
 
-  await prisma.deviceToken.deleteMany({
+  await DeviceTokenService.removeMany({
     where: { token: fcmToken, userId: Number(session.id) },
   });
 

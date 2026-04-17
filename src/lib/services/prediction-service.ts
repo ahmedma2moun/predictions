@@ -1,6 +1,8 @@
-import { prisma } from '@/lib/prisma';
+
 import { getWinner } from '@/lib/utils';
 import { Prisma, Match, Prediction } from '@prisma/client';
+import { MatchRepository } from '@/lib/repositories/match-repository';
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 export type PredictionWithMatch = Prediction & {
   match: Match & { league: { name: string } | null };
@@ -18,7 +20,7 @@ export interface UpsertPredictionError {
 }
 
 export async function getUserPredictions(userId: number): Promise<PredictionWithMatch[]> {
-  return prisma.prediction.findMany({
+  return PredictionRepository.findMany({
     where: { userId },
     include: { match: { include: { league: { select: { name: true } } } } },
     orderBy: { createdAt: 'desc' },
@@ -32,7 +34,7 @@ export async function upsertPrediction(
   homeScore: number,
   awayScore: number,
 ): Promise<UpsertPredictionResult | UpsertPredictionError> {
-  const match = await prisma.match.findUnique({
+  const match = await MatchRepository.findUnique({
     where: { id: matchId },
     select: { id: true, kickoffTime: true },
   });
@@ -40,7 +42,7 @@ export async function upsertPrediction(
   if (new Date() >= match.kickoffTime) return { error: 'Match has already started', status: 400 };
 
   const predictedWinner = getWinner(homeScore, awayScore);
-  const prediction = await prisma.prediction.upsert({
+  const prediction = await PredictionRepository.upsert({
     where: { userId_matchId: { userId, matchId: match.id } },
     create: { userId, matchId: match.id, homeScore, awayScore, predictedWinner },
     update: { homeScore, awayScore, predictedWinner },
@@ -81,7 +83,7 @@ export async function getUserPredictionHistory(
     matchWhere.kickoffTime = timeFilter;
   }
 
-  const predictions = await prisma.prediction.findMany({
+  const predictions = await PredictionRepository.findMany({
     where: { userId: filters.userId, match: matchWhere },
     include: {
       match: {
@@ -114,4 +116,61 @@ export async function getUserPredictionHistory(
       pointsAwarded: p.pointsAwarded,
       rawBreakdown:  p.scoringBreakdown,
     }));
+}
+
+export async function recalculateAllScores(rules: any[]) {
+  const finishedMatches = await MatchRepository.findMany({
+    where: { status: 'finished', resultHomeScore: { not: null } },
+    select: { id: true, resultHomeScore: true, resultAwayScore: true, resultWinner: true },
+  });
+  const matchMap = new Map(finishedMatches.map(m => [m.id, m]));
+  const matchIds = finishedMatches.map(m => m.id);
+
+  let updated = 0;
+  const batchSize = 100;
+  let skip = 0;
+
+  const { calculateScore } = await import('@/lib/scoring-engine');
+
+  while (true) {
+    const predictions = await PredictionRepository.findMany({
+      where: { matchId: { in: matchIds } },
+      skip,
+      take: batchSize,
+    });
+    if (predictions.length === 0) break;
+
+    await PredictionRepository.transaction(
+      predictions.flatMap(pred => {
+        const match = matchMap.get(pred.matchId);
+        if (!match || match.resultHomeScore === null || match.resultAwayScore === null || match.resultWinner === null) return [];
+        const { totalPoints, breakdown } = calculateScore(
+          { homeScore: pred.homeScore, awayScore: pred.awayScore },
+          {
+            homeScore: match.resultHomeScore!,
+            awayScore: match.resultAwayScore!,
+            winner: match.resultWinner! as 'home' | 'away' | 'draw',
+          },
+          rules
+        );
+        return [
+          PredictionRepository.update({
+            where: { id: pred.id },
+            data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
+          }),
+        ];
+      })
+    );
+
+    updated += predictions.length;
+    skip += batchSize;
+    if (predictions.length < batchSize) break;
+  }
+
+  await MatchRepository.updateMany({
+    where: { status: 'finished', resultHomeScore: { not: null } },
+    data: { scoresProcessed: true },
+  });
+
+  return updated;
 }

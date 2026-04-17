@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, isSessionAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { MatchRepository } from '@/lib/repositories/match-repository';
 
 export async function GET() {
   const session = await auth();
@@ -8,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const matches = await prisma.match.findMany({
+  const matches = await MatchRepository.findMany({
     where: { status: "finished" },
     orderBy: { kickoffTime: "desc" },
     include: {

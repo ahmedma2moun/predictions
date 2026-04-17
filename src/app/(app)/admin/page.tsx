@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { MatchRepository } from '@/lib/repositories/match-repository';
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 export default async function AdminDashboardPage() {
   await auth();
@@ -12,8 +14,8 @@ export default async function AdminDashboardPage() {
   const [totalUsers, activeLeagues, upcomingMatches, predictionsToday] = await Promise.all([
     prisma.user.count(),
     prisma.league.count({ where: { isActive: true } }),
-    prisma.match.count({ where: { status: { in: ['scheduled', 'live'] } } }),
-    prisma.prediction.count({ where: { createdAt: { gte: today } } }),
+    MatchRepository.count({ where: { status: { in: ['scheduled', 'live'] } } }),
+    PredictionRepository.count({ where: { createdAt: { gte: today } } }),
   ]);
 
   return (

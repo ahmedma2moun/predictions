@@ -1,7 +1,9 @@
-import { prisma } from '@/lib/prisma';
+
 import { isMatchLocked } from '@/lib/utils';
 import { getStandingsMap, standingKey } from '@/lib/standings';
 import { Prisma, MatchStatus, Match } from '@prisma/client';
+import { MatchRepository } from '@/lib/repositories/match-repository';
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 export interface MatchFilters {
   leagueId?: number;
@@ -66,7 +68,7 @@ export async function getMatches(
   }
   if (filters.week) where.weekStart = new Date(filters.week);
 
-  const matches = await prisma.match.findMany({
+  const matches = await MatchRepository.findMany({
     where,
     include: { league: { select: { name: true } } },
     orderBy: { kickoffTime: 'asc' },
@@ -83,7 +85,7 @@ export async function getMatches(
     (async () => {
       const map = new Map<number, { homeScore: number; awayScore: number; predictedWinner: string | null; pointsAwarded: number | null }>();
       if (!opts.isAdmin && matchIds.length > 0) {
-        const predictions = await prisma.prediction.findMany({
+        const predictions = await PredictionRepository.findMany({
           where: { userId: opts.userId, matchId: { in: matchIds } },
           select: { matchId: true, homeScore: true, awayScore: true, predictedWinner: true, pointsAwarded: true },
         });
@@ -113,7 +115,7 @@ export async function getMatchById(
   matchId: number,
   opts: { userId: number; isAdmin: boolean },
 ): Promise<MatchDetailData | null> {
-  const match = await prisma.match.findUnique({
+  const match = await MatchRepository.findUnique({
     where: { id: matchId },
     include: { league: { select: { name: true } } },
   });
@@ -122,7 +124,7 @@ export async function getMatchById(
   const [prediction, standingMap] = await Promise.all([
     opts.isAdmin
       ? Promise.resolve(null)
-      : prisma.prediction.findFirst({
+      : PredictionRepository.findFirst({
           where: { userId: opts.userId, matchId: match.id },
           select: { homeScore: true, awayScore: true, predictedWinner: true, pointsAwarded: true },
         }),
@@ -131,7 +133,7 @@ export async function getMatchById(
 
   let allPredictions: MatchPredictionRow[] | null = null;
   if (opts.isAdmin || isMatchLocked(match.kickoffTime)) {
-    const rows = await prisma.prediction.findMany({
+    const rows = await PredictionRepository.findMany({
       where: { matchId: match.id },
       include: { user: { select: { id: true, name: true } } },
       orderBy: { pointsAwarded: 'desc' },

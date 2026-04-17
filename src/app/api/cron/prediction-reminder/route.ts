@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { UserService } from '@/lib/services/user-service';
+import { DeviceTokenService } from '@/lib/services/device-service';
 import { sendPredictionReminderEmail, sendCronRunEmail, type UnpredictedMatch } from '@/lib/email';
 import { addDays } from 'date-fns';
 import { sendPushToUsers } from '@/lib/fcm';
 import { verifyCronRequest } from '@/lib/cron-auth';
 import { logger } from '@/lib/logger';
+import { MatchRepository } from '@/lib/repositories/match-repository';
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 export async function GET(req: NextRequest) {
   if (!verifyCronRequest(req)) {
@@ -15,7 +18,7 @@ export async function GET(req: NextRequest) {
   const in7Days = addDays(now, 7);
 
   // Find all scheduled matches in the next 7 days
-  const upcomingMatches = await prisma.match.findMany({
+  const upcomingMatches = await MatchRepository.findMany({
     where: {
       status:      'scheduled',
       kickoffTime: { gte: now, lte: in7Days },
@@ -36,13 +39,13 @@ export async function GET(req: NextRequest) {
   const upcomingMatchIds = upcomingMatches.map(m => m.id);
 
   // Users who have a notificationEmail set
-  const users = await prisma.user.findMany({
+  const users = await UserService.getAll({
     where:  { notificationEmail: { not: null } },
     select: { id: true, notificationEmail: true },
   });
 
   const userIds = users.map(u => u.id);
-  const allPredictions = await prisma.prediction.findMany({
+  const allPredictions = await PredictionRepository.findMany({
     where: { userId: { in: userIds }, matchId: { in: upcomingMatchIds } },
     select: { userId: true, matchId: true },
   });
@@ -91,17 +94,17 @@ export async function GET(req: NextRequest) {
   }
 
   // FCM push — only send to mobile users who still have missing predictions
-  const allMobileUserIds = (await prisma.deviceToken.findMany({
+  const allMobileUserIds = (await DeviceTokenService.getAll({
     select: { userId: true },
     distinct: ['userId'],
   })).map(d => d.userId);
 
   if (allMobileUserIds.length > 0) {
-    const predCounts = await prisma.prediction.groupBy({
+    const predCounts = (await PredictionRepository.groupBy({
       by: ['userId'],
       where: { userId: { in: allMobileUserIds }, matchId: { in: upcomingMatchIds } },
       _count: { matchId: true },
-    });
+    })) as any[];
     const fullyPredicted = new Set(
       predCounts
         .filter(u => u._count.matchId >= upcomingMatchIds.length)

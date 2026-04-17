@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { serializeMatch } from '@/models/Match';
 import { processMatchResults } from '@/lib/results-processor';
 import { fetchAndInsertMatches } from '@/lib/matches-processor';
 import { format, addDays } from 'date-fns';
 import { safeParseBody } from '@/lib/request';
+import { MatchRepository } from '@/lib/repositories/match-repository';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
   const limit = 50;
 
   const [matches, total] = await Promise.all([
-    prisma.match.findMany({ orderBy: { kickoffTime: 'desc' }, skip: (page - 1) * limit, take: limit }),
-    prisma.match.count(),
+    MatchRepository.findMany({ orderBy: { kickoffTime: 'desc' }, skip: (page - 1) * limit, take: limit }),
+    MatchRepository.count(),
   ]);
 
   return NextResponse.json({ matches: matches.map(serializeMatch), total, page });
@@ -67,6 +67,6 @@ export async function DELETE(req: NextRequest) {
   if (!Array.isArray(ids) || ids.length === 0) return NextResponse.json({ error: 'No ids provided' }, { status: 400 });
 
   const numericIds = ids.map((id: string) => Number(id)).filter((id: number) => !isNaN(id));
-  const result = await prisma.match.deleteMany({ where: { id: { in: numericIds } } });
+  const result = await MatchRepository.deleteMany({ where: { id: { in: numericIds } } });
   return NextResponse.json({ deleted: result.count });
 }

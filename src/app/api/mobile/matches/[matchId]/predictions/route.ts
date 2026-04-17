@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { isMatchLocked } from '@/lib/utils';
+import { MatchRepository } from '@/lib/repositories/match-repository';
+import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 export async function GET(
   req: NextRequest,
@@ -11,7 +12,7 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { matchId } = await params;
-  const match = await prisma.match.findUnique({ where: { id: Number(matchId) } });
+  const match = await MatchRepository.findUnique({ where: { id: Number(matchId) } });
   if (!match) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // Only reveal predictions once match is locked
@@ -19,7 +20,7 @@ export async function GET(
     return NextResponse.json({ error: 'Match not locked yet' }, { status: 403 });
   }
 
-  const rows = await prisma.prediction.findMany({
+  const rows = await PredictionRepository.findMany({
     where: { matchId: match.id },
     include: { user: { select: { id: true, name: true } } },
     orderBy: { pointsAwarded: 'desc' },
