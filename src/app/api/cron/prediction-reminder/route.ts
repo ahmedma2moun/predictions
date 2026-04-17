@@ -90,19 +90,36 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // FCM push — send to all mobile users regardless of email setting
-  const allMobileUsers = await prisma.deviceToken.findMany({
+  // FCM push — only send to mobile users who still have missing predictions
+  const allMobileUserIds = (await prisma.deviceToken.findMany({
     select: { userId: true },
     distinct: ['userId'],
-  });
-  try {
-    await sendPushToUsers(allMobileUsers.map(d => d.userId), {
-      title: "Don't forget to predict!",
-      body: 'You still have matches without a prediction this week.',
-      data: { type: 'prediction_reminder' },
+  })).map(d => d.userId);
+
+  if (allMobileUserIds.length > 0) {
+    const predCounts = await prisma.prediction.groupBy({
+      by: ['userId'],
+      where: { userId: { in: allMobileUserIds }, matchId: { in: upcomingMatchIds } },
+      _count: { matchId: true },
     });
-  } catch (e) {
-    console.error('[cron/prediction-reminder] FCM push failed:', e);
+    const fullyPredicted = new Set(
+      predCounts
+        .filter(u => u._count.matchId >= upcomingMatchIds.length)
+        .map(u => u.userId),
+    );
+    const mobileUsersToNotify = allMobileUserIds.filter(id => !fullyPredicted.has(id));
+
+    if (mobileUsersToNotify.length > 0) {
+      try {
+        await sendPushToUsers(mobileUsersToNotify, {
+          title: "Don't forget to predict!",
+          body: 'You still have matches without a prediction this week.',
+          data: { type: 'prediction_reminder' },
+        });
+      } catch (e) {
+        console.error('[cron/prediction-reminder] FCM push failed:', e);
+      }
+    }
   }
 
   const summary = {

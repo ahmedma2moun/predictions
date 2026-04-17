@@ -115,4 +115,8 @@ If a task spans multiple doc files, update all of them. Do not leave docs descri
 - `docs/architecture/DATA_ARCHITECTURE.md` — PostgreSQL schema, indexes, access patterns
 - `docs/architecture/DEPLOYMENT_GUIDE.md` — Vercel deployment, env vars, cron setup
 - `docs/architecture/SECURITY_ARCHITECTURE.md` — Auth flow, role-based access, secrets
-- `docs/FOOTBALL_API_FREE_APIS.md` — Free football API options, current integration details, rate limits, and switching guide
+- `docs/football-providers/FOOTBALL_API_FREE_APIS.md` — Free football API comparison, rate limits, and switching guide
+- `docs/football-providers/football-data.md` — Current provider: registration, endpoints, implementation
+- `docs/football-providers/api-football.md` — API-Football provider guide (ready to activate)
+- `docs/football-providers/sportmonks.md` — Sportmonks provider guide (ready to activate)
+- `docs/football-providers/allsports.md` — AllSportsAPI provider guide (ready to activate)

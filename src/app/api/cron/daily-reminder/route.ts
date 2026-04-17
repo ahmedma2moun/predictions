@@ -91,19 +91,36 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // FCM push — send to all mobile users (app shows current state when opened)
-  const allMobileUsers = await prisma.deviceToken.findMany({
+  // FCM push — only send to mobile users who have missing predictions today
+  const allMobileUserIds = (await prisma.deviceToken.findMany({
     select: { userId: true },
     distinct: ['userId'],
-  });
-  try {
-    await sendPushToUsers(allMobileUsers.map(d => d.userId), {
-      title: 'Matches today!',
-      body: `${todayMatches.length} match${todayMatches.length > 1 ? 'es kick' : ' kicks'} off today — predict before the whistle!`,
-      data: { type: 'daily_reminder' },
+  })).map(d => d.userId);
+
+  if (allMobileUserIds.length > 0) {
+    const predCounts = await prisma.prediction.groupBy({
+      by: ['userId'],
+      where: { userId: { in: allMobileUserIds }, matchId: { in: todayMatchIds } },
+      _count: { matchId: true },
     });
-  } catch (e) {
-    console.error('[cron/daily-reminder] FCM push failed:', e);
+    const fullyPredicted = new Set(
+      predCounts
+        .filter(u => u._count.matchId >= todayMatchIds.length)
+        .map(u => u.userId),
+    );
+    const mobileUsersToNotify = allMobileUserIds.filter(id => !fullyPredicted.has(id));
+
+    if (mobileUsersToNotify.length > 0) {
+      try {
+        await sendPushToUsers(mobileUsersToNotify, {
+          title: 'Matches today!',
+          body: `${todayMatches.length} match${todayMatches.length > 1 ? 'es kick' : ' kicks'} off today — predict before the whistle!`,
+          data: { type: 'daily_reminder' },
+        });
+      } catch (e) {
+        console.error('[cron/daily-reminder] FCM push failed:', e);
+      }
+    }
   }
 
   const summary = {
