@@ -1,9 +1,10 @@
 import type { IFootballProvider } from './types';
 import { FootballDataProvider } from './providers/football-data';
+import { ApiFootballProvider } from './providers/api-football';
 
 // Module-level singleton — one provider instance per serverless cold start.
 // Set FOOTBALL_PROVIDER env var to switch integrations without touching service code.
-// Supported values: "football-data" (default)
+// Supported values: "football-data" (default), "api-football"
 let _instance: IFootballProvider | null = null;
 
 export function getFootballProvider(): IFootballProvider {
@@ -14,9 +15,12 @@ export function getFootballProvider(): IFootballProvider {
     case 'football-data':
       _instance = new FootballDataProvider();
       break;
+    case 'api-football':
+      _instance = new ApiFootballProvider();
+      break;
     default:
       throw new Error(
-        `Unknown FOOTBALL_PROVIDER: "${name}". Supported values: "football-data"`,
+        `Unknown FOOTBALL_PROVIDER: "${name}". Supported values: "football-data", "api-football"`,
       );
   }
   return _instance;
