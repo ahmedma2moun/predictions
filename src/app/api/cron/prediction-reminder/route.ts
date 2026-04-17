@@ -3,18 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { sendPredictionReminderEmail, sendCronRunEmail, type UnpredictedMatch } from '@/lib/email';
 import { addDays } from 'date-fns';
 import { sendPushToUsers } from '@/lib/fcm';
+import { verifyCronRequest } from '@/lib/cron-auth';
 
 export async function GET(req: NextRequest) {
-  const authHeader    = req.headers.get('authorization');
-  const cronSecret    = process.env.CRON_SECRET;
-  const triggerSecret = process.env.TRIGGER_SECRET;
-  const isVercelCron  = !!req.headers.get('x-vercel-cron-schedule');
-  const authorized =
-    isVercelCron ||
-    (cronSecret    && authHeader === `Bearer ${cronSecret}`) ||
-    (triggerSecret && authHeader === `Bearer ${triggerSecret}`);
-
-  if (!authorized) {
+  if (!verifyCronRequest(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

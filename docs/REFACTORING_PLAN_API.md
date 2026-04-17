@@ -158,11 +158,11 @@ export function verifyCronRequest(req: NextRequest): boolean { ... }
 ```
 Each cron handler becomes a one-liner: `if (!verifyCronRequest(req)) return NextResponse.json(...)`.
 
-- [ ] Create `src/lib/cron-auth.ts` — `verifyCronRequest(req: NextRequest): boolean`
-- [ ] `src/app/api/cron/fetch-matches/route.ts` — replace inline auth block
-- [ ] `src/app/api/cron/fetch-results/route.ts` — replace inline auth block
-- [ ] `src/app/api/cron/daily-reminder/route.ts` — replace inline auth block
-- [ ] `src/app/api/cron/prediction-reminder/route.ts` — replace inline auth block
+- [x] Create `src/lib/cron-auth.ts` — `verifyCronRequest(req: NextRequest): boolean`
+- [x] `src/app/api/cron/fetch-matches/route.ts` — replace inline auth block
+- [x] `src/app/api/cron/fetch-results/route.ts` — replace inline auth block
+- [x] `src/app/api/cron/daily-reminder/route.ts` — replace inline auth block
+- [x] `src/app/api/cron/prediction-reminder/route.ts` — replace inline auth block
 
 ---
 
@@ -179,12 +179,12 @@ Each cron handler becomes a one-liner: `if (!verifyCronRequest(req)) return Next
 | `processMatchResults(logPrefix)` | Orchestrator — fetches, calls the two above | same file (~80 lines) |
 | `correctMatchResult(...)` | Unchanged — already focused | same file |
 
-- [ ] Confirm split plan above
-- [ ] `src/lib/results-processor.ts` — extract `batchScorePredictions` ⚠️ CONFIRM BEFORE CHANGE
-- [ ] `src/lib/results-processor.ts` — extract `sendResultNotifications` ⚠️ CONFIRM BEFORE CHANGE
-- [ ] Verify `src/app/api/cron/fetch-results/route.ts` still works after refactor
-- [ ] Verify `src/app/api/admin/matches/route.ts` `fetch-results` action still works after refactor
-- [ ] Verify `src/app/api/mobile/matches/[matchId]/route.ts` PATCH still works after refactor
+- [x] Confirm split plan above
+- [x] `src/lib/results-processor.ts` — extract `batchScorePredictions` ⚠️ CONFIRM BEFORE CHANGE
+- [x] `src/lib/results-processor.ts` — extract `sendResultNotifications` ⚠️ CONFIRM BEFORE CHANGE
+- [x] Verify `src/app/api/cron/fetch-results/route.ts` still works after refactor
+- [x] Verify `src/app/api/admin/matches/route.ts` `fetch-results` action still works after refactor
+- [x] Verify `src/app/api/mobile/matches/[matchId]/route.ts` PATCH still works after refactor
 
 ---
 
@@ -202,10 +202,10 @@ async function sendNewMatchNotifications(
 ): Promise<void>
 ```
 
-- [ ] Confirm split plan above
-- [ ] `src/lib/matches-processor.ts` — extract `sendNewMatchNotifications` ⚠️ CONFIRM BEFORE CHANGE
-- [ ] Verify `src/app/api/cron/fetch-matches/route.ts` still works
-- [ ] Verify `src/app/api/admin/matches/route.ts` `fetch` action still works
+- [x] Confirm split plan above
+- [x] `src/lib/matches-processor.ts` — extract `sendNewMatchNotifications` ⚠️ CONFIRM BEFORE CHANGE
+- [x] Verify `src/app/api/cron/fetch-matches/route.ts` still works
+- [x] Verify `src/app/api/admin/matches/route.ts` `fetch` action still works
 
 ---
 

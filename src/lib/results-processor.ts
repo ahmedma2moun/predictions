@@ -6,6 +6,7 @@ import { calculateScore } from '@/lib/scoring-engine';
 import { sendResultsEmail, sendResultCorrectionEmail, type ResultMatchForEmail } from '@/lib/email';
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format } from 'date-fns';
+import { type ScoringRule, type Prediction } from '@prisma/client';
 
 type CorrectedPrediction = {
   id: string;
@@ -255,19 +256,17 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
         const predictions = await prisma.prediction.findMany({ where: { matchId: match.id } });
         console.log(`[${logPrefix}] Scoring ${predictions.length} predictions for match ${match.id}`);
 
-        for (const pred of predictions) {
-          const { totalPoints, breakdown } = calculateScore(
-            { homeScore: pred.homeScore, awayScore: pred.awayScore },
-            { homeScore, awayScore, winner: scoringWinner },
-            rules
-          );
-          await prisma.prediction.update({
-            where: { id: pred.id },
-            data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
-          });
-          scored++;
+        const { scoredCount, scoredDetails } = await batchScorePredictions(
+          match.id,
+          predictions,
+          { homeScore, awayScore, winner: scoringWinner },
+          rules,
+          logPrefix
+        );
+        scored += scoredCount;
 
-          const list = userMatchMap.get(pred.userId) ?? [];
+        for (const detail of scoredDetails) {
+          const list = userMatchMap.get(detail.userId) ?? [];
           list.push({
             homeTeamName: match.homeTeamName,
             awayTeamName: match.awayTeamName,
@@ -275,12 +274,12 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
             leagueName: match.league?.name ?? 'Unknown League',
             resultHomeScore: homeScore,
             resultAwayScore: awayScore,
-            predictionHomeScore: pred.homeScore,
-            predictionAwayScore: pred.awayScore,
-            pointsAwarded: totalPoints,
-            scoringBreakdown: breakdown.map(r => ({ ruleName: r.ruleName, pointsAwarded: r.pointsAwarded, matched: r.matched })),
+            predictionHomeScore: detail.predictionHomeScore,
+            predictionAwayScore: detail.predictionAwayScore,
+            pointsAwarded: detail.pointsAwarded,
+            scoringBreakdown: detail.scoringBreakdown,
           });
-          userMatchMap.set(pred.userId, list);
+          userMatchMap.set(detail.userId, list);
         }
 
         await prisma.match.update({ where: { id: match.id }, data: { scoresProcessed: true } });
@@ -292,36 +291,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
   }
 
   // Send personalized results emails
-  if (userMatchMap.size > 0) {
-    try {
-      const userIds = [...userMatchMap.keys()];
-      const users = await prisma.user.findMany({
-        where: { id: { in: userIds }, notificationEmail: { not: null } },
-        select: { id: true, notificationEmail: true },
-      });
-      for (const user of users) {
-        const matches = userMatchMap.get(user.id);
-        if (user.notificationEmail && matches?.length) {
-          const leaderboards = await getUserGroupLeaderboards(user.id);
-          await sendResultsEmail(user.notificationEmail, matches, leaderboards);
-          console.log(`[${logPrefix}] Results email sent to ${user.notificationEmail}`);
-        }
-      }
-      // FCM push — send results notification to all users who had predictions scored
-      const scoredUserIds = [...userMatchMap.keys()];
-      try {
-        await sendPushToUsers(scoredUserIds, {
-          title: 'Results are in!',
-          body: 'Your predictions have been scored — tap to see how you did.',
-          data: { type: 'results' },
-        });
-      } catch (e) {
-        console.error(`[${logPrefix}] FCM push failed:`, e);
-      }
-    } catch (e) {
-      console.error(`[${logPrefix}] Failed to send results emails:`, e);
-    }
-  }
+  await sendResultNotifications(userMatchMap, logPrefix);
 
   // Refresh standings for every league that had results processed
   if (updated > 0) {
@@ -338,4 +308,71 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
   }
 
   return { updated, scored, errors };
+}
+
+export async function batchScorePredictions(
+  matchId: number,
+  preds: Prediction[],
+  result: { homeScore: number; awayScore: number; winner: 'home' | 'away' | 'draw' },
+  rules: ScoringRule[],
+  logPrefix: string
+): Promise<{ scoredCount: number; scoredDetails: Array<{ userId: number; predictionHomeScore: number; predictionAwayScore: number; pointsAwarded: number; scoringBreakdown: any }> }> {
+  const scoredDetails = [];
+  const updates = [];
+
+  for (const pred of preds) {
+    const { totalPoints, breakdown } = calculateScore(
+      { homeScore: pred.homeScore, awayScore: pred.awayScore },
+      result,
+      rules
+    );
+    updates.push(prisma.prediction.update({
+      where: { id: pred.id },
+      data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
+    }));
+    scoredDetails.push({
+      userId: pred.userId,
+      predictionHomeScore: pred.homeScore,
+      predictionAwayScore: pred.awayScore,
+      pointsAwarded: totalPoints,
+      scoringBreakdown: breakdown.map(r => ({ ruleName: r.ruleName, pointsAwarded: r.pointsAwarded, matched: r.matched })),
+    });
+  }
+
+  if (updates.length > 0) {
+    await prisma.$transaction(updates);
+  }
+
+  return { scoredCount: updates.length, scoredDetails };
+}
+
+export async function sendResultNotifications(userMatchMap: Map<number, ResultMatchForEmail[]>, logPrefix: string) {
+  if (userMatchMap.size === 0) return;
+  try {
+    const userIds = [...userMatchMap.keys()];
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds }, notificationEmail: { not: null } },
+      select: { id: true, notificationEmail: true },
+    });
+    for (const user of users) {
+      const matches = userMatchMap.get(user.id);
+      if (user.notificationEmail && matches?.length) {
+        const leaderboards = await getUserGroupLeaderboards(user.id);
+        await sendResultsEmail(user.notificationEmail, matches, leaderboards);
+        console.log(`[${logPrefix}] Results email sent to ${user.notificationEmail}`);
+      }
+    }
+    // FCM push
+    try {
+      await sendPushToUsers(userIds, {
+        title: 'Results are in!',
+        body: 'Your predictions have been scored — tap to see how you did.',
+        data: { type: 'results' },
+      });
+    } catch (e) {
+      console.error(`[${logPrefix}] FCM push failed:`, e);
+    }
+  } catch (e) {
+    console.error(`[${logPrefix}] Failed to send results emails:`, e);
+  }
 }

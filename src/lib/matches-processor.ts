@@ -129,50 +129,53 @@ export async function fetchAndInsertMatches(params: {
     }
   }
 
-  if (inserted > 0) {
-    try {
-      const newMatches = await prisma.match.findMany({
-        where: { weekStart, status: 'scheduled' },
-        include: { league: { select: { name: true } } },
-        orderBy: { kickoffTime: 'asc' },
-      });
-      const matchesForEmail: MatchForEmail[] = newMatches.map(m => ({
-        homeTeamName: m.homeTeamName,
-        awayTeamName: m.awayTeamName,
-        kickoffTime: m.kickoffTime,
-        leagueName: m.league?.name ?? 'Unknown League',
-      }));
-      const recipients = await prisma.user.findMany({
-        where: { notificationEmail: { not: null } },
-        select: { notificationEmail: true },
-      });
-      for (const user of recipients) {
-        if (user.notificationEmail) {
-          await sendNewMatchesEmail(user.notificationEmail, matchesForEmail);
-          console.log(`[${logPrefix}] Notification sent to ${user.notificationEmail}`);
-        }
-      }
-      // FCM push — send to ALL users with device tokens, independent of email recipients
-      const mobileUserIds = await prisma.deviceToken.findMany({
-        select: { userId: true },
-        distinct: ['userId'],
-      });
-      const pushUserIds = mobileUserIds.map(d => d.userId);
-      try {
-        await sendPushToUsers(pushUserIds, {
-          title: 'New matches this week',
-          body: `${inserted} match${inserted > 1 ? 'es' : ''} added — place your predictions!`,
-          data: { type: 'new_matches' },
-        });
-      } catch (e) {
-        console.error(`[${logPrefix}] FCM push failed:`, e);
-      }
-    } catch (e) {
-      console.error(`[${logPrefix}] Failed to send new matches emails:`, e);
-    }
-  }
+  await sendNewMatchNotifications(weekStart, inserted, logPrefix);
 
   return { inserted, skipped, errors, debug };
+}
+
+export async function sendNewMatchNotifications(weekStart: Date, insertedCount: number, logPrefix: string) {
+  if (insertedCount === 0) return;
+  try {
+    const newMatches = await prisma.match.findMany({
+      where: { weekStart, status: 'scheduled' },
+      include: { league: { select: { name: true } } },
+      orderBy: { kickoffTime: 'asc' },
+    });
+    const matchesForEmail: MatchForEmail[] = newMatches.map(m => ({
+      homeTeamName: m.homeTeamName,
+      awayTeamName: m.awayTeamName,
+      kickoffTime: m.kickoffTime,
+      leagueName: m.league?.name ?? 'Unknown League',
+    }));
+    const recipients = await prisma.user.findMany({
+      where: { notificationEmail: { not: null } },
+      select: { notificationEmail: true },
+    });
+    for (const user of recipients) {
+      if (user.notificationEmail) {
+        await sendNewMatchesEmail(user.notificationEmail, matchesForEmail);
+        console.log(`[${logPrefix}] Notification sent to ${user.notificationEmail}`);
+      }
+    }
+    // FCM push — send to ALL users with device tokens, independent of email recipients
+    const mobileUserIds = await prisma.deviceToken.findMany({
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+    const pushUserIds = mobileUserIds.map(d => d.userId);
+    try {
+      await sendPushToUsers(pushUserIds, {
+        title: 'New matches this week',
+        body: `${insertedCount} match${insertedCount > 1 ? 'es' : ''} added — place your predictions!`,
+        data: { type: 'new_matches' },
+      });
+    } catch (e) {
+      console.error(`[${logPrefix}] FCM push failed:`, e);
+    }
+  } catch (e) {
+    console.error(`[${logPrefix}] Failed to send new matches emails:`, e);
+  }
 }
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
