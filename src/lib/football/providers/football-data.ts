@@ -127,8 +127,10 @@ export class FootballDataProvider implements IFootballProvider {
     const res = await fetch(url.toString(), { headers: this.headers, next: { revalidate: 0 } });
     const ms = Date.now() - t0;
     if (!res.ok) {
-      console.error(`[football-data] ${res.status} ${res.statusText} — ${label} (${ms}ms)`);
-      throw new Error(`football-data.org error: ${res.status} ${res.statusText}`);
+      let body = '';
+      try { body = await res.text(); } catch { /* ignore */ }
+      console.error(`[football-data] ${res.status}  — ${label} (${ms}ms) body=${body}`);
+      throw new Error(`football-data.org error: ${res.status} ${res.statusText}${body ? ` — ${body}` : ''}`);
     }
     console.log(`[football-data] ${res.status} OK — ${label} (${ms}ms)`);
     return res.json();
@@ -204,8 +206,7 @@ export class FootballDataProvider implements IFootballProvider {
   async fetchHeadToHead(matchId: number, limit = 5): Promise<APIFixture[]> {
     const data = await this.get<{ matches: FDMatch[] }>(
       `/matches/${matchId}/head2head`,
-      { limit },
     );
-    return (data.matches ?? []).map(mapFDMatch);
+    return (data.matches ?? []).slice(0, limit).map(mapFDMatch);
   }
 }
