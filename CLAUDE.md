@@ -64,6 +64,24 @@ Do NOT change an API contract without updating both the web frontend and the And
 Do NOT add a screen in the Android app without the equivalent web page (and vice versa).  
 When a task targets only one layer, flag it and ask which other layers need updating before proceeding.
 
+## Service Layer Pattern
+
+All DB query logic lives in `src/lib/services/`. Route handlers do **only** three things: authenticate, call a service method, and serialize the response.
+
+| Service | File | Methods |
+|---|---|---|
+| Matches | `src/lib/services/match-service.ts` | `getMatches()`, `getMatchById()` |
+| Predictions | `src/lib/services/prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` |
+| Leaderboard | `src/lib/services/leaderboard-service.ts` | `getLeaderboard()` |
+| Groups | `src/lib/services/group-service.ts` | `getUserGroups()` |
+| Leagues | `src/lib/services/league-service.ts` | `getActiveLeagues()` |
+
+**Rules:**
+- **Never** write Prisma queries directly in a route handler — put them in the matching service
+- Both `/api/*` and `/api/mobile/*` handlers call the **same** service method; only auth and serialization differ
+- Serialization (`serializeMatch` vs `serializeMatchForMobile`) stays in the route handler, not the service
+- When adding a new endpoint, create/extend the service first, then wire both web and mobile handlers
+
 ## Anti-Patterns (Do NOT)
 - Never import `connectDB` from `src/lib/db.ts` — it is a no-op; use `prisma` from `@/lib/prisma`
 - Never call `fetchFixtures()` or any football API function from user-facing page routes — rate limits apply to the whole app
@@ -72,6 +90,21 @@ When a task targets only one layer, flag it and ask which other layers need upda
 - Never put scoring logic inline in an API route — always use `calculateScore()` from `src/lib/scoring-engine.ts`
 - Never return a Prisma integer `id` to the frontend as a number — `.toString()` it first
 - Never skip the `role === 'admin'` check in an admin API handler, even if the route is nested under `/admin/`
+
+## Documentation Update Rule
+
+**After every change — feature, fix, refactor, or API modification — update the relevant architecture docs before considering the task done.**
+
+| Change type | Documents to update |
+|---|---|
+| New/modified API route or service method | `docs/architecture/API_SPECIFICATIONS.md`, `docs/architecture/SYSTEM_ARCHITECTURE.md` |
+| New lib/ file or structural refactor | `docs/architecture/SYSTEM_ARCHITECTURE.md` (component tree + relevant section) |
+| New ADR or architectural decision | `docs/architecture/SYSTEM_ARCHITECTURE.md` (ADRs section) + `docs/architecture/INDEX.md` (Key Decisions table) |
+| Schema change (Prisma migration) | `docs/architecture/DATA_ARCHITECTURE.md` |
+| Auth, roles, or secrets change | `docs/architecture/SECURITY_ARCHITECTURE.md` |
+| Deployment, env vars, or cron change | `docs/architecture/DEPLOYMENT_GUIDE.md` |
+
+If a task spans multiple doc files, update all of them. Do not leave docs describing the old design.
 
 ## Task-Specific Docs (read when relevant)
 - `docs/architecture/SYSTEM_ARCHITECTURE.md` — System design, data flows, ADRs

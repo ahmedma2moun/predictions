@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { serializeMatch } from '@/models/Match';
-import { getWinner } from '@/lib/utils';
+import { getUserPredictions, upsertPrediction } from '@/lib/services/prediction-service';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const userId = Number((session.user as any).id);
-  const predictions = await prisma.prediction.findMany({
-    where: { userId },
-    include: { match: true },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-  });
+  const predictions = await getUserPredictions(userId);
 
   return NextResponse.json(predictions.map(p => ({
     ...p,
@@ -35,20 +29,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid scores' }, { status: 400 });
   }
 
-  const match = await prisma.match.findUnique({ where: { id: Number(matchId) } });
-  if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
-  if (new Date() >= match.kickoffTime) {
-    return NextResponse.json({ error: 'Cannot predict after match has started' }, { status: 400 });
-  }
-
   const userId = Number((session.user as any).id);
-  const predictedWinner = getWinner(homeScore, awayScore);
+  const result = await upsertPrediction(userId, Number(matchId), homeScore, awayScore);
 
-  const prediction = await prisma.prediction.upsert({
-    where: { userId_matchId: { userId, matchId: match.id } },
-    create: { userId, matchId: match.id, homeScore, awayScore, predictedWinner },
-    update: { homeScore, awayScore, predictedWinner },
+  if (result.error) return NextResponse.json({ error: result.error }, { status: result.status });
+
+  return NextResponse.json({
+    success: true,
+    prediction: { ...result.prediction, _id: result.prediction.id.toString() },
   });
-
-  return NextResponse.json({ success: true, prediction: { ...prediction, _id: prediction.id.toString() } });
 }

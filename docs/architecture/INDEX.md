@@ -3,25 +3,33 @@
 ## Architecture at a Glance
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Vercel Edge                           │
-│  ┌─────────────┐   ┌──────────────┐   ┌───────────────────┐ │
-│  │  Next.js    │   │  API Routes  │   │    Cron Jobs      │ │
-│  │  App Router │──▶│  /api/*      │──▶│  /api/cron/*      │ │
-│  └─────────────┘   └──────┬───────┘   └──────┬────────────┘ │
-└──────────────────────────────────────────────────────────────┘
-                             │                  │
-              ┌──────────────▼──────────────────▼──────────┐
-              │          PostgreSQL (Supabase / Neon)        │
-              │  users · leagues · teams · matches           │
-              │  predictions · scoringRules                  │
-              │  groups · groupMembers · teamStandings       │
-              └─────────────────────────────────────────────┘
-                                    │
-              ┌─────────────────────▼─────────────────────┐
-              │        football-data.org v4 API             │
-              │   Competitions · Matches · Teams · Standings│
-              └───────────────────────────────────────────-┘
+┌────────────────────────────────────────────────────────────────────┐
+│                          Vercel Edge                                │
+│  ┌──────────────┐  ┌─────────────────────┐  ┌───────────────────┐  │
+│  │  Next.js     │  │    API Routes        │  │    Cron Jobs      │  │
+│  │  App Router  │─▶│  /api/*              │  │  /api/cron/*      │  │
+│  │  (web)       │  │  /api/mobile/*       │  │  /api/jobs/*      │  │
+│  └──────────────┘  └──────────┬──────────┘  └──────┬────────────┘  │
+│                               │                     │               │
+│            ┌──────────────────▼─────────────────────▼────────────┐ │
+│            │              lib/services/                            │ │
+│            │  match · prediction · leaderboard · group · league   │ │
+│            └────────────────────────┬─────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────┘
+                                      │
+             ┌────────────────────────▼───────────────────────────┐
+             │           PostgreSQL (Supabase / Neon)              │
+             │  users · leagues · teams · matches                  │
+             │  predictions · scoringRules                         │
+             │  groups · groupMembers · teamStandings              │
+             └────────────────────────────────────────────────────┘
+                                      │
+             ┌────────────────────────▼───────────────────────────┐
+             │         football-data.org v4 API                    │
+             │   Competitions · Matches · Teams · Standings        │
+             └────────────────────────────────────────────────────┘
+
+Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → PostgreSQL
 ```
 
 ## Documents
@@ -45,6 +53,8 @@
 | Scoring tiers | Exclusive (exact > diff > one_team) | Prevents double-counting overlapping rules |
 | Email | Nodemailer + Gmail | Zero-cost transactional emails for a small group |
 | DB backup | Daily JSON export via cron | Guards against accidental data loss |
+| API architecture | Service layer (`lib/services/`) | Web and mobile routes share one query implementation; only auth and serialization differ |
+| Mobile auth | JWT Bearer (separate from NextAuth) | Mobile can't use httpOnly cookies; `getMobileSession()` verifies a signed JWT from `SecureStore` |
 
 ## Reading Order by Role
 

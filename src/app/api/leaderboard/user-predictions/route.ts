@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getUserPredictionHistory } from '@/lib/services/prediction-service';
 
 type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
 
@@ -10,54 +10,20 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const userId    = searchParams.get('userId');
-  const fromParam = searchParams.get('from');
-  const toParam   = searchParams.get('to');
   const leagueIds = searchParams.getAll('leagueId').map(Number).filter(Boolean);
 
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 
-  const matchWhere: any = { status: 'finished' };
-  if (leagueIds.length === 1) matchWhere.externalLeagueId = leagueIds[0];
-  else if (leagueIds.length > 1) matchWhere.externalLeagueId = { in: leagueIds };
-  if (fromParam || toParam) {
-    matchWhere.kickoffTime = {};
-    if (fromParam) matchWhere.kickoffTime.gte = new Date(fromParam);
-    if (toParam)   matchWhere.kickoffTime.lt  = new Date(toParam);
-  }
-
-  const predictions = await prisma.prediction.findMany({
-    where: { userId: Number(userId), match: matchWhere },
-    include: {
-      match: {
-        select: {
-          id: true,
-          kickoffTime: true,
-          homeTeamName: true,
-          awayTeamName: true,
-          resultHomeScore: true,
-          resultAwayScore: true,
-        },
-      },
-    },
-    orderBy: { match: { kickoffTime: 'desc' } },
+  const items = await getUserPredictionHistory({
+    userId:    Number(userId),
+    leagueIds,
+    from:      searchParams.get('from') ?? undefined,
+    to:        searchParams.get('to') ?? undefined,
   });
 
-  const result = predictions
-    .filter(p => p.match.resultHomeScore !== null)
-    .map(p => ({
-      matchId:      p.match.id.toString(),
-      kickoffTime:  p.match.kickoffTime.toISOString(),
-      homeTeamName: p.match.homeTeamName,
-      awayTeamName: p.match.awayTeamName,
-      homeScore:    p.homeScore,
-      awayScore:    p.awayScore,
-      result: {
-        homeScore: p.match.resultHomeScore!,
-        awayScore: p.match.resultAwayScore!,
-      },
-      pointsAwarded:    p.pointsAwarded,
-      scoringBreakdown: ((p.scoringBreakdown as { rules?: RuleBreakdown[] } | null)?.rules ?? null),
-    }));
-
-  return NextResponse.json(result);
+  return NextResponse.json(items.map(item => ({
+    ...item,
+    scoringBreakdown: (item.rawBreakdown as { rules?: RuleBreakdown[] } | null)?.rules ?? null,
+    rawBreakdown: undefined,
+  })));
 }

@@ -55,6 +55,7 @@ src/
 │   ├── prisma.ts           # Prisma singleton — single source of DB access
 │   ├── db.ts               # No-op shim (Mongoose migration artifact — do not use)
 │   ├── auth.ts             # NextAuth config — JWT, credentials, role callbacks
+│   ├── mobile-auth.ts      # JWT sign/verify for mobile clients
 │   ├── football-api.ts     # football-data.org v4 client
 │   ├── scoring-engine.ts   # calculateScore() — only place scoring logic lives
 │   ├── utils.ts            # formatKickoff(), isMatchLocked(), getWinner()
@@ -65,6 +66,12 @@ src/
 │   ├── standings.ts        # TeamStanding cache + football-data.org standings fetch
 │   ├── client-api.ts       # Typed fetch helpers for client components
 │   ├── email.ts            # Nodemailer (Gmail) — new-matches, results, reminders
+│   ├── services/           # Service layer — all DB query logic lives here
+│   │   ├── match-service.ts      # getMatches(), getMatchById()
+│   │   ├── prediction-service.ts # getUserPredictions(), upsertPrediction(), getUserPredictionHistory()
+│   │   ├── leaderboard-service.ts # getLeaderboard()
+│   │   ├── group-service.ts      # getUserGroups()
+│   │   └── league-service.ts     # getActiveLeagues()
 │   └── export/
 │       ├── config.ts       # Export output dir + Gmail recipients
 │       ├── job.ts          # runExportJob() — serialize → gzip → email
@@ -84,17 +91,90 @@ src/
 └── proxy.ts                # Route protection — wraps auth() from NextAuth
 ```
 
+## Service Layer Architecture
+
+All DB query logic lives in `src/lib/services/`. Route handlers (both `/api/*` and `/api/mobile/*`) are controllers that do exactly three things: **authenticate → call service → serialize response**.
+
+```
+                   Web request                Mobile request
+                        │                          │
+              GET /api/matches            GET /api/mobile/matches
+                        │                          │
+               auth() [NextAuth]        getMobileSession() [JWT Bearer]
+                        │                          │
+                        └──────────┬───────────────┘
+                                   │
+                          matchService.getMatches()
+                                   │
+                        ┌──────────┴──────────┐
+                        │   prisma queries     │
+                        │   standings fetch    │
+                        │   prediction lookup  │
+                        └──────────┬──────────┘
+                                   │
+                   ┌───────────────┴───────────────┐
+                   │                               │
+          serializeMatch()              serializeMatchForMobile()
+          (web response)                  (mobile response)
+```
+
+**Service catalogue:**
+
+| Service | Methods | Used by |
+|---|---|---|
+| `match-service.ts` | `getMatches()`, `getMatchById()` | `/api/matches`, `/api/mobile/matches` and detail routes |
+| `prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` | `/api/predictions`, `/api/mobile/predictions`, leaderboard user-predictions |
+| `leaderboard-service.ts` | `getLeaderboard()` | `/api/leaderboard`, `/api/mobile/leaderboard` |
+| `group-service.ts` | `getUserGroups()` | `/api/groups`, `/api/mobile/groups` |
+| `league-service.ts` | `getActiveLeagues()` | `/api/leagues`, `/api/mobile/leagues` |
+
+Services return neutral data (raw Prisma models + derived fields). Serialization is always the route handler's responsibility.
+
+## Mobile API Layer
+
+The mobile app (React Native / Expo) calls a parallel route tree `/api/mobile/*` that uses JWT Bearer authentication instead of NextAuth cookies. Both trees share the same service layer and database.
+
+```
+Web browser                              Mobile app
+     │                                       │
+NextAuth session (httpOnly cookie)    JWT Bearer token (SecureStore)
+     │                                       │
+/api/matches                         /api/mobile/matches
+/api/predictions                     /api/mobile/predictions
+/api/leaderboard                     /api/mobile/leaderboard
+/api/groups                          /api/mobile/groups
+/api/leagues                         /api/mobile/leagues
+     │                                       │
+     └──────────────┬────────────────────────┘
+                    │
+             lib/services/*  (shared)
+                    │
+             PostgreSQL (shared)
+```
+
+Mobile-specific routes additionally exist for:
+- `POST /api/mobile/auth/login` — credential login returning a signed JWT
+- `POST/DELETE /api/mobile/devices` — FCM push token registration
+- `GET /api/mobile/profile` — user profile
+
 ## Primary Request Flow — Submit Prediction
 
 ```
 User → matches/[matchId] page
-  → fetch /api/matches/[matchId]          (attaches existing prediction)
+  → fetch /api/matches/[matchId]
+      → auth() check
+      → matchService.getMatchById(id, { userId, isAdmin })
+          → prisma.match.findUnique
+          → prisma.prediction.findFirst
+          → getStandingsMap()
+      → serializeMatch() + shape allPredictions
   → user adjusts scores with +/- buttons
   → POST /api/predictions
       → auth() check
-      → prisma.match.findUnique({ where: { id } })
-      → isMatchLocked(match.kickoffTime) check
-      → prisma.prediction.upsert (unique: userId+matchId)
+      → predictionService.upsertPrediction(userId, matchId, homeScore, awayScore)
+          → prisma.match.findUnique (existence + lock check)
+          → isMatchLocked(match.kickoffTime)
+          → prisma.prediction.upsert (unique: userId+matchId)
   → toast success → redirect /matches
 ```
 
@@ -242,3 +322,7 @@ fetch-matches cron runs
 ### ADR-7: notificationEmail separate from login email
 **Decision**: Users have an optional `notificationEmail` field distinct from `email`.
 **Rationale**: Some users log in with a work email but prefer notifications to a personal address. Decoupling the two avoids forcing users to change their login credential.
+
+### ADR-9: Service layer between route handlers and the database
+**Decision**: All Prisma queries live in `src/lib/services/`. Route handlers do only: authenticate → call service → serialize.
+**Rationale**: Before this, `/api/matches` and `/api/mobile/matches` duplicated identical DB query logic, differing only in the auth check. Any business change (new filter, new field, DB query fix) had to be applied in two places and could drift. The service layer makes both route trees call the same method. Serialization (`serializeMatch` vs `serializeMatchForMobile`) stays in the route handler because the two clients genuinely need different response shapes.

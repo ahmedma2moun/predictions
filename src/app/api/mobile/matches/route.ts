@@ -1,82 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { serializeMatchForMobile } from '@/models/Match';
-import { getStandingsMap, standingKey } from '@/lib/standings';
-import { MatchStatus } from '@prisma/client';
+import { getMatches } from '@/lib/services/match-service';
 
 export async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const leagueId = searchParams.get('leagueId');
-  const status   = searchParams.get('status');
-  const week     = searchParams.get('week');
-
-  const where: any = {};
-  if (leagueId) where.externalLeagueId = Number(leagueId);
-  if (status) {
-    where.status = status as MatchStatus;
-  } else {
-    where.status = { in: ['scheduled', 'live', 'finished'] as MatchStatus[] };
-  }
-  if (week) where.weekStart = new Date(week);
-
-  const matches = await prisma.match.findMany({
-    where,
-    include: { league: { select: { name: true } } },
-    orderBy: { kickoffTime: 'asc' },
-    take: 100,
-  });
-
   const isAdmin = session.role === 'admin';
-  const userId = Number(session.id);
-  const matchIds = matches.map(m => m.id);
+  const userId  = Number(session.id);
 
-  // Fetch predictions and standings in parallel
-  const uniqueLeagues = [
-    ...new Map(matches.map(m => [m.externalLeagueId, { externalLeagueId: m.externalLeagueId, season: 0 }])).values(),
-  ];
+  const items = await getMatches(
+    {
+      leagueId: searchParams.get('leagueId') ? Number(searchParams.get('leagueId')) : undefined,
+      status:   searchParams.get('status') ?? undefined,
+      week:     searchParams.get('week') ?? undefined,
+    },
+    { userId, isAdmin, withStandings: true },
+  );
 
-  const [predMap, standingMap] = await Promise.all([
-    (async () => {
-      const map = new Map<number, any>();
-      if (!isAdmin && matchIds.length > 0) {
-        const predictions = await prisma.prediction.findMany({
-          where: { userId, matchId: { in: matchIds } },
-        });
-        predictions.forEach(p => map.set(p.matchId, p));
-      }
-      return map;
-    })(),
-    matches.length > 0
-      ? getStandingsMap(uniqueLeagues)
-      : Promise.resolve(new Map<string, any>()),
-  ]);
-
-  const result = matches.map(m => {
-    const homeStanding = standingMap.get(standingKey(m.homeTeamExtId, m.externalLeagueId)) ?? null;
-    const awayStanding = standingMap.get(standingKey(m.awayTeamExtId, m.externalLeagueId)) ?? null;
-
-    return {
-      ...serializeMatchForMobile({ ...m, leagueName: m.league?.name ?? null }),
-      prediction: predMap.has(m.id)
-        ? {
-            homeScore:       predMap.get(m.id)!.homeScore,
-            awayScore:       predMap.get(m.id)!.awayScore,
-            predictedWinner: predMap.get(m.id)!.predictedWinner,
-            pointsAwarded:   predMap.get(m.id)!.pointsAwarded,
-          }
-        : null,
-      homeStanding: homeStanding
-        ? { position: homeStanding.position, points: homeStanding.points }
-        : null,
-      awayStanding: awayStanding
-        ? { position: awayStanding.position, points: awayStanding.points }
-        : null,
-    };
-  });
+  const result = items.map(({ match, prediction, homeStanding, awayStanding }) => ({
+    ...serializeMatchForMobile({ ...match, leagueName: match.league?.name ?? null }),
+    prediction,
+    homeStanding: homeStanding ? { position: homeStanding.position, points: homeStanding.points } : null,
+    awayStanding: awayStanding ? { position: awayStanding.position, points: awayStanding.points } : null,
+  }));
 
   return NextResponse.json(result);
 }
