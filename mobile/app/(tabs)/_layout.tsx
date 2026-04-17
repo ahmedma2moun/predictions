@@ -39,7 +39,7 @@ function HeaderRight() {
         >
           {user?.name ?? ''}
         </Text>
-        <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
+        <Text style={{ color: colors.mutedForeground, fontSize: font.size.xxs }}>
           {user?.role === 'admin' ? 'Admin' : 'Player'}
         </Text>
       </View>

@@ -44,7 +44,10 @@ export async function registerForPushNotifications(jwt: string): Promise<string 
   // Expo Go (Android) cannot obtain FCM tokens — skip silently in dev.
   const isExpoGo = Constants.appOwnership === 'expo';
   if (isExpoGo && Platform.OS === 'android') {
-    console.warn('[push] Expo Go cannot receive FCM — build a dev client or APK to test notifications.');
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.warn('[push] Expo Go cannot receive FCM — build a dev client or APK to test notifications.');
+    }
     return null;
   }
 
@@ -63,7 +66,10 @@ export async function registerForPushNotifications(jwt: string): Promise<string 
     });
     await SecureStore.setItemAsync(LAST_REGISTERED_TOKEN, fcmToken);
   } catch (e) {
-    console.warn('[push] device registration failed', e);
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.warn('[push] device registration failed', e);
+    }
     return null;
   }
   return fcmToken;

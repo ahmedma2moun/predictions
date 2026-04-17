@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "build:apk:preview": "eas build --platform android --profile preview",
     "build:apk:local": "eas build --platform android --profile preview --local"
   },
@@ -16,6 +17,7 @@
     "@expo/vector-icons": "~14.0.4",
     "@react-native-async-storage/async-storage": "1.23.1",
     "expo": "~52.0.20",
+    "expo-image": "~2.0.7",
     "expo-build-properties": "~0.13.3",
     "expo-constants": "~17.0.3",
     "expo-device": "~7.0.1",
@@ -38,6 +40,10 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
+    "eslint": "^8.57.1",
+    "eslint-config-expo": "~8.0.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-native": "^4.1.0",
     "typescript": "^5.3.3"
   }
 }

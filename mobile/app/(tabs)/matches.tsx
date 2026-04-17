@@ -1,64 +1,33 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Image } from 'expo-image';
+import { memo, useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { apiRequest } from '@/api/client';
-import { useAuth } from '@/auth/AuthContext';
 import { Badge, Card, Muted } from '@/components/ui';
+import { ROUTES } from '@/constants/routes';
+import { useMatches } from '@/hooks/useMatches';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { MatchListItem } from '@/types/api';
 import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked, ordinal } from '@/utils/format';
 
 export default function MatchesScreen() {
-  const { token } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const router = useRouter();
-  const [matches, setMatches] = useState<MatchListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { matches, loading, refreshing, error, onRefresh } = useMatches();
 
-  const load = useCallback(async () => {
-    if (!token) return;
-    setError(null);
-    try {
-      const data = await apiRequest<MatchListItem[]>(
-        '/api/mobile/matches?status=scheduled',
-        { token },
-      );
-      const live = await apiRequest<MatchListItem[]>(
-        '/api/mobile/matches?status=live',
-        { token },
-      );
-      const merged = [...live, ...data].sort(
-        (a, b) => new Date(a.kickoffTime).getTime() - new Date(b.kickoffTime).getTime(),
-      );
-      setMatches(merged);
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to load matches');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [token]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    load();
-  }, [load]);
+  const renderMatchItem = useCallback(({ item }: { item: MatchListItem }) => (
+    <MatchRow match={item} onPress={() => router.push(ROUTES.matchDetail(item._id) as any)} />
+  ), [router]);
 
   if (loading) {
     return (
@@ -75,28 +44,20 @@ export default function MatchesScreen() {
       contentContainerStyle={styles.list}
       style={{ backgroundColor: colors.background }}
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary}
-        />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
-      ListHeaderComponent={
-        <Text style={styles.heading}>Upcoming Matches</Text>
-      }
+      ListHeaderComponent={<Text style={styles.heading}>Upcoming Matches</Text>}
       ListEmptyComponent={
         <Muted style={{ textAlign: 'center', marginTop: spacing.xl }}>
           {error ?? 'No upcoming matches available.'}
         </Muted>
       }
-      renderItem={({ item }) => (
-        <MatchRow match={item} onPress={() => router.push(`/matches/${item._id}`)} />
-      )}
+      renderItem={renderMatchItem}
     />
   );
 }
 
-function MatchRow({ match, onPress }: { match: MatchListItem; onPress: () => void }) {
+const MatchRow = memo(function MatchRow({ match, onPress }: { match: MatchListItem; onPress: () => void }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const locked = isMatchLocked(match.kickoffTime);
@@ -125,16 +86,10 @@ function MatchRow({ match, onPress }: { match: MatchListItem; onPress: () => voi
           </View>
         </View>
 
-        {headerLabel && (
-          <Text style={styles.headerLabel}>{headerLabel}</Text>
-        )}
+        {headerLabel && <Text style={styles.headerLabel}>{headerLabel}</Text>}
 
         <View style={styles.teamsRow}>
-          <TeamSide
-            name={match.homeTeam.name}
-            logo={match.homeTeam.logo}
-            standing={match.homeStanding}
-          />
+          <TeamSide name={match.homeTeam.name} logo={match.homeTeam.logo} standing={match.homeStanding} />
           <View style={styles.scoreCenter}>
             {match.prediction ? (
               <Text style={styles.predictionScore}>
@@ -144,11 +99,7 @@ function MatchRow({ match, onPress }: { match: MatchListItem; onPress: () => voi
               <Muted>vs</Muted>
             )}
           </View>
-          <TeamSide
-            name={match.awayTeam.name}
-            logo={match.awayTeam.logo}
-            standing={match.awayStanding}
-          />
+          <TeamSide name={match.awayTeam.name} logo={match.awayTeam.logo} standing={match.awayStanding} />
         </View>
 
         {match.prediction && (
@@ -159,12 +110,10 @@ function MatchRow({ match, onPress }: { match: MatchListItem; onPress: () => voi
       </Card>
     </Pressable>
   );
-}
+});
 
 function TeamSide({
-  name,
-  logo,
-  standing,
+  name, logo, standing,
 }: {
   name: string;
   logo: string | null;
@@ -176,7 +125,7 @@ function TeamSide({
     <View style={styles.teamSide}>
       <Text style={styles.teamName} numberOfLines={2}>{name}</Text>
       {logo ? (
-        <Image source={{ uri: logo }} style={styles.logo} resizeMode="contain" />
+        <Image source={{ uri: logo }} style={styles.logo} contentFit="contain" />
       ) : (
         <View style={[styles.logo, { backgroundColor: colors.accent, borderRadius: radius.md }]} />
       )}

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,10 +13,13 @@ import {
 import { apiRequest, ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Badge, Button, Card, Muted } from '@/components/ui';
+import { H2HRow } from '@/components/H2HRow';
+import { StandingsRow } from '@/components/StandingsRow';
+import { TeamColumn } from '@/components/TeamColumn';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { H2HMatch, MatchDetail } from '@/types/api';
-import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked, ordinal } from '@/utils/format';
+import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
 
 export default function MatchPredictionScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
@@ -26,12 +28,12 @@ export default function MatchPredictionScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const [match, setMatch] = useState<MatchDetail | null>(null);
-  const [home, setHome] = useState(0);
-  const [away, setAway] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
+  const [match, setMatch]         = useState<MatchDetail | null>(null);
+  const [home, setHome]           = useState(0);
+  const [away, setAway]           = useState(0);
+  const [loading, setLoading]     = useState(true);
+  const [saving, setSaving]       = useState(false);
+  const [h2h, setH2h]             = useState<H2HMatch[] | null>(null);
   const [h2hLoading, setH2hLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -120,9 +122,7 @@ export default function MatchPredictionScreen() {
             {formatStage(match.stage!)}{match.leg ? ` · Leg ${match.leg}` : ''}
           </Muted>
         ) : match.matchday ? (
-          <Muted style={{ fontSize: font.size.xs, marginTop: 2 }}>
-            Matchday {match.matchday}
-          </Muted>
+          <Muted style={{ fontSize: font.size.xs, marginTop: 2 }}>Matchday {match.matchday}</Muted>
         ) : null}
         {match.venue && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
@@ -198,7 +198,9 @@ export default function MatchPredictionScreen() {
           <Muted style={{ fontSize: font.size.xs, marginBottom: spacing.sm }}>
             Last {h2h.length} meeting{h2h.length !== 1 ? 's' : ''}
           </Muted>
-          {h2h.map((m, i) => <H2HRow key={i} m={m} />)}
+          {h2h.map(m => (
+            <H2HRow key={`${m.date}:${m.homeTeamName}:${m.awayTeamName}`} m={m} />
+          ))}
         </Card>
       )}
 
@@ -222,9 +224,7 @@ export default function MatchPredictionScreen() {
               <View key={p.userId} style={styles.predRow}>
                 <Text style={styles.predName}>{p.userName}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                  <Text style={styles.predScore}>
-                    {p.homeScore} – {p.awayScore}
-                  </Text>
+                  <Text style={styles.predScore}>{p.homeScore} – {p.awayScore}</Text>
                   {!knockout && match.result && (
                     <Text style={p.pointsAwarded > 0 ? styles.points : styles.zeroPoints}>
                       {p.pointsAwarded > 0 ? `+${p.pointsAwarded} pts` : '0 pts'}
@@ -237,160 +237,6 @@ export default function MatchPredictionScreen() {
         </Card>
       )}
     </ScrollView>
-  );
-}
-
-function TeamColumn({
-  name,
-  logo,
-  position,
-  value,
-  onChange,
-  disabled,
-}: {
-  name: string;
-  logo: string | null;
-  position: number | null;
-  value: number;
-  onChange: (v: number) => void;
-  disabled: boolean;
-}) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  return (
-    <View style={styles.teamCol}>
-      {logo ? (
-        <Image source={{ uri: logo }} style={styles.teamLogo} resizeMode="contain" />
-      ) : (
-        <View style={[styles.teamLogo, { backgroundColor: colors.accent, borderRadius: radius.md }]} />
-      )}
-      <Text style={styles.teamName} numberOfLines={2}>{name}</Text>
-      {position && <Muted style={{ fontSize: font.size.xs }}>{ordinal(position)}</Muted>}
-      <View style={styles.scoreRow}>
-        <Pressable
-          onPress={() => onChange(Math.max(0, value - 1))}
-          disabled={disabled || value <= 0}
-          style={({ pressed }) => [
-            styles.scoreBtn,
-            (disabled || value <= 0) && styles.scoreBtnDisabled,
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <Ionicons name="remove" size={18} color={colors.foreground} />
-        </Pressable>
-        <Text style={styles.scoreValue}>{value}</Text>
-        <Pressable
-          onPress={() => onChange(value + 1)}
-          disabled={disabled}
-          style={({ pressed }) => [
-            styles.scoreBtn,
-            disabled && styles.scoreBtnDisabled,
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <Ionicons name="add" size={18} color={colors.foreground} />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function formatH2HDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: '2-digit',
-  });
-}
-
-function H2HRow({ m }: { m: H2HMatch }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const winner =
-    m.homeScore !== null && m.awayScore !== null
-      ? m.homeScore > m.awayScore ? 'home'
-        : m.awayScore > m.homeScore ? 'away'
-        : 'draw'
-      : null;
-  const homeStrong = winner === 'home';
-  const awayStrong = winner === 'away';
-  const homeDim = winner !== null && winner !== 'draw' && winner !== 'home';
-  const awayDim = winner !== null && winner !== 'draw' && winner !== 'away';
-
-  return (
-    <View style={styles.h2hRow}>
-      <View style={styles.h2hMeta}>
-        <Muted style={{ fontSize: font.size.xs }}>{formatH2HDate(m.date)}</Muted>
-        <Muted style={{ fontSize: font.size.xs, maxWidth: 140 }} numberOfLines={1}>{m.competition}</Muted>
-      </View>
-      <View style={styles.h2hTeams}>
-        <View style={styles.h2hTeamLeft}>
-          {m.homeTeamLogo && <Image source={{ uri: m.homeTeamLogo }} style={styles.h2hLogo} resizeMode="contain" />}
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.h2hTeamName,
-              homeStrong && { fontWeight: font.weight.semibold },
-              homeDim && { color: colors.mutedForeground },
-            ]}
-          >
-            {m.homeTeamName}
-          </Text>
-        </View>
-        <View style={styles.h2hScoreBox}>
-          <Text style={styles.h2hScore}>
-            {m.homeScore ?? '–'} – {m.awayScore ?? '–'}
-          </Text>
-          {m.penaltyHomeScore != null && (
-            <Muted style={{ fontSize: 10, textAlign: 'center' }}>
-              ({m.penaltyHomeScore} – {m.penaltyAwayScore} pen)
-            </Muted>
-          )}
-        </View>
-        <View style={styles.h2hTeamRight}>
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.h2hTeamName,
-              { textAlign: 'right' },
-              awayStrong && { fontWeight: font.weight.semibold },
-              awayDim && { color: colors.mutedForeground },
-            ]}
-          >
-            {m.awayTeamName}
-          </Text>
-          {m.awayTeamLogo && <Image source={{ uri: m.awayTeamLogo }} style={styles.h2hLogo} resizeMode="contain" />}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function StandingsRow({ label, s }: { label: string; s: MatchDetail['homeStanding'] }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  if (!s) return null;
-  const form = (s.form ?? '').slice(-5).split('');
-  return (
-    <View style={styles.standingsRow}>
-      <Text style={styles.standingLabel} numberOfLines={1}>{label}</Text>
-      <Text style={styles.standingCol}>{ordinal(s.position)}</Text>
-      <Text style={styles.standingCol}>
-        {s.won ?? 0}W {s.drawn ?? 0}D {s.lost ?? 0}L
-      </Text>
-      <Text style={styles.standingPts}>{s.points} pts</Text>
-      <View style={styles.formRow}>
-        {form.map((c, i) => (
-          <View
-            key={i}
-            style={[
-              styles.formDot,
-              { backgroundColor: c === 'W' ? colors.success : c === 'D' ? colors.warning : colors.destructive },
-            ]}
-          >
-            <Text style={styles.formText}>{c}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
   );
 }
 
@@ -409,52 +255,10 @@ function makeStyles(c: Palette) {
       alignItems: 'center',
       marginBottom: spacing.xs,
     },
-    title: {
-      color: c.foreground,
-      fontSize: font.size.lg,
-      fontWeight: font.weight.bold,
-    },
-    teamsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      marginTop: spacing.lg,
-    },
+    title: { color: c.foreground, fontSize: font.size.lg, fontWeight: font.weight.bold },
+    teamsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg },
     dash: { color: c.mutedForeground, fontSize: font.size.xl, fontWeight: font.weight.bold },
-    teamCol: { flex: 1, alignItems: 'center', gap: spacing.sm },
-    teamLogo: { width: 56, height: 56 },
-    teamName: {
-      color: c.foreground,
-      fontSize: font.size.sm,
-      fontWeight: font.weight.semibold,
-      textAlign: 'center',
-    },
-    scoreRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 4 },
-    scoreBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.pill,
-      borderWidth: 1,
-      borderColor: c.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: c.cardElevated,
-    },
-    scoreBtnDisabled: { opacity: 0.4 },
-    scoreValue: {
-      color: c.foreground,
-      fontSize: font.size.xxl,
-      fontWeight: font.weight.bold,
-      fontVariant: ['tabular-nums'],
-      width: 40,
-      textAlign: 'center',
-    },
-    outcome: {
-      textAlign: 'center',
-      color: c.mutedForeground,
-      fontSize: font.size.sm,
-      marginTop: spacing.md,
-    },
+    outcome: { textAlign: 'center', color: c.mutedForeground, fontSize: font.size.sm, marginTop: spacing.md },
     outcomeStrong: { color: c.foreground, fontWeight: font.weight.medium },
     resultBox: {
       marginTop: spacing.md,
@@ -470,12 +274,7 @@ function makeStyles(c: Palette) {
       fontWeight: font.weight.bold,
       fontVariant: ['tabular-nums'],
     },
-    points: {
-      color: c.warning,
-      fontWeight: font.weight.bold,
-      fontSize: font.size.sm,
-      marginTop: 4,
-    },
+    points: { color: c.warning, fontWeight: font.weight.bold, fontSize: font.size.sm, marginTop: 4 },
     zeroPoints: { color: c.mutedForeground, fontSize: font.size.sm },
     sectionTitle: {
       color: c.foreground,
@@ -483,24 +282,6 @@ function makeStyles(c: Palette) {
       fontWeight: font.weight.semibold,
       marginBottom: spacing.sm,
     },
-    standingsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingVertical: spacing.xs,
-    },
-    standingLabel: { flex: 1, color: c.mutedForeground, fontSize: font.size.xs },
-    standingCol: { color: c.foreground, fontSize: font.size.xs, minWidth: 56, textAlign: 'center' },
-    standingPts: {
-      color: c.foreground,
-      fontSize: font.size.sm,
-      fontWeight: font.weight.semibold,
-      minWidth: 48,
-      textAlign: 'center',
-    },
-    formRow: { flexDirection: 'row', gap: 2 },
-    formDot: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-    formText: { color: '#fff', fontSize: 9, fontWeight: font.weight.bold },
     predRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -510,37 +291,6 @@ function makeStyles(c: Palette) {
       borderTopColor: c.border,
     },
     predName: { color: c.foreground, fontSize: font.size.sm, fontWeight: font.weight.medium },
-    predScore: {
-      color: c.foreground,
-      fontSize: font.size.sm,
-      fontVariant: ['tabular-nums'],
-    },
-    h2hRow: { gap: 4, paddingVertical: spacing.xs },
-    h2hMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    h2hTeams: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    h2hTeamLeft: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      minWidth: 0,
-    },
-    h2hTeamRight: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      gap: 6,
-      minWidth: 0,
-    },
-    h2hLogo: { width: 16, height: 16 },
-    h2hTeamName: { color: c.foreground, fontSize: font.size.sm, flexShrink: 1 },
-    h2hScoreBox: { width: 64, alignItems: 'center' },
-    h2hScore: {
-      color: c.foreground,
-      fontSize: font.size.sm,
-      fontWeight: font.weight.bold,
-      fontVariant: ['tabular-nums'],
-    },
+    predScore: { color: c.foreground, fontSize: font.size.sm, fontVariant: ['tabular-nums'] },
   });
 }

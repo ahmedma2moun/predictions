@@ -5,6 +5,7 @@ import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
+import { ROUTES } from '@/constants/routes';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 import { registerForPushNotifications } from '@/notifications/push';
 
@@ -17,9 +18,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (loading) return;
     const inAuthGroup = segments[0] === 'login';
     if (!token && !inAuthGroup) {
-      router.replace('/login');
+      router.replace(ROUTES.login as any);
     } else if (token && inAuthGroup) {
-      router.replace('/(tabs)/matches');
+      router.replace(ROUTES.matches as any);
     }
   }, [token, loading, segments, router]);
 
@@ -40,8 +41,8 @@ function PushRegistrar() {
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const type = (response.notification.request.content.data as any)?.type as string | undefined;
-      if (type === 'results') router.push('/(tabs)/predictions' as any);
-      else router.push('/(tabs)/matches');
+      if (type === 'results') router.push(ROUTES.predictions as any);
+      else router.push(ROUTES.matches as any);
     });
     return () => sub.remove();
   }, [router]);
