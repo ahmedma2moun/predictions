@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
   });
 
   let remindedUsers = 0, skippedUsers = 0, errors = 0;
+  const remindedEmails: string[] = [];
 
   for (const user of users) {
     if (!user.notificationEmail) continue;
@@ -82,6 +83,7 @@ export async function GET(req: NextRequest) {
     try {
       await sendDailyReminderEmail(user.notificationEmail, matchesForEmail);
       remindedUsers++;
+      remindedEmails.push(user.notificationEmail);
       console.log(`[cron/daily-reminder] Reminder sent to user ${user.id} (${missing.length} unpredicted today)`);
     } catch (e) {
       console.error(`[cron/daily-reminder] Failed to email user ${user.id}:`, e);
@@ -114,7 +116,7 @@ export async function GET(req: NextRequest) {
   console.log('[cron/daily-reminder] Done —', JSON.stringify(summary));
 
   try {
-    await sendCronRunEmail('daily-reminder', summary);
+    await sendCronRunEmail('daily-reminder', summary, remindedEmails);
   } catch (e) {
     console.error('[cron/daily-reminder] Failed to send cron notification email:', e);
   }

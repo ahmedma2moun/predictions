@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
 
   let remindedUsers = 0, skippedUsers = 0, errors = 0;
   const remindedUserIds: number[] = [];
+  const remindedEmails: string[] = [];
 
   for (const user of users) {
     if (!user.notificationEmail) continue;
@@ -81,6 +82,7 @@ export async function GET(req: NextRequest) {
       await sendPredictionReminderEmail(user.notificationEmail, matchesForEmail);
       remindedUsers++;
       remindedUserIds.push(user.id);
+      remindedEmails.push(user.notificationEmail);
       console.log(`[cron/prediction-reminder] Reminder sent to user ${user.id} (${missing.length} missing predictions)`);
     } catch (e) {
       console.error(`[cron/prediction-reminder] Failed to email user ${user.id}:`, e);
@@ -113,7 +115,7 @@ export async function GET(req: NextRequest) {
   console.log('[cron/prediction-reminder] Done —', JSON.stringify(summary));
 
   try {
-    await sendCronRunEmail('prediction-reminder', summary);
+    await sendCronRunEmail('prediction-reminder', summary, remindedEmails);
   } catch (e) {
     console.error('[cron/prediction-reminder] Failed to send cron notification email:', e);
   }

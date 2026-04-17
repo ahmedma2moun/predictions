@@ -435,6 +435,7 @@ export async function sendResultCorrectionEmail(
 export async function sendCronRunEmail(
   cronName: string,
   summary: Record<string, string | number>,
+  remindedEmails?: string[],
 ): Promise<void> {
   const to = 'ahmed.m.maamoun94@gmail.com';
   const timestamp = new Date().toUTCString();
@@ -449,6 +450,16 @@ export async function sendCronRunEmail(
     )
     .join('');
 
+  const remindedBlock = remindedEmails && remindedEmails.length > 0
+    ? `
+      <div style="margin-top:16px;">
+        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;">Reminded users (${remindedEmails.length}):</div>
+        <ul style="margin:0;padding:0 0 0 18px;font-size:13px;color:#1a1a1a;">
+          ${remindedEmails.map(e => `<li style="margin-bottom:2px;">${e}</li>`).join('')}
+        </ul>
+      </div>`
+    : '';
+
   const html = `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#1a1a1a;">
       <div style="background:#6366f1;padding:16px 24px;border-radius:8px 8px 0 0;">
@@ -459,6 +470,7 @@ export async function sendCronRunEmail(
         <table style="width:100%;border-collapse:collapse;">
           <tbody>${rows}</tbody>
         </table>
+        ${remindedBlock}
       </div>
     </div>`;
 
