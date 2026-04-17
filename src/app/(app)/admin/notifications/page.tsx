@@ -59,8 +59,12 @@ export default function AdminNotificationsPage() {
   async function sendNotification() {
     setSending(true);
     try {
-      const payload: Record<string, unknown> = { title, body, type };
-      if (selectedUserId !== "all") payload.userIds = [selectedUserId];
+      const payload: Record<string, unknown> = { title, text: body, type };
+      if (selectedUserId === "all") {
+        payload.allUsers = true;
+      } else {
+        payload.userIds = [selectedUserId];
+      }
 
       const r = await fetch("/api/admin/test-notification", {
         method: "POST",
@@ -71,8 +75,7 @@ export default function AdminNotificationsPage() {
       if (!r.ok) {
         toast.error(data.error ?? "Failed to send");
       } else {
-        const names = (data.sentTo as { name: string }[]).map(u => u.name).join(", ");
-        toast.success(`Sent to ${data.deviceTokenCount} device(s) — ${names}`);
+        toast.success(`Sent to ${data.tokensTargeted ?? 0} device(s) across ${data.usersTargeted ?? 0} user(s)`);
       }
     } catch {
       toast.error("Network error");
