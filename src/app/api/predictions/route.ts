@@ -36,6 +36,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    prediction: { ...result.prediction, _id: result.prediction.id.toString() },
+    prediction: { ...result.prediction, _id: result.prediction!.id.toString() },
   });
 }
