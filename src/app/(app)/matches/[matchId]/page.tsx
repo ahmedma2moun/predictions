@@ -66,7 +66,7 @@ export default function MatchPredictionPage() {
     setH2hLoading(true);
     Promise.all([
       fetch(`/api/matches/${matchId}`).then(r => r.json()),
-      fetch(`/api/matches/${matchId}/h2h`).then(r => r.json()).catch(() => ({ matches: null })),
+      fetch(`/api/matches/${matchId}/h2h`).then(r => r.ok ? r.json() : { matches: null }).catch(() => ({ matches: null })),
     ]).then(([matchData, h2hData]) => {
       setMatch(matchData);
       setAllPredictions(matchData.allPredictions ?? null);
