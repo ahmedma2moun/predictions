@@ -13,7 +13,15 @@ export async function GET() {
     orderBy: { kickoffTime: "desc" },
     include: {
       predictions: {
-        include: { user: { select: { id: true, name: true, email: true } } },
+        select: {
+          id: true,
+          userId: true,
+          homeScore: true,
+          awayScore: true,
+          pointsAwarded: true,
+          scoringBreakdown: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
         orderBy: { pointsAwarded: "desc" },
       },
     },

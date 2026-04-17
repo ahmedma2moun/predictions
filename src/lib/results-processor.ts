@@ -72,30 +72,37 @@ export async function correctMatchResult(
     }),
   ]);
 
+  let updated = preds;
+
   if (preds.length > 0) {
+    const scoredPreds = preds.map(pred => {
+      const { totalPoints, breakdown } = calculateScore(
+        { homeScore: pred.homeScore, awayScore: pred.awayScore },
+        { homeScore, awayScore, winner: scoringWinner },
+        rules,
+      );
+      return { pred, totalPoints, breakdown };
+    });
+
     await prisma.$transaction(
-      preds.map(pred => {
-        const { totalPoints, breakdown } = calculateScore(
-          { homeScore: pred.homeScore, awayScore: pred.awayScore },
-          { homeScore, awayScore, winner: scoringWinner },
-          rules,
-        );
-        return prisma.prediction.update({
+      scoredPreds.map(({ pred, totalPoints, breakdown }) =>
+        prisma.prediction.update({
           where: { id: pred.id },
           data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
-        });
-      }),
+        })
+      )
     );
+
+    updated = scoredPreds
+      .map(({ pred, totalPoints, breakdown }) => ({
+        ...pred,
+        pointsAwarded: totalPoints,
+        scoringBreakdown: { rules: breakdown },
+      }))
+      .sort((a, b) => (b.pointsAwarded ?? 0) - (a.pointsAwarded ?? 0));
   }
 
   await prisma.match.update({ where: { id: matchId }, data: { scoresProcessed: true } });
-
-  // Reload with final values
-  const updated = await prisma.prediction.findMany({
-    where: { matchId },
-    include: { user: { select: { id: true, name: true, email: true, notificationEmail: true } } },
-    orderBy: { pointsAwarded: 'desc' },
-  });
 
   // Send correction emails
   let emailsSent = 0;
@@ -166,6 +173,8 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
       status: { notIn: ['finished', 'cancelled'] },
     },
     include: { league: { select: { name: true } } },
+    orderBy: { kickoffTime: 'asc' },
+    take: 30,
   });
 
   logger.info(`[${logPrefix}] Starting — ${pendingMatches.length} pending matches`);

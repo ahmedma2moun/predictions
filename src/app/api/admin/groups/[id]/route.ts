@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const groupId = Number(id);
   const body = await req.json();
 
-  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  const group = await prisma.group.findUnique({ where: { id: groupId }, select: { id: true, isDefault: true } });
   if (!group) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const { action, name, userId } = body;
@@ -78,7 +78,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const groupId = Number(id);
 
-  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  const group = await prisma.group.findUnique({ where: { id: groupId }, select: { id: true, isDefault: true } });
   if (!group) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (group.isDefault) return NextResponse.json({ error: 'Cannot delete the default group' }, { status: 400 });
 

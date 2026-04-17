@@ -32,7 +32,10 @@ export async function upsertPrediction(
   homeScore: number,
   awayScore: number,
 ): Promise<UpsertPredictionResult | UpsertPredictionError> {
-  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { id: true, kickoffTime: true },
+  });
   if (!match) return { error: 'Match not found', status: 404 };
   if (new Date() >= match.kickoffTime) return { error: 'Match has already started', status: 400 };
 

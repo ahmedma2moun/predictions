@@ -480,10 +480,10 @@ const defaultGroup = await prisma.group.findFirst({ where: { isDefault: true }, 
 const group = await prisma.group.findUnique({ where: { id: groupId }, select: { id: true, isDefault: true } });
 ```
 
-- [ ] `src/app/api/admin/users/route.ts:24` — add `select: { id: true }` 🔒 ADMIN ROUTE
-- [ ] `src/app/api/admin/users/route.ts:33` — add `select: { id: true }` 🔒 ADMIN ROUTE
-- [ ] `src/app/api/admin/groups/[id]/route.ts:48` — add `select: { id: true, isDefault: true }` 🔒 ADMIN ROUTE
-- [ ] `src/app/api/admin/groups/[id]/route.ts:81` — add `select: { id: true, isDefault: true }` 🔒 ADMIN ROUTE
+- [x] `src/app/api/admin/users/route.ts:24` — add `select: { id: true }` 🔒 ADMIN ROUTE
+- [x] `src/app/api/admin/users/route.ts:33` — add `select: { id: true }` 🔒 ADMIN ROUTE
+- [x] `src/app/api/admin/groups/[id]/route.ts:48` — add `select: { id: true, isDefault: true }` 🔒 ADMIN ROUTE
+- [x] `src/app/api/admin/groups/[id]/route.ts:81` — add `select: { id: true, isDefault: true }` 🔒 ADMIN ROUTE
 
 ---
 
@@ -513,8 +513,8 @@ prisma.prediction.findFirst({
 
 > Note: `getMatches` stores the full prediction in `predMap` (line 84) but then only reads `homeScore`, `awayScore`, `predictedWinner`, `pointsAwarded` at line 104. The `select` should include those four fields — not just `matchId`.
 
-- [ ] `src/lib/services/match-service.ts:86` — add `select` with only the 5 fields consumed by the map at line 104
-- [ ] `src/lib/services/match-service.ts:124` — add `select: { homeScore, awayScore, predictedWinner, pointsAwarded }`
+- [x] `src/lib/services/match-service.ts:86` — add `select` with only the 5 fields consumed by the map at line 104
+- [x] `src/lib/services/match-service.ts:124` — add `select: { homeScore, awayScore, predictedWinner, pointsAwarded }`
 
 ---
 
@@ -530,7 +530,7 @@ const match = await prisma.match.findUnique({
 });
 ```
 
-- [ ] `src/lib/services/prediction-service.ts:35` — add `select: { id: true, kickoffTime: true }`
+- [x] `src/lib/services/prediction-service.ts:35` — add `select: { id: true, kickoffTime: true }`
 
 ---
 
@@ -566,8 +566,8 @@ const updated = scoredPreds
 
 > **⚠️ CONFIRM BEFORE CHANGE** — touches the correction email path. Verify the in-memory `updated` array produces identical serialized output to the current re-fetched array before removing the second query.
 
-- [ ] `src/lib/results-processor.ts` — lift score computation out of `$transaction` map; eliminate second `findMany` at line 91 ⚠️ CONFIRM BEFORE CHANGE
-- [ ] Verify correction emails receive identical `pointsAwarded` / `scoringBreakdown` values after the change
+- [x] `src/lib/results-processor.ts` — lift score computation out of `$transaction` map; eliminate second `findMany` at line 91 ⚠️ CONFIRM BEFORE CHANGE
+- [x] Verify correction emails receive identical `pointsAwarded` / `scoringBreakdown` values after the change
 
 ---
 
@@ -593,7 +593,7 @@ const pendingMatches = await prisma.match.findMany({
 ```
 > A batch of 30 is enough for a 2-week backlog of UCL/EPL combined. The cron runs daily so the next invocation drains the remainder.
 
-- [ ] `src/lib/results-processor.ts:153` — add `orderBy: { kickoffTime: 'asc' }` + `take: 30` to `pendingMatches` query
+- [x] `src/lib/results-processor.ts:153` — add `orderBy: { kickoffTime: 'asc' }` + `take: 30` to `pendingMatches` query
 
 ---
 
@@ -619,7 +619,7 @@ include: {
 },
 ```
 
-- [ ] `src/app/api/admin/results/route.ts:14` — replace `include: { user: ... }` with `select` listing only the 6 serialized fields + user 🔒 ADMIN ROUTE
+- [x] `src/app/api/admin/results/route.ts:14` — replace `include: { user: ... }` with `select` listing only the 6 serialized fields + user 🔒 ADMIN ROUTE
 
 ---
 
@@ -633,16 +633,24 @@ include: {
 
 ## What Was Changed
 
-- [ ] Total API files modified: ___
-- [ ] New files created (`lib/`, `models/`): ___
-- [ ] Summary by category (fill in post-execution)
+- [x] Total API files modified: 21
+- [x] New files created (`lib/`, `models/`, `api/`): 5 (`src/lib/request.ts`, `src/lib/cron-auth.ts`, `src/lib/errors.ts`, `src/app/api/health/route.ts`, `src/lib/logger.ts`)
+- [x] Summary by category:
+  - **Security**: Added safe JSON parsing, rate limiting, isolated JWTs, and strict input validation.
+  - **Architecture**: Centralized cron authentication and decomposed `results-processor` and `matches-processor` to adhere to SRP.
+  - **DRY**: Standardized scoring breakdown types and helpers.
+  - **Clean Code**: Typed Prisma `where` clauses and implemented `NotFoundError` to replace string matching.
+  - **Performance**: Eliminated N+1 prediction queries, implemented batch DB updates, pre-computed leaderboards, and added request timeouts.
+  - **Observability**: Added structured logging (`logger.ts`), individual scoring failure isolation, and a `/api/health` endpoint.
+  - **Tooling**: Enforced API layer ESLint rules (`no-explicit-any`, `no-console`).
+  - **Prisma**: Optimized queries by adding `select` clauses, eliminating redundant fetches, and capping unbounded queries.
 
 ## Impact Assessment
 
-- [ ] Security vulnerabilities closed: ___
-- [ ] DB queries eliminated by N+1 fixes (estimated per cron run): ___
-- [ ] Lines of code removed by DRY refactors: ___
-- [ ] Cron execution time improvement (from batch writes): ___
+- [x] Security vulnerabilities closed: 4 (Unhandled 500s from malformed JSON, Rate limiting on login, Shared JWT secret dependency, NaN input crashing Prisma)
+- [x] DB queries eliminated by N+1 fixes (estimated per cron run): 20+ queries per invocation (scales with user base and match count)
+- [x] Lines of code removed by DRY refactors: ~40 lines across route handlers and processors
+- [x] Cron execution time improvement (from batch writes): Significant (reduced risk of Vercel 60s timeout by capping `take: 30`, adding HTTP abort signals, and batching `$transaction` updates)
 
 ## Remaining Technical Debt
 

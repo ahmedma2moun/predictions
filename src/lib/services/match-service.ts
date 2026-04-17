@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { isMatchLocked } from '@/lib/utils';
 import { getStandingsMap, standingKey } from '@/lib/standings';
-import { Prisma, MatchStatus, Match, Prediction } from '@prisma/client';
+import { Prisma, MatchStatus, Match } from '@prisma/client';
 
 export interface MatchFilters {
   leagueId?: number;
@@ -81,10 +81,11 @@ export async function getMatches(
 
   const [predMap, standingMap] = await Promise.all([
     (async () => {
-      const map = new Map<number, Prediction>();
+      const map = new Map<number, { homeScore: number; awayScore: number; predictedWinner: string | null; pointsAwarded: number | null }>();
       if (!opts.isAdmin && matchIds.length > 0) {
         const predictions = await prisma.prediction.findMany({
           where: { userId: opts.userId, matchId: { in: matchIds } },
+          select: { matchId: true, homeScore: true, awayScore: true, predictedWinner: true, pointsAwarded: true },
         });
         predictions.forEach(p => map.set(p.matchId, p));
       }
@@ -121,7 +122,10 @@ export async function getMatchById(
   const [prediction, standingMap] = await Promise.all([
     opts.isAdmin
       ? Promise.resolve(null)
-      : prisma.prediction.findFirst({ where: { userId: opts.userId, matchId: match.id } }),
+      : prisma.prediction.findFirst({
+          where: { userId: opts.userId, matchId: match.id },
+          select: { homeScore: true, awayScore: true, predictedWinner: true, pointsAwarded: true },
+        }),
     getStandingsMap([{ externalLeagueId: match.externalLeagueId, season: 0 }]),
   ]);
 

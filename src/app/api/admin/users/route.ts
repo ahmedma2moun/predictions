@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const { name, email, password, role } = await req.json();
   if (!name || !email || !password) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
-  const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() }, select: { id: true } });
   if (existing) return NextResponse.json({ error: 'Email already exists' }, { status: 400 });
 
   const hashed = await bcrypt.hash(password, 12);
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   });
 
   // Auto-add to the default group (General)
-  const defaultGroup = await prisma.group.findFirst({ where: { isDefault: true } });
+  const defaultGroup = await prisma.group.findFirst({ where: { isDefault: true }, select: { id: true } });
   if (defaultGroup) {
     await prisma.groupMember.create({ data: { groupId: defaultGroup.id, userId: user.id } });
   }
