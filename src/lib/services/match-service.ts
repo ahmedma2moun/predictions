@@ -92,7 +92,7 @@ export async function getMatches(
     })(),
     opts.withStandings && matches.length > 0
       ? getStandingsMap(uniqueLeagues)
-      : Promise.resolve(new Map<string, any>()),
+      : Promise.resolve(new Map<string, unknown>()),
   ]);
 
   return matches.map(m => {
@@ -156,15 +156,16 @@ export async function getMatchById(
   };
 }
 
-function toStandingData(s: any): StandingData {
+function toStandingData(s: unknown): StandingData {
+  const st = s as Record<string, unknown>;
   return {
-    position: s.position,
-    played: s.played,
-    won: s.won,
-    drawn: s.drawn,
-    lost: s.lost,
-    points: s.points,
-    goalDifference: s.goalDifference,
-    form: s.form,
+    position: st.position as number,
+    played: st.played as number,
+    won: st.won as number,
+    drawn: st.drawn as number,
+    lost: st.lost as number,
+    points: st.points as number,
+    goalDifference: st.goalDifference as number,
+    form: st.form as string | null,
   };
 }

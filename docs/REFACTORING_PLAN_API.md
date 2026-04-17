@@ -387,7 +387,7 @@ await prisma.$transaction(
 
 > **⚠️ CONFIRM BEFORE CHANGE** — touches the scoring write path.
 
-- [ ] `src/lib/results-processor.ts` — wrap per-prediction update in try/catch; continue on failure ⚠️ CONFIRM BEFORE CHANGE
+- [x] `src/lib/results-processor.ts` — wrap per-prediction update in try/catch; continue on failure ⚠️ CONFIRM BEFORE CHANGE
 
 ---
 
@@ -395,13 +395,13 @@ await prisma.$transaction(
 
 **Problem**: No `/api/health` endpoint. Uptime monitors and deployment smoke-tests cannot probe the service without hitting a real data endpoint. The proxy matcher already excludes `/api/...` paths so no auth change needed.
 
-- [ ] Create `src/app/api/health/route.ts`:
+- [x] Create `src/app/api/health/route.ts`:
   ```ts
   export async function GET() {
     return NextResponse.json({ status: 'ok', timestamp: new Date().toISOString() });
   }
   ```
-- [ ] Verify the path is reachable without authentication (check `src/proxy.ts` matcher)
+- [x] Verify the path is reachable without authentication (check `src/proxy.ts` matcher)
 
 ---
 
@@ -421,13 +421,13 @@ export const logger = {
 
 **Files to update** (replace all `console.log/warn/error`):
 
-- [ ] Create `src/lib/logger.ts`
-- [ ] `src/lib/results-processor.ts` — replace `console.*` with `logger.*`
-- [ ] `src/lib/matches-processor.ts` — replace `console.*` with `logger.*`
-- [ ] `src/app/api/cron/fetch-matches/route.ts` — replace `console.*` with `logger.*`
-- [ ] `src/app/api/cron/fetch-results/route.ts` — replace `console.*` with `logger.*`
-- [ ] `src/app/api/cron/daily-reminder/route.ts` — replace `console.*` with `logger.*`
-- [ ] `src/app/api/cron/prediction-reminder/route.ts` — replace `console.*` with `logger.*`
+- [x] Create `src/lib/logger.ts`
+- [x] `src/lib/results-processor.ts` — replace `console.*` with `logger.*`
+- [x] `src/lib/matches-processor.ts` — replace `console.*` with `logger.*`
+- [x] `src/app/api/cron/fetch-matches/route.ts` — replace `console.*` with `logger.*`
+- [x] `src/app/api/cron/fetch-results/route.ts` — replace `console.*` with `logger.*`
+- [x] `src/app/api/cron/daily-reminder/route.ts` — replace `console.*` with `logger.*`
+- [x] `src/app/api/cron/prediction-reminder/route.ts` — replace `console.*` with `logger.*`
 
 ---
 
@@ -441,9 +441,9 @@ export const logger = {
 
 **Problem**: No ESLint enforcement of backend-specific patterns — `any` usage, `console` calls, and missing async error handling go unchecked.
 
-- [ ] Add `@typescript-eslint/no-explicit-any` at `error` level (targets `match-service.ts`, `prediction-service.ts` `where: any`)
-- [ ] Add `no-console` rule at `warn` level (catches any new `console.*` added after the logger migration)
-- [ ] Fix any new lint errors introduced
+- [x] Add `@typescript-eslint/no-explicit-any` at `error` level (targets `match-service.ts`, `prediction-service.ts` `where: any`)
+- [x] Add `no-console` rule at `warn` level (catches any new `console.*` added after the logger migration)
+- [x] Fix any new lint errors introduced
 
 ---
 

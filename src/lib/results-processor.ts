@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 import { fetchFixtures, mapFixtureStatus } from '@/lib/football/service';
 import { sendPushToUsers } from './fcm';
 import { getStandingsMap } from '@/lib/standings';
@@ -126,7 +127,7 @@ export async function correctMatchResult(
       }, leaderboards);
       emailsSent++;
     } catch (e) {
-      console.error(`[result-correction] Email failed for user ${pred.userId}:`, e);
+      logger.error(`[result-correction] Email failed for user ${pred.userId}:`, { error: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -167,7 +168,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
     include: { league: { select: { name: true } } },
   });
 
-  console.log(`[${logPrefix}] Starting — ${pendingMatches.length} pending matches`);
+  logger.info(`[${logPrefix}] Starting — ${pendingMatches.length} pending matches`);
 
   if (pendingMatches.length === 0) {
     return { updated: 0, scored: 0, errors: 0 };
@@ -192,7 +193,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
   for (const [externalLeagueId, batch] of byLeague) {
     const league = leagueMap.get(externalLeagueId);
     if (!league) {
-      console.warn(`[${logPrefix}] League ${externalLeagueId} not in active leagues — skipping`);
+      logger.warn(`[${logPrefix}] League ${externalLeagueId} not in active leagues — skipping`);
       continue;
     }
 
@@ -203,12 +204,12 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
     try {
       const fixtures = await fetchFixtures({ league: externalLeagueId, season: league.season, from, to });
       const fixtureMap = new Map(fixtures.map(f => [f.fixture.id, f]));
-      console.log(`[${logPrefix}] ${league.name}: ${fixtures.length} fixtures from API, ${batch.length} pending in DB`);
+      logger.info(`[${logPrefix}] ${league.name}: ${fixtures.length} fixtures from API, ${batch.length} pending in DB`);
 
       for (const match of batch) {
         const f = fixtureMap.get(match.externalId);
         if (!f) {
-          console.warn(`[${logPrefix}] Fixture ${match.externalId} not found in API response — skipping`);
+          logger.warn(`[${logPrefix}] Fixture ${match.externalId} not found in API response — skipping`);
           continue;
         }
         if (mapFixtureStatus(f.fixture.status.short) !== 'finished') continue;
@@ -216,7 +217,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
         const rawHomeScore = f.score.fulltime.home ?? f.goals.home;
         const rawAwayScore = f.score.fulltime.away ?? f.goals.away;
         if (rawHomeScore === null || rawAwayScore === null) {
-          console.warn(`[${logPrefix}] Fixture ${f.fixture.id} — scores not available yet`);
+          logger.warn(`[${logPrefix}] Fixture ${f.fixture.id} — scores not available yet`);
           continue;
         }
 
@@ -254,17 +255,17 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
           },
         });
         updated++;
-        console.log(`[${logPrefix}] Result saved: ${match.homeTeamName} ${homeScore}–${awayScore} ${match.awayTeamName}`);
+        logger.info(`[${logPrefix}] Result saved: ${match.homeTeamName} ${homeScore}–${awayScore} ${match.awayTeamName}`);
 
         if (updatedMatch.scoresProcessed) {
-          console.log(`[${logPrefix}] Match ${match.id} already scored — skipping`);
+          logger.info(`[${logPrefix}] Match ${match.id} already scored — skipping`);
           continue;
         }
 
         const predictions = await prisma.prediction.findMany({ where: { matchId: match.id } });
-        console.log(`[${logPrefix}] Scoring ${predictions.length} predictions for match ${match.id}`);
+        logger.info(`[${logPrefix}] Scoring ${predictions.length} predictions for match ${match.id}`);
 
-        const { scoredCount, scoredDetails } = await batchScorePredictions(
+        const { scoredCount, errorsCount, scoredDetails } = await batchScorePredictions(
           match.id,
           predictions,
           { homeScore, awayScore, winner: scoringWinner },
@@ -272,6 +273,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
           logPrefix
         );
         scored += scoredCount;
+        errors += errorsCount;
 
         for (const detail of scoredDetails) {
           const list = userMatchMap.get(detail.userId) ?? [];
@@ -293,7 +295,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
         await prisma.match.update({ where: { id: match.id }, data: { scoresProcessed: true } });
       }
     } catch (e) {
-      console.error(`[${logPrefix}] ERROR league ${league.name} (${externalLeagueId}):`, e);
+      logger.error(`[${logPrefix}] ERROR league ${league.name} (${externalLeagueId}):`, { error: e instanceof Error ? e.message : String(e) });
       errors++;
     }
   }
@@ -309,9 +311,9 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
 
     try {
       await getStandingsMap(leaguesWithResults, { force: true });
-      console.log(`[${logPrefix}] Standings refreshed for ${leaguesWithResults.length} league(s)`);
+      logger.info(`[${logPrefix}] Standings refreshed for ${leaguesWithResults.length} league(s)`);
     } catch (e) {
-      console.error(`[${logPrefix}] Failed to refresh standings:`, e);
+      logger.error(`[${logPrefix}] Failed to refresh standings:`, { error: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -324,34 +326,37 @@ export async function batchScorePredictions(
   result: { homeScore: number; awayScore: number; winner: 'home' | 'away' | 'draw' },
   rules: ScoringRule[],
   logPrefix: string
-): Promise<{ scoredCount: number; scoredDetails: Array<{ userId: number; predictionHomeScore: number; predictionAwayScore: number; pointsAwarded: number; scoringBreakdown: any }> }> {
+): Promise<{ scoredCount: number; errorsCount: number; scoredDetails: Array<{ userId: number; predictionHomeScore: number; predictionAwayScore: number; pointsAwarded: number; scoringBreakdown: unknown }> }> {
   const scoredDetails = [];
-  const updates = [];
+  let scoredCount = 0;
+  let errorsCount = 0;
 
   for (const pred of preds) {
-    const { totalPoints, breakdown } = calculateScore(
-      { homeScore: pred.homeScore, awayScore: pred.awayScore },
-      result,
-      rules
-    );
-    updates.push(prisma.prediction.update({
-      where: { id: pred.id },
-      data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
-    }));
-    scoredDetails.push({
-      userId: pred.userId,
-      predictionHomeScore: pred.homeScore,
-      predictionAwayScore: pred.awayScore,
-      pointsAwarded: totalPoints,
-      scoringBreakdown: breakdown.map(r => ({ ruleName: r.ruleName, pointsAwarded: r.pointsAwarded, matched: r.matched })),
-    });
+    try {
+      const { totalPoints, breakdown } = calculateScore(
+        { homeScore: pred.homeScore, awayScore: pred.awayScore },
+        result,
+        rules
+      );
+      await prisma.prediction.update({
+        where: { id: pred.id },
+        data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
+      });
+      scoredCount++;
+      scoredDetails.push({
+        userId: pred.userId,
+        predictionHomeScore: pred.homeScore,
+        predictionAwayScore: pred.awayScore,
+        pointsAwarded: totalPoints,
+        scoringBreakdown: breakdown.map(r => ({ ruleName: r.ruleName, pointsAwarded: r.pointsAwarded, matched: r.matched })),
+      });
+    } catch (e) {
+      logger.error(`[${logPrefix}] Failed to score prediction ${pred.id}:`, { error: e instanceof Error ? e.message : String(e) });
+      errorsCount++;
+    }
   }
 
-  if (updates.length > 0) {
-    await prisma.$transaction(updates);
-  }
-
-  return { scoredCount: updates.length, scoredDetails };
+  return { scoredCount, errorsCount, scoredDetails };
 }
 
 export async function sendResultNotifications(userMatchMap: Map<number, ResultMatchForEmail[]>, logPrefix: string) {
@@ -367,7 +372,7 @@ export async function sendResultNotifications(userMatchMap: Map<number, ResultMa
       if (user.notificationEmail && matches?.length) {
         const leaderboards = await getUserGroupLeaderboards(user.id);
         await sendResultsEmail(user.notificationEmail, matches, leaderboards);
-        console.log(`[${logPrefix}] Results email sent to ${user.notificationEmail}`);
+        logger.info(`[${logPrefix}] Results email sent to ${user.notificationEmail}`);
       }
     }
     // FCM push
@@ -378,9 +383,9 @@ export async function sendResultNotifications(userMatchMap: Map<number, ResultMa
         data: { type: 'results' },
       });
     } catch (e) {
-      console.error(`[${logPrefix}] FCM push failed:`, e);
+      logger.error(`[${logPrefix}] FCM push failed:`, { error: e instanceof Error ? e.message : String(e) });
     }
   } catch (e) {
-    console.error(`[${logPrefix}] Failed to send results emails:`, e);
+    logger.error(`[${logPrefix}] Failed to send results emails:`, { error: e instanceof Error ? e.message : String(e) });
   }
 }

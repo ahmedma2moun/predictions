@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processMatchResults } from '@/lib/results-processor';
+import { logger } from '@/lib/logger';
 import { verifyCronRequest } from '@/lib/cron-auth';
 
 export async function GET(req: NextRequest) {
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
   const summary = await processMatchResults('cron/fetch-results');
   const result = { ...summary, timestamp: new Date().toISOString() };
 
-  console.log('[cron/fetch-results] Done —', JSON.stringify(result));
+  logger.info('[cron/fetch-results] Done —', JSON.parse(JSON.stringify(result)));
 
   return NextResponse.json(result);
 }

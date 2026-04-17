@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { fetchStandings } from '@/lib/football/service';
+import { logger } from '@/lib/logger';
 
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -95,7 +96,7 @@ export async function getStandingsMap(
           "updatedAt"      = NOW()
       `);
     } catch (e) {
-      console.error(`[standings] Failed to fetch standings for league ${externalLeagueId}:`, e);
+      logger.error(`[standings] Failed to fetch standings for league ${externalLeagueId}:`, { error: e instanceof Error ? e.message : String(e) });
       // Fall through — return whatever is already cached below
     }
   }

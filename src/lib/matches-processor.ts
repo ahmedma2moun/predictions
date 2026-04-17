@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football/service';
 import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
 import { sendPushToUsers } from './fcm';
@@ -71,7 +72,7 @@ export async function fetchAndInsertMatches(params: {
   let inserted = 0, skipped = 0, errors = 0;
   const debug: Record<string, unknown>[] = [];
 
-  console.log(`[${logPrefix}] Starting — ${leagues.length} league(s), window: ${from} → ${to}`);
+  logger.info(`[${logPrefix}] Starting — ${leagues.length} league(s), window: ${from} → ${to}`);
 
   for (const league of leagues) {
     try {
@@ -122,13 +123,13 @@ export async function fetchAndInsertMatches(params: {
           })),
         });
         inserted += toCreate.length;
-        console.log(`[${logPrefix}] ${league.name}: inserted=${toCreate.length}, skipped=${fixtures.length - toCreate.length}`);
+        logger.info(`[${logPrefix}] ${league.name}: inserted=${toCreate.length}, skipped=${fixtures.length - toCreate.length}`);
 
         await assignKnockoutLegs(league.externalId);
       }
-    } catch (e: any) {
-      console.error(`[${logPrefix}] ERROR league ${league.name} (${league.externalId}):`, e);
-      debug.push({ league: league.name, externalId: league.externalId, error: e?.message ?? String(e) });
+    } catch (e: unknown) {
+      logger.error(`[${logPrefix}] ERROR league ${league.name} (${league.externalId}):`, { error: e instanceof Error ? e.message : String(e) });
+      debug.push({ league: league.name, externalId: league.externalId, error: e instanceof Error ? e.message : String(e) });
       errors++;
     }
   }
@@ -159,7 +160,7 @@ export async function sendNewMatchNotifications(weekStart: Date, insertedCount: 
     for (const user of recipients) {
       if (user.notificationEmail) {
         await sendNewMatchesEmail(user.notificationEmail, matchesForEmail);
-        console.log(`[${logPrefix}] Notification sent to ${user.notificationEmail}`);
+        logger.info(`[${logPrefix}] Notification sent to ${user.notificationEmail}`);
       }
     }
     // FCM push — send to ALL users with device tokens, independent of email recipients
@@ -175,10 +176,10 @@ export async function sendNewMatchNotifications(weekStart: Date, insertedCount: 
         data: { type: 'new_matches' },
       });
     } catch (e) {
-      console.error(`[${logPrefix}] FCM push failed:`, e);
+      logger.error(`[${logPrefix}] FCM push failed:`, { error: e instanceof Error ? e.message : String(e) });
     }
   } catch (e) {
-    console.error(`[${logPrefix}] Failed to send new matches emails:`, e);
+    logger.error(`[${logPrefix}] Failed to send new matches emails:`, { error: e instanceof Error ? e.message : String(e) });
   }
 }
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { sendDailyReminderEmail, sendCronRunEmail, type UnpredictedMatch } from '@/lib/email';
 import { sendPushToUsers } from '@/lib/fcm';
 import { verifyCronRequest } from '@/lib/cron-auth';
+import { logger } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   if (!verifyCronRequest(req)) {
@@ -29,11 +30,11 @@ export async function GET(req: NextRequest) {
     orderBy: { kickoffTime: 'asc' },
   });
 
-  console.log(`[cron/daily-reminder] ${todayMatches.length} matches remaining today (CLT)`);
+  logger.info(`[cron/daily-reminder] ${todayMatches.length} matches remaining today (CLT)`);
 
   if (todayMatches.length === 0) {
     const summary = { remindedUsers: 0, skippedUsers: 0, todayMatches: 0, timestamp: now.toISOString() };
-    console.log('[cron/daily-reminder] No matches today — nothing to do');
+    logger.info('[cron/daily-reminder] No matches today — nothing to do');
     try { await sendCronRunEmail('daily-reminder', summary); } catch {}
     return NextResponse.json(summary);
   }
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
 
     if (missing.length === 0) {
       skippedUsers++;
-      console.log(`[cron/daily-reminder] User ${user.id} has all predictions for today — skipping`);
+      logger.info(`[cron/daily-reminder] User ${user.id} has all predictions for today — skipping`);
       continue;
     }
 
@@ -83,9 +84,9 @@ export async function GET(req: NextRequest) {
       await sendDailyReminderEmail(user.notificationEmail, matchesForEmail);
       remindedUsers++;
       remindedEmails.push(user.notificationEmail);
-      console.log(`[cron/daily-reminder] Reminder sent to user ${user.id} (${missing.length} unpredicted today)`);
+      logger.info(`[cron/daily-reminder] Reminder sent to user ${user.id} (${missing.length} unpredicted today)`);
     } catch (e) {
-      console.error(`[cron/daily-reminder] Failed to email user ${user.id}:`, e);
+      logger.error(`[cron/daily-reminder] Failed to email user ${user.id}:`, { error: e instanceof Error ? e.message : String(e) });
       errors++;
     }
   }
@@ -117,7 +118,7 @@ export async function GET(req: NextRequest) {
           data: { type: 'daily_reminder' },
         });
       } catch (e) {
-        console.error('[cron/daily-reminder] FCM push failed:', e);
+        logger.error('[cron/daily-reminder] FCM push failed:', { error: e instanceof Error ? e.message : String(e) });
       }
     }
   }
@@ -129,12 +130,12 @@ export async function GET(req: NextRequest) {
     errors,
     timestamp: now.toISOString(),
   };
-  console.log('[cron/daily-reminder] Done —', JSON.stringify(summary));
+  logger.info('[cron/daily-reminder] Done —', JSON.parse(JSON.stringify(summary)));
 
   try {
     await sendCronRunEmail('daily-reminder', summary, remindedEmails);
   } catch (e) {
-    console.error('[cron/daily-reminder] Failed to send cron notification email:', e);
+    logger.error('[cron/daily-reminder] Failed to send cron notification email:', { error: e instanceof Error ? e.message : String(e) });
   }
 
   return NextResponse.json(summary);

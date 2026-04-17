@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAndInsertMatches } from '@/lib/matches-processor';
+import { logger } from '@/lib/logger';
 import { sendCronRunEmail } from '@/lib/email';
 import { format, addDays } from 'date-fns';
 import { verifyCronRequest } from '@/lib/cron-auth';
@@ -23,12 +24,12 @@ export async function GET(req: NextRequest) {
   });
 
   const summary = { inserted, skipped, errors, timestamp: new Date().toISOString() };
-  console.log('[cron/fetch-matches] Done —', JSON.stringify(summary));
+  logger.info('[cron/fetch-matches] Done —', JSON.parse(JSON.stringify(summary)));
 
   try {
     await sendCronRunEmail('fetch-matches', summary);
   } catch (e) {
-    console.error('[cron/fetch-matches] Failed to send cron notification email:', e);
+    logger.error('[cron/fetch-matches] Failed to send cron notification email:', { error: e instanceof Error ? e.message : String(e) });
   }
 
   return NextResponse.json(summary);

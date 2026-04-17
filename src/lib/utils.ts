@@ -58,7 +58,6 @@ export function ordinal(n: number): string {
 export function getFridayDate(): Date {
   const now = new Date();
   const day = now.getUTCDay(); // 0=Sun, 5=Fri
-  const daysUntilFriday = (5 - day + 7) % 7;
   const friday = new Date(now);
   friday.setUTCDate(now.getUTCDate() - (day === 5 ? 0 : (day > 5 ? day - 5 : 7 - (5 - day))));
   friday.setUTCHours(0, 0, 0, 0);

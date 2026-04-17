@@ -4,6 +4,7 @@ import { sendPredictionReminderEmail, sendCronRunEmail, type UnpredictedMatch } 
 import { addDays } from 'date-fns';
 import { sendPushToUsers } from '@/lib/fcm';
 import { verifyCronRequest } from '@/lib/cron-auth';
+import { logger } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   if (!verifyCronRequest(req)) {
@@ -23,11 +24,11 @@ export async function GET(req: NextRequest) {
     orderBy: { kickoffTime: 'asc' },
   });
 
-  console.log(`[cron/prediction-reminder] ${upcomingMatches.length} upcoming matches in the next 7 days`);
+  logger.info(`[cron/prediction-reminder] ${upcomingMatches.length} upcoming matches in the next 7 days`);
 
   if (upcomingMatches.length === 0) {
     const summary = { remindedUsers: 0, skippedUsers: 0, upcomingMatches: 0, timestamp: now.toISOString() };
-    console.log('[cron/prediction-reminder] No upcoming matches — nothing to do');
+    logger.info('[cron/prediction-reminder] No upcoming matches — nothing to do');
     try { await sendCronRunEmail('prediction-reminder', summary); } catch {}
     return NextResponse.json(summary);
   }
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
 
     if (missing.length === 0) {
       skippedUsers++;
-      console.log(`[cron/prediction-reminder] User ${user.id} has all predictions — skipping`);
+      logger.info(`[cron/prediction-reminder] User ${user.id} has all predictions — skipping`);
       continue;
     }
 
@@ -82,9 +83,9 @@ export async function GET(req: NextRequest) {
       remindedUsers++;
       remindedUserIds.push(user.id);
       remindedEmails.push(user.notificationEmail);
-      console.log(`[cron/prediction-reminder] Reminder sent to user ${user.id} (${missing.length} missing predictions)`);
+      logger.info(`[cron/prediction-reminder] Reminder sent to user ${user.id} (${missing.length} missing predictions)`);
     } catch (e) {
-      console.error(`[cron/prediction-reminder] Failed to email user ${user.id}:`, e);
+      logger.error(`[cron/prediction-reminder] Failed to email user ${user.id}:`, { error: e instanceof Error ? e.message : String(e) });
       errors++;
     }
   }
@@ -116,7 +117,7 @@ export async function GET(req: NextRequest) {
           data: { type: 'prediction_reminder' },
         });
       } catch (e) {
-        console.error('[cron/prediction-reminder] FCM push failed:', e);
+        logger.error('[cron/prediction-reminder] FCM push failed:', { error: e instanceof Error ? e.message : String(e) });
       }
     }
   }
@@ -128,12 +129,12 @@ export async function GET(req: NextRequest) {
     errors,
     timestamp: now.toISOString(),
   };
-  console.log('[cron/prediction-reminder] Done —', JSON.stringify(summary));
+  logger.info('[cron/prediction-reminder] Done —', JSON.parse(JSON.stringify(summary)));
 
   try {
     await sendCronRunEmail('prediction-reminder', summary, remindedEmails);
   } catch (e) {
-    console.error('[cron/prediction-reminder] Failed to send cron notification email:', e);
+    logger.error('[cron/prediction-reminder] Failed to send cron notification email:', { error: e instanceof Error ? e.message : String(e) });
   }
 
   return NextResponse.json(summary);

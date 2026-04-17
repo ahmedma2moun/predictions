@@ -1,0 +1,75 @@
+﻿
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\admin\matches\route.ts
+  30:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  64:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\admin\results\[matchId]\route.ts
+  35:15  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  39:5   warning  Unexpected console statement              no-console
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\admin\scoring-rules\route.ts
+  18:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\admin\test-email\route.ts
+  83:15  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  84:5   warning  Unexpected console statement              no-console
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\admin\test-notification\route.ts
+  77:15  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:5   warning  Unexpected console statement              no-console
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\admin\users\route.ts
+  38:21  warning  '_' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  52:15  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\mobile\auth\login\route.ts
+  21:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\mobile\devices\route.ts
+  10:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\mobile\matches\[matchId]\route.ts
+  73:15  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  77:5   warning  Unexpected console statement              no-console
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\mobile\predictions\route.ts
+  29:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Antigravity\Matches Prediction\football-predictions\src\app\api\predictions\route.ts
+  26:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Antigravity\Matches Prediction\football-predictions\src\lib\auth.ts
+  36:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\Antigravity\Matches Prediction\football-predictions\src\lib\email.ts
+  12:10  warning  'formatDate' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Antigravity\Matches Prediction\football-predictions\src\lib\export\job.ts
+  14:7  warning  Unexpected console statement  no-console
+  16:7  warning  Unexpected console statement  no-console
+  18:7  warning  Unexpected console statement  no-console
+
+D:\Antigravity\Matches Prediction\football-predictions\src\lib\football\providers\api-football.ts
+  114:5  warning  Unexpected console statement  no-console
+  119:7  warning  Unexpected console statement  no-console
+  124:7  warning  Unexpected console statement  no-console
+  127:5  warning  Unexpected console statement  no-console
+
+D:\Antigravity\Matches Prediction\football-predictions\src\lib\football\providers\football-data.ts
+  125:5  warning  Unexpected console statement  no-console
+  136:7  warning  Unexpected console statement  no-console
+  139:5  warning  Unexpected console statement  no-console
+
+D:\Antigravity\Matches Prediction\football-predictions\src\lib\h2h.ts
+  60:5  warning  Unexpected console statement  no-console
+
+D:\Antigravity\Matches Prediction\football-predictions\src\lib\logger.ts
+  2:41  warning  Unexpected console statement  no-console
+  3:41  warning  Unexpected console statement  no-console
+  4:41  warning  Unexpected console statement  no-console
+
+Γ£û 36 problems (16 errors, 20 warnings)
+
