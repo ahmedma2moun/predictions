@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { isMatchLocked } from '@/lib/utils';
 import { getStandingsMap, standingKey } from '@/lib/standings';
-import { MatchStatus, Match, Prediction } from '@prisma/client';
+import { Prisma, MatchStatus, Match, Prediction } from '@prisma/client';
 
 export interface MatchFilters {
   leagueId?: number;
@@ -57,7 +57,7 @@ export async function getMatches(
   filters: MatchFilters,
   opts: { userId: number; isAdmin: boolean; withStandings?: boolean },
 ): Promise<MatchListItem[]> {
-  const where: any = {};
+  const where: Prisma.MatchWhereInput = {};
   if (filters.leagueId) where.externalLeagueId = filters.leagueId;
   if (filters.status) {
     where.status = filters.status as MatchStatus;

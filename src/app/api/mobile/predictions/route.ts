@@ -3,6 +3,7 @@ import { getMobileSession } from '@/lib/mobile-auth';
 import { serializeMatchForMobile } from '@/models/Match';
 import { getUserPredictions, upsertPrediction } from '@/lib/services/prediction-service';
 import { safeParseBody } from '@/lib/request';
+import { serializeBreakdown } from '@/models/Prediction';
 
 export async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
@@ -11,15 +12,12 @@ export async function GET(req: NextRequest) {
   const userId = Number(session.id);
   const predictions = await getUserPredictions(userId);
 
-  type RuleRow = { key?: string; ruleId?: number; ruleName: string; pointsAwarded: number; matched: boolean };
-
   return NextResponse.json(predictions.map(p => ({
     ...p,
     id: p.id.toString(),
     userId: p.userId.toString(),
     matchId: p.matchId.toString(),
-    scoringBreakdown: ((p.scoringBreakdown as { rules?: RuleRow[] } | null)?.rules ?? null)
-      ?.map(r => ({ key: r.key ?? String(r.ruleId ?? ''), name: r.ruleName, points: r.pointsAwarded, awarded: r.matched })) ?? null,
+    scoringBreakdown: serializeBreakdown(p.scoringBreakdown),
     match: serializeMatchForMobile({ ...p.match, leagueName: p.match.league?.name ?? null }),
   })));
 }

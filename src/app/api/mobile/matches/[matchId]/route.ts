@@ -4,6 +4,8 @@ import { serializeMatchForMobile } from '@/models/Match';
 import { isKnockoutStage } from '@/lib/utils';
 import { correctMatchResult } from '@/lib/results-processor';
 import { getMatchById } from '@/lib/services/match-service';
+import { serializeBreakdown } from '@/models/Prediction';
+import { NotFoundError } from '@/lib/errors';
 
 export async function GET(
   req: NextRequest,
@@ -21,16 +23,13 @@ export async function GET(
 
   const { match, prediction, allPredictions, homeStanding, awayStanding } = data;
 
-  type RuleRow = { key?: string; ruleId?: number; ruleName: string; pointsAwarded: number; matched: boolean };
-
   const formattedAllPredictions = allPredictions?.map(p => ({
     userId:    p.userId.toString(),
     userName:  p.userName,
     homeScore: p.homeScore,
     awayScore: p.awayScore,
     pointsAwarded: p.pointsAwarded,
-    scoringBreakdown: ((p.rawBreakdown as { rules?: RuleRow[] } | null)?.rules ?? null)
-      ?.map(r => ({ key: r.key ?? String(r.ruleId ?? ''), name: r.ruleName, points: r.pointsAwarded, awarded: r.matched })) ?? null,
+    scoringBreakdown: serializeBreakdown(p.rawBreakdown),
   })) ?? null;
 
   const base = serializeMatchForMobile({ ...match, leagueName: match.league?.name ?? null });
@@ -72,7 +71,7 @@ export async function PATCH(
     const result = await correctMatchResult(Number(matchId), homeScore, awayScore, penaltyHomeScore, penaltyAwayScore);
     return NextResponse.json(result);
   } catch (e: any) {
-    if (e.message?.includes('not found')) {
+    if (e instanceof NotFoundError) {
       return NextResponse.json({ error: 'Match not found' }, { status: 404 });
     }
     console.error('[PATCH /api/mobile/matches/:id]', e);

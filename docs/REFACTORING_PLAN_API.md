@@ -239,9 +239,9 @@ Any change to the scoring breakdown shape requires edits in 2 places.
   export function serializeBreakdown(raw: unknown): BreakdownItem[] | null { ... }
   ```
 
-- [ ] `src/models/Prediction.ts` — add `RuleRow`, `BreakdownItem` types + `serializeBreakdown` helper
-- [ ] `src/app/api/mobile/predictions/route.ts` — replace inline type + mapper with `serializeBreakdown`
-- [ ] `src/app/api/mobile/matches/[matchId]/route.ts` — replace inline type + mapper with `serializeBreakdown`
+- [x] `src/models/Prediction.ts` — add `RuleRow`, `BreakdownItem` types + `serializeBreakdown` helper
+- [x] `src/app/api/mobile/predictions/route.ts` — replace inline type + mapper with `serializeBreakdown`
+- [x] `src/app/api/mobile/matches/[matchId]/route.ts` — replace inline type + mapper with `serializeBreakdown`
 
 ---
 
@@ -255,8 +255,8 @@ Any change to the scoring breakdown shape requires edits in 2 places.
 
 **Problem**: Two service methods use `const where: any = {}` to build their Prisma filter objects, losing all type-safety on the where clause. A typo in a field name compiles silently.
 
-- [ ] `src/lib/services/match-service.ts:60` — type as `Prisma.MatchWhereInput`
-- [ ] `src/lib/services/prediction-service.ts:71` — type as `Prisma.MatchWhereInput`
+- [x] `src/lib/services/match-service.ts:60` — type as `Prisma.MatchWhereInput`
+- [x] `src/lib/services/prediction-service.ts:71` — type as `Prisma.MatchWhereInput`
 
 ---
 
@@ -272,9 +272,9 @@ export class NotFoundError extends Error {
 }
 ```
 
-- [ ] Create `src/lib/errors.ts` — export `NotFoundError`
-- [ ] `src/lib/results-processor.ts` — `throw new NotFoundError(...)` in `correctMatchResult` instead of generic `Error`
-- [ ] `src/app/api/mobile/matches/[matchId]/route.ts` — `catch (e) { if (e instanceof NotFoundError) return ...404...; throw e; }`
+- [x] Create `src/lib/errors.ts` — export `NotFoundError`
+- [x] `src/lib/results-processor.ts` — `throw new NotFoundError(...)` in `correctMatchResult` instead of generic `Error`
+- [x] `src/app/api/mobile/matches/[matchId]/route.ts` — `catch (e) { if (e instanceof NotFoundError) return ...404...; throw e; }`
 
 ---
 

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getWinner } from '@/lib/utils';
-import { Match, Prediction } from '@prisma/client';
+import { Prisma, Match, Prediction } from '@prisma/client';
 
 export type PredictionWithMatch = Prediction & {
   match: Match & { league: { name: string } | null };
@@ -68,13 +68,14 @@ export interface UserPredictionHistoryItem {
 export async function getUserPredictionHistory(
   filters: UserPredictionHistoryFilters,
 ): Promise<UserPredictionHistoryItem[]> {
-  const matchWhere: any = { status: 'finished' };
+  const matchWhere: Prisma.MatchWhereInput = { status: 'finished' };
   if (filters.leagueIds && filters.leagueIds.length === 1) matchWhere.externalLeagueId = filters.leagueIds[0];
   else if (filters.leagueIds && filters.leagueIds.length > 1) matchWhere.externalLeagueId = { in: filters.leagueIds };
   if (filters.from || filters.to) {
-    matchWhere.kickoffTime = {};
-    if (filters.from) matchWhere.kickoffTime.gte = new Date(filters.from);
-    if (filters.to)   matchWhere.kickoffTime.lt  = new Date(filters.to);
+    const timeFilter: Prisma.DateTimeFilter = {};
+    if (filters.from) timeFilter.gte = new Date(filters.from);
+    if (filters.to)   timeFilter.lt  = new Date(filters.to);
+    matchWhere.kickoffTime = timeFilter;
   }
 
   const predictions = await prisma.prediction.findMany({

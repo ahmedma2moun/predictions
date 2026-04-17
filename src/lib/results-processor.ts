@@ -7,6 +7,7 @@ import { sendResultsEmail, sendResultCorrectionEmail, type ResultMatchForEmail }
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format } from 'date-fns';
 import { type ScoringRule, type Prediction } from '@prisma/client';
+import { NotFoundError } from '@/lib/errors';
 
 type CorrectedPrediction = {
   id: string;
@@ -34,7 +35,7 @@ export async function correctMatchResult(
     where: { id: matchId },
     include: { league: { select: { name: true } } },
   });
-  if (!match) throw new Error(`Match ${matchId} not found`);
+  if (!match) throw new NotFoundError(`Match ${matchId} not found`);
 
   // Scoring winner uses regular time only (penalties don't affect points)
   const scoringWinner: 'home' | 'away' | 'draw' =
