@@ -72,12 +72,12 @@ Execute in order: **Security → Architecture → DRY → Clean Code → API Per
 2. Replace all bare `await req.json()` calls with `safeParseBody`
 3. Return `400 { error: 'Invalid request body' }` when the result is `null`
 
-- [ ] Create `src/lib/request.ts` — `safeParseBody` utility
-- [ ] `src/app/api/mobile/auth/login/route.ts` — use `safeParseBody` ⚠️ CONFIRM BEFORE CHANGE
-- [ ] `src/app/api/admin/matches/route.ts` — use `safeParseBody` (POST + DELETE) 🔒 ADMIN ROUTE
-- [ ] `src/app/api/mobile/devices/route.ts` — use `safeParseBody` (POST + DELETE)
-- [ ] `src/app/api/mobile/predictions/route.ts` — use `safeParseBody` (POST)
-- [ ] `src/app/api/predictions/route.ts` — use `safeParseBody` (POST)
+- [x] Create `src/lib/request.ts` — `safeParseBody` utility
+- [x] `src/app/api/mobile/auth/login/route.ts` — use `safeParseBody` ⚠️ CONFIRM BEFORE CHANGE
+- [x] `src/app/api/admin/matches/route.ts` — use `safeParseBody` (POST + DELETE) 🔒 ADMIN ROUTE
+- [x] `src/app/api/mobile/devices/route.ts` — use `safeParseBody` (POST + DELETE)
+- [x] `src/app/api/mobile/predictions/route.ts` — use `safeParseBody` (POST)
+- [x] `src/app/api/predictions/route.ts` — use `safeParseBody` (POST)
 
 ---
 
@@ -92,9 +92,9 @@ Execute in order: **Security → Architecture → DRY → Clean Code → API Per
 
 > **⚠️ CONFIRM BEFORE CHANGE** — touches authentication. Confirm the rate-limit backend (Upstash Redis vs. in-memory) and install any package before implementing.
 
-- [ ] Confirm rate-limit implementation approach
-- [ ] Install approved package (if external)
-- [ ] `src/app/api/mobile/auth/login/route.ts` — add rate limiting ⚠️ CONFIRM BEFORE CHANGE
+- [x] Confirm rate-limit implementation approach
+- [x] Install approved package (if external)
+- [x] `src/app/api/mobile/auth/login/route.ts` — add rate limiting ⚠️ CONFIRM BEFORE CHANGE
 
 ---
 
@@ -107,10 +107,10 @@ Execute in order: **Security → Architecture → DRY → Clean Code → API Per
 - Fall back preserves all existing tokens — zero downtime migration
 - Document `MOBILE_JWT_SECRET` as a new env var in deployment docs
 
-- [ ] `src/lib/mobile-auth.ts` — `getSecret()` reads `MOBILE_JWT_SECRET ?? NEXTAUTH_SECRET` ⚠️ CONFIRM BEFORE CHANGE
-- [ ] Add `MOBILE_JWT_SECRET` to `.env.local` example comments
-- [ ] Update `docs/architecture/DEPLOYMENT_GUIDE.md` — add env var entry
-- [ ] Update `docs/architecture/SECURITY_ARCHITECTURE.md` — document the JWT split
+- [x] `src/lib/mobile-auth.ts` — `getSecret()` reads `MOBILE_JWT_SECRET ?? NEXTAUTH_SECRET` ⚠️ CONFIRM BEFORE CHANGE
+- [x] Add `MOBILE_JWT_SECRET` to `.env.local` example comments
+- [x] Update `docs/architecture/DEPLOYMENT_GUIDE.md` — add env var entry
+- [x] Update `docs/architecture/SECURITY_ARCHITECTURE.md` — document the JWT split
 
 ---
 
@@ -118,7 +118,7 @@ Execute in order: **Security → Architecture → DRY → Clean Code → API Per
 
 **Problem**: `src/app/api/admin/users/route.ts` PATCH passes `id` directly to `Number(id)` without checking for `NaN`. A non-numeric `id` from a buggy client produces a cryptic Prisma runtime error instead of a clean 400.
 
-- [ ] `src/app/api/admin/users/route.ts` PATCH — add guard:
+- [x] `src/app/api/admin/users/route.ts` PATCH — add guard:
   ```ts
   if (!id || !Number.isInteger(Number(id))) {
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 });

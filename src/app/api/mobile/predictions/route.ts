@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { serializeMatchForMobile } from '@/models/Match';
 import { getUserPredictions, upsertPrediction } from '@/lib/services/prediction-service';
+import { safeParseBody } from '@/lib/request';
 
 export async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
@@ -27,7 +28,8 @@ export async function POST(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json();
+  const body = await safeParseBody<any>(req);
+  if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   const { matchId, homeScore, awayScore } = body;
 
   if (typeof homeScore !== 'number' || typeof awayScore !== 'number' || homeScore < 0 || awayScore < 0) {

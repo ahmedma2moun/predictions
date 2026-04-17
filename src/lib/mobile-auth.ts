@@ -8,7 +8,7 @@ export interface MobileSession {
   role: string;
 }
 
-const getSecret = () => new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
+const getSecret = () => new TextEncoder().encode(process.env.MOBILE_JWT_SECRET ?? process.env.NEXTAUTH_SECRET!);
 
 export async function signMobileJwt(user: MobileSession): Promise<string> {
   return new SignJWT({ id: user.id, email: user.email, name: user.name, role: user.role })

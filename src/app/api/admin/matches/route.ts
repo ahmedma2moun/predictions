@@ -5,6 +5,7 @@ import { serializeMatch } from '@/models/Match';
 import { processMatchResults } from '@/lib/results-processor';
 import { fetchAndInsertMatches } from '@/lib/matches-processor';
 import { format, addDays } from 'date-fns';
+import { safeParseBody } from '@/lib/request';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -26,7 +27,9 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { action, leagueId } = await req.json();
+  const body = await safeParseBody<any>(req);
+  if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  const { action, leagueId } = body;
 
   // ── Fetch results for past matches without results ─────────────────────────
   if (action === 'fetch-results') {
@@ -58,7 +61,9 @@ export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { ids } = await req.json();
+  const body = await safeParseBody<any>(req);
+  if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  const { ids } = body;
   if (!Array.isArray(ids) || ids.length === 0) return NextResponse.json({ error: 'No ids provided' }, { status: 400 });
 
   const numericIds = ids.map((id: string) => Number(id)).filter((id: number) => !isNaN(id));

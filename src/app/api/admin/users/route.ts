@@ -44,6 +44,11 @@ export async function PATCH(req: NextRequest) {
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id, name, role, password, notificationEmail } = await req.json();
+
+  if (!id || !Number.isInteger(Number(id))) {
+    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  }
+
   const data: any = {};
   if (name) data.name = name;
   if (role) data.role = role;

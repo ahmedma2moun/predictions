@@ -65,7 +65,8 @@ HttpOnly cookie set (secure in production)
 |---|---|---|
 | DATABASE_URL | PostgreSQL pooled connection string | .env.local / Vercel env |
 | DIRECT_URL | PostgreSQL direct (non-pooled) — migrations only | .env.local / Vercel env |
-| NEXTAUTH_SECRET | JWT signing key | .env.local / Vercel env |
+| NEXTAUTH_SECRET | Web session JWT signing key | .env.local / Vercel env |
+| MOBILE_JWT_SECRET | Mobile API JWT signing key (falls back to NEXTAUTH_SECRET) | .env.local / Vercel env |
 | NEXTAUTH_URL | Canonical app URL | .env.local / Vercel env |
 | FOOTBALL_API_KEY | football-data.org v4 API key | .env.local / Vercel env |
 | CRON_SECRET | Bearer token for cron endpoint auth | .env.local / Vercel env |

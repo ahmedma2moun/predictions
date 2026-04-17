@@ -68,6 +68,7 @@ Result-check jobs are delivered via QStash — a serverless HTTP message queue.
 DATABASE_URL=postgres://user:pass@host:6543/db?pgbouncer=true
 DIRECT_URL=postgres://user:pass@host:5432/db
 NEXTAUTH_SECRET=<32+ char random string>
+MOBILE_JWT_SECRET=<32+ char random string — used for mobile app auth>
 NEXTAUTH_URL=https://your-app.vercel.app
 FOOTBALL_API_KEY=<your-football-data.org-key>
 CRON_SECRET=<32+ char random string>

@@ -2,9 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { signMobileJwt } from '@/lib/mobile-auth';
+import { safeParseBody } from '@/lib/request';
+import { rateLimit } from '@/lib/rate-limit';
+
+const limiter = rateLimit({
+  interval: 60 * 1000, // 60 seconds
+  uniqueTokenPerInterval: 500,
+});
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  try {
+    const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+    await limiter.check(5, ip);
+  } catch {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429, headers: { 'Retry-After': '60' } });
+  }
+
+  const body = await safeParseBody<any>(req);
+  if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   const email = (body?.email as string | undefined)?.toLowerCase().trim();
   const password = body?.password as string | undefined;
 
