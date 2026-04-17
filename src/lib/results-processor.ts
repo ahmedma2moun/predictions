@@ -100,11 +100,18 @@ export async function correctMatchResult(
   let emailsSent = 0;
   const leagueName = match.league?.name ?? 'Unknown League';
 
+  const affectedUsers = updated.filter(p => p.user.notificationEmail).map(p => p.userId);
+  const uniqueUserIds = [...new Set(affectedUsers)];
+  const leaderboardsMap = new Map<number, Awaited<ReturnType<typeof getUserGroupLeaderboards>>>();
+  for (const userId of uniqueUserIds) {
+    leaderboardsMap.set(userId, await getUserGroupLeaderboards(userId));
+  }
+
   for (const pred of updated) {
     if (!pred.user.notificationEmail) continue;
     try {
       const breakdown = (pred.scoringBreakdown as { rules?: Array<{ ruleName: string; pointsAwarded: number; matched: boolean }> } | null)?.rules ?? null;
-      const leaderboards = await getUserGroupLeaderboards(pred.userId);
+      const leaderboards = leaderboardsMap.get(pred.userId)!;
       await sendResultCorrectionEmail(pred.user.notificationEmail, {
         homeTeamName: match.homeTeamName,
         awayTeamName: match.awayTeamName,

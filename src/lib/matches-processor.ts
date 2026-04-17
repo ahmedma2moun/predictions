@@ -21,10 +21,14 @@ async function assignKnockoutLegs(externalLeagueId: number) {
     select: { id: true, stage: true, matchday: true },
   });
 
+  const updates = [];
   for (const m of knockoutMatches) {
     if (!m.stage) continue;
     const leg = SINGLE_LEG_STAGES.has(m.stage) || m.matchday == null ? null : m.matchday;
-    await prisma.match.update({ where: { id: m.id }, data: { leg } });
+    updates.push(prisma.match.update({ where: { id: m.id }, data: { leg } }));
+  }
+  if (updates.length > 0) {
+    await prisma.$transaction(updates);
   }
 }
 

@@ -40,6 +40,17 @@ export async function GET(req: NextRequest) {
     select: { id: true, notificationEmail: true },
   });
 
+  const userIds = users.map(u => u.id);
+  const allPredictions = await prisma.prediction.findMany({
+    where: { userId: { in: userIds }, matchId: { in: upcomingMatchIds } },
+    select: { userId: true, matchId: true },
+  });
+  const predsByUser = new Map<number, Set<number>>();
+  for (const p of allPredictions) {
+    if (!predsByUser.has(p.userId)) predsByUser.set(p.userId, new Set());
+    predsByUser.get(p.userId)!.add(p.matchId);
+  }
+
   let remindedUsers = 0, skippedUsers = 0, errors = 0;
   const remindedUserIds: number[] = [];
   const remindedEmails: string[] = [];
@@ -48,11 +59,7 @@ export async function GET(req: NextRequest) {
     if (!user.notificationEmail) continue;
 
     // Find which upcoming matches this user already predicted
-    const existingPredictions = await prisma.prediction.findMany({
-      where:  { userId: user.id, matchId: { in: upcomingMatchIds } },
-      select: { matchId: true },
-    });
-    const predictedMatchIds = new Set(existingPredictions.map(p => p.matchId));
+    const predictedMatchIds = predsByUser.get(user.id) ?? new Set();
 
     // Matches this user hasn't predicted yet
     const missing = upcomingMatches.filter(m => !predictedMatchIds.has(m.id));

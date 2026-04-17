@@ -124,7 +124,11 @@ export class FootballDataProvider implements IFootballProvider {
     const label = `${path}${url.search}`;
     console.log(`[football-data] GET ${label}`);
     const t0 = Date.now();
-    const res = await fetch(url.toString(), { headers: this.headers, next: { revalidate: 0 } });
+    const res = await fetch(url.toString(), { 
+      headers: this.headers, 
+      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(15_000)
+    });
     const ms = Date.now() - t0;
     if (!res.ok) {
       let body = '';

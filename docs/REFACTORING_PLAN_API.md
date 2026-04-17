@@ -321,8 +321,8 @@ for (const user of users) {
 }
 ```
 
-- [ ] `src/app/api/cron/daily-reminder/route.ts` — pre-fetch all predictions, group by `userId` in memory
-- [ ] `src/app/api/cron/prediction-reminder/route.ts` — same fix
+- [x] `src/app/api/cron/daily-reminder/route.ts` — pre-fetch all predictions, group by `userId` in memory
+- [x] `src/app/api/cron/prediction-reminder/route.ts` — same fix
 
 ---
 
@@ -332,8 +332,8 @@ for (const user of users) {
 
 > **⚠️ CONFIRM BEFORE CHANGE** — touches the scoring write path. Confirm the `$transaction` approach matches `correctMatchResult` semantics before applying.
 
-- [ ] `src/lib/results-processor.ts` — replace per-prediction `update` loop with a single `prisma.$transaction(preds.map(...))` ⚠️ CONFIRM BEFORE CHANGE
-- [ ] Verify `scored` counter is still incremented correctly after the change
+- [x] `src/lib/results-processor.ts` — replace per-prediction `update` loop with a single `prisma.$transaction(preds.map(...))` ⚠️ CONFIRM BEFORE CHANGE
+- [x] Verify `scored` counter is still incremented correctly after the change
 
 ---
 
@@ -348,7 +348,7 @@ await prisma.$transaction(
 );
 ```
 
-- [ ] `src/lib/matches-processor.ts` `assignKnockoutLegs` — replace `for` loop with `prisma.$transaction`
+- [x] `src/lib/matches-processor.ts` `assignKnockoutLegs` — replace `for` loop with `prisma.$transaction`
 
 ---
 
@@ -358,7 +358,7 @@ await prisma.$transaction(
 
 **Fix**: Collect all affected `userIds` first, call `getUserGroupLeaderboards` once per unique user before the loop, store results in a `Map<userId, leaderboards>`.
 
-- [ ] `src/lib/results-processor.ts` `correctMatchResult` — pre-fetch leaderboards for all affected users before the email loop ⚠️ CONFIRM BEFORE CHANGE
+- [x] `src/lib/results-processor.ts` `correctMatchResult` — pre-fetch leaderboards for all affected users before the email loop ⚠️ CONFIRM BEFORE CHANGE
 
 ---
 
@@ -368,8 +368,8 @@ await prisma.$transaction(
 
 **Fix**: Pass `AbortSignal.timeout(15_000)` to the internal `fetch` call.
 
-- [ ] `src/lib/football/providers/football-data.ts` — add `signal: AbortSignal.timeout(15_000)` to `fetch` options
-- [ ] Verify existing `try/catch` blocks in `processMatchResults` and `fetchAndInsertMatches` handle `DOMException (AbortError)` gracefully (log + continue, don't re-throw as unhandled)
+- [x] `src/lib/football/providers/football-data.ts` — add `signal: AbortSignal.timeout(15_000)` to `fetch` options
+- [x] Verify existing `try/catch` blocks in `processMatchResults` and `fetchAndInsertMatches` handle `DOMException (AbortError)` gracefully (log + continue, don't re-throw as unhandled)
 
 ---
 
