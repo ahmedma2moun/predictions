@@ -8,8 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
+type ScoringRule = {
+  _id: string;
+  key: string;
+  name: string;
+  description: string;
+  points: number;
+  isActive: boolean;
+};
+
 export default function AdminScoringPage() {
-  const [rules, setRules] = useState<any[]>([]);
+  const [rules, setRules] = useState<ScoringRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [recalcOpen, setRecalcOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
@@ -18,7 +27,7 @@ export default function AdminScoringPage() {
     fetch("/api/admin/scoring-rules").then(r => r.json()).then(setRules).finally(() => setLoading(false));
   }, []);
 
-  async function updateRule(id: string, update: any) {
+  async function updateRule(id: string, update: Partial<Pick<ScoringRule, 'points' | 'isActive'>>) {
     const r = await fetch("/api/admin/scoring-rules", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...update }) });
     if (r.ok) setRules(prev => prev.map(rule => rule._id === id ? { ...rule, ...update } : rule));
   }

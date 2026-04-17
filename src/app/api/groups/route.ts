@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth, getSessionUser } from '@/lib/auth';
 import { getUserGroups } from '@/lib/services/group-service';
 
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const isAdmin = (session.user as any).role === 'admin';
-  const userId  = Number((session.user as any).id);
+  const { id: userId, role } = getSessionUser(session);
+  const isAdmin = role === 'admin';
 
   const groups = await getUserGroups(userId, isAdmin);
 

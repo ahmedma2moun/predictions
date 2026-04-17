@@ -1,8 +1,8 @@
-import { auth } from "@/lib/auth";
+import { auth, getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { serializeMatch } from "@/models/Match";
 import { getStandingsMap, standingKey } from "@/lib/standings";
-import { formatStage, isKnockoutStage } from "@/lib/utils";
+import { formatStage, isKnockoutStage, ordinal } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,16 +11,10 @@ import { KickoffTime } from "@/components/KickoffTime";
 import { LiveLockIcon } from "@/components/LiveLockIcon";
 import { CheckCircle } from "lucide-react";
 
-function ordinal(n: number) {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
-}
-
 export default async function MatchesPage() {
   const session = await auth();
-  const userId = Number((session!.user as any).id);
-  const isAdmin = (session!.user as any).role === "admin";
+  const { id: userId, role } = getSessionUser(session!);
+  const isAdmin = role === "admin";
 
   const matches = await prisma.match.findMany({
     where: { status: { in: ["scheduled", "live"] } },
@@ -53,13 +47,13 @@ export default async function MatchesPage() {
         <p className="text-muted-foreground">No upcoming matches available.</p>
       ) : (
         matches.map((match) => {
-          const s = serializeMatch(match);
+          const serialized = serializeMatch(match);
           const prediction = predMap.get(match.id) ?? null;
           const homeStanding = standingMap.get(standingKey(match.homeTeamExtId, match.externalLeagueId));
           const awayStanding = standingMap.get(standingKey(match.awayTeamExtId, match.externalLeagueId));
 
           return (
-            <Link key={s._id} href={`/matches/${s._id}`}>
+            <Link key={serialized._id} href={`/matches/${serialized._id}`}>
               <Card className="hover:border-primary/50 transition-colors cursor-pointer mb-3">
                 <CardContent className="pt-4">
                   <div className="flex items-center justify-between mb-1">
@@ -78,9 +72,9 @@ export default async function MatchesPage() {
                     </div>
                   </div>
 
-                  {isKnockoutStage(s.stage) ? (
+                  {isKnockoutStage(serialized.stage) ? (
                     <p className="text-xs text-center text-muted-foreground mb-2">
-                      {formatStage(s.stage!)}{s.leg ? ` · Leg ${s.leg}` : ''}
+                      {formatStage(serialized.stage!)}{serialized.leg ? ` · Leg ${serialized.leg}` : ''}
                     </p>
                   ) : match.matchday ? (
                     <p className="text-xs text-center text-muted-foreground mb-2">
@@ -90,11 +84,11 @@ export default async function MatchesPage() {
 
                   <div className="flex items-center justify-between">
                     <div className="flex-1 text-center">
-                      <p className="font-semibold text-sm">{s.homeTeam.name}</p>
-                      {s.homeTeam.logo && (
+                      <p className="font-semibold text-sm">{serialized.homeTeam.name}</p>
+                      {serialized.homeTeam.logo && (
                         <Image
-                          src={s.homeTeam.logo}
-                          alt={s.homeTeam.name}
+                          src={serialized.homeTeam.logo}
+                          alt={serialized.homeTeam.name}
                           width={32}
                           height={32}
                           className="mx-auto mt-1 object-contain"
@@ -116,11 +110,11 @@ export default async function MatchesPage() {
                       )}
                     </div>
                     <div className="flex-1 text-center">
-                      <p className="font-semibold text-sm">{s.awayTeam.name}</p>
-                      {s.awayTeam.logo && (
+                      <p className="font-semibold text-sm">{serialized.awayTeam.name}</p>
+                      {serialized.awayTeam.logo && (
                         <Image
-                          src={s.awayTeam.logo}
-                          alt={s.awayTeam.name}
+                          src={serialized.awayTeam.logo}
+                          alt={serialized.awayTeam.name}
                           width={32}
                           height={32}
                           className="mx-auto mt-1 object-contain"

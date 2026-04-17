@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/auth';
 import { correctMatchResult } from '@/lib/results-processor';
 
 export async function PATCH(
@@ -7,7 +7,7 @@ export async function PATCH(
   { params }: { params: Promise<{ matchId: string }> },
 ) {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin') {
+  if (!session || !isSessionAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

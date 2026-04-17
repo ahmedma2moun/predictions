@@ -1,15 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { isMatchLocked, formatStage, isKnockoutStage } from "@/lib/utils";
+import { isMatchLocked, formatStage, isKnockoutStage, ordinal } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
 import { ChevronLeft, Minus, Plus, Lock, MapPin, Pencil, Check, X } from "lucide-react";
-import { ScoringBreakdown } from "@/components/ScoringBreakdown";
+import { MatchH2H } from "./MatchH2H";
+import type { H2HMatch } from "./MatchH2H";
+import { MatchStandings } from "./MatchStandings";
+import type { Standing } from "./MatchStandings";
+import { AllPredictionsList } from "./AllPredictionsList";
+import type { PredictionRow } from "./AllPredictionsList";
 
 function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
   return (
@@ -39,76 +45,11 @@ function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v
   );
 }
 
-function ordinal(n: number) {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
-}
-
-type Standing = {
-  position: number;
-  played: number;
-  won: number;
-  drawn: number;
-  lost: number;
-  points: number;
-  goalDifference: number;
-  form: string | null;
-} | null;
-
-type H2HMatch = {
-  date: string;
-  homeTeam: { name: string; logo: string };
-  awayTeam: { name: string; logo: string };
-  homeScore: number | null;
-  awayScore: number | null;
-  penaltyHomeScore: number | null;
-  penaltyAwayScore: number | null;
-  competition: string;
-  status: string;
-};
-
-function formatH2HDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: '2-digit',
-  });
-}
-
-function FormBadge({ char }: { char: string }) {
-  const color =
-    char === "W" ? "bg-green-500" :
-    char === "D" ? "bg-yellow-500" :
-    "bg-red-500";
-  return (
-    <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold ${color}`}>
-      {char}
-    </span>
-  );
-}
-
-function StandingsRow({ label, standing }: { label: string; standing: Standing }) {
-  if (!standing) return null;
-  const recentForm = standing.form ? standing.form.split("").slice(-5) : [];
-  return (
-    <div className="flex items-center justify-between gap-2 text-sm">
-      <span className="font-medium w-20 truncate text-xs text-muted-foreground">{label}</span>
-      <span className="font-bold w-8 text-center">{ordinal(standing.position)}</span>
-      <span className="text-muted-foreground text-xs w-12 text-center">
-        {standing.won}W {standing.drawn}D {standing.lost}L
-      </span>
-      <span className="font-semibold w-10 text-center">{standing.points} pts</span>
-      <div className="flex gap-0.5">
-        {recentForm.map((c, i) => <FormBadge key={i} char={c} />)}
-      </div>
-    </div>
-  );
-}
-
 export default function MatchPredictionPage() {
   const { matchId } = useParams();
   const router = useRouter();
   const [match, setMatch] = useState<any>(null);
-  const [allPredictions, setAllPredictions] = useState<any[] | null>(null);
+  const [allPredictions, setAllPredictions] = useState<PredictionRow[] | null>(null);
   const [homeScore, setHomeScore] = useState(0);
   const [awayScore, setAwayScore] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -117,12 +58,10 @@ export default function MatchPredictionPage() {
   const [editHome, setEditHome] = useState("");
   const [editAway, setEditAway] = useState("");
   const [savingResult, setSavingResult] = useState(false);
-  // Reactive lock: starts false, set true once match loads, then auto-updates at kickoff.
   const [locked, setLocked] = useState(false);
   const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
   const [h2hLoading, setH2hLoading] = useState(false);
 
-  // Fetch match data and H2H in parallel — both only need matchId.
   useEffect(() => {
     setH2hLoading(true);
     Promise.all([
@@ -153,10 +92,10 @@ export default function MatchPredictionPage() {
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin text-4xl">⚽</div></div>;
   if (!match) return <div className="p-4">Match not found</div>;
+
   const isAdmin = match.isAdmin as boolean;
   const isKnockout = isKnockoutStage(match.stage);
   const standings: { home: Standing; away: Standing } = match.standings ?? { home: null, away: null };
-  const hasStandings = !isKnockout && (standings.home !== null || standings.away !== null);
 
   async function handleSaveResult() {
     const h = parseInt(editHome, 10);
@@ -257,7 +196,7 @@ export default function MatchPredictionPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1 flex flex-col items-center gap-3">
-                {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="h-16 w-16 object-contain" />}
+                {match.homeTeam.logo && <Image src={match.homeTeam.logo} alt={match.homeTeam.name} width={64} height={64} className="object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.homeTeam.name}</p>
                 {!isKnockout && standings.home && (
                   <p className="text-xs text-muted-foreground">{ordinal(standings.home.position)}</p>
@@ -266,7 +205,7 @@ export default function MatchPredictionPage() {
               </div>
               <div className="text-muted-foreground font-bold text-xl">–</div>
               <div className="flex-1 flex flex-col items-center gap-3">
-                {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="h-16 w-16 object-contain" />}
+                {match.awayTeam.logo && <Image src={match.awayTeam.logo} alt={match.awayTeam.name} width={64} height={64} className="object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.awayTeam.name}</p>
                 {!isKnockout && standings.away && (
                   <p className="text-xs text-muted-foreground">{ordinal(standings.away.position)}</p>
@@ -348,120 +287,22 @@ export default function MatchPredictionPage() {
         </CardContent>
       </Card>
 
-      {h2hLoading && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Head to Head</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[0, 1, 2].map(i => (
-              <div key={i} className="space-y-1.5">
-                <div className="h-3 w-24 rounded bg-muted animate-pulse" />
-                <div className="h-5 w-full rounded bg-muted animate-pulse" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <MatchH2H h2h={h2h} loading={h2hLoading} />
 
-      {!h2hLoading && h2h && h2h.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Head to Head</CardTitle>
-            <p className="text-xs text-muted-foreground">Last {h2h.length} meeting{h2h.length !== 1 ? 's' : ''}</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {h2h.map((m, i) => {
-              const winner =
-                m.homeScore !== null && m.awayScore !== null
-                  ? m.homeScore > m.awayScore ? 'home'
-                  : m.awayScore > m.homeScore ? 'away'
-                  : 'draw'
-                  : null;
-              return (
-                <div key={i} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{formatH2HDate(m.date)}</span>
-                    <span className="text-xs text-muted-foreground truncate max-w-[140px] text-right">{m.competition}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className={`flex-1 flex items-center gap-1.5 min-w-0 ${winner === 'home' ? 'font-semibold' : winner !== null && winner !== 'draw' ? 'text-muted-foreground' : ''}`}>
-                      {m.homeTeam.logo && <img src={m.homeTeam.logo} alt="" className="h-4 w-4 object-contain flex-shrink-0" />}
-                      <span className="truncate">{m.homeTeam.name}</span>
-                    </div>
-                    <div className="flex-shrink-0 w-14 text-center">
-                      <span className="font-bold tabular-nums text-sm">
-                        {m.homeScore ?? '–'} – {m.awayScore ?? '–'}
-                      </span>
-                      {m.penaltyHomeScore != null && (
-                        <p className="text-[10px] text-muted-foreground leading-tight">
-                          ({m.penaltyHomeScore} – {m.penaltyAwayScore} pen)
-                        </p>
-                      )}
-                    </div>
-                    <div className={`flex-1 flex items-center justify-end gap-1.5 min-w-0 ${winner === 'away' ? 'font-semibold' : winner !== null && winner !== 'draw' ? 'text-muted-foreground' : ''}`}>
-                      <span className="truncate text-right">{m.awayTeam.name}</span>
-                      {m.awayTeam.logo && <img src={m.awayTeam.logo} alt="" className="h-4 w-4 object-contain flex-shrink-0" />}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
-
-      {hasStandings && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">League Standings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between text-xs text-muted-foreground px-0 mb-1">
-              <span className="w-20" />
-              <span className="w-8 text-center">Pos</span>
-              <span className="w-12 text-center">Record</span>
-              <span className="w-10 text-center">Pts</span>
-              <span className="text-xs">Form</span>
-            </div>
-            <StandingsRow label={match.homeTeam.name} standing={standings.home} />
-            <StandingsRow label={match.awayTeam.name} standing={standings.away} />
-          </CardContent>
-        </Card>
+      {!isKnockout && (
+        <MatchStandings
+          homeTeamName={match.homeTeam.name}
+          awayTeamName={match.awayTeam.name}
+          standings={standings}
+        />
       )}
 
       {(locked || isAdmin) && allPredictions && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">All Predictions</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {allPredictions.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No predictions submitted.</p>
-            ) : (
-              <div className="divide-y">
-                {allPredictions.map((p: any) => (
-                  <div key={p.userId} className="px-4 py-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">{p.userName}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="tabular-nums text-sm">{p.homeScore} – {p.awayScore}</span>
-                        {!isKnockout && match.result && p.scoringBreakdown?.length > 0 && (
-                          <ScoringBreakdown rules={p.scoringBreakdown} />
-                        )}
-                        {!isKnockout && match.result && (
-                          p.pointsAwarded > 0
-                            ? <span className="text-yellow-500 font-bold text-sm">+{p.pointsAwarded} pts</span>
-                            : <span className="text-muted-foreground text-sm">0 pts</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <AllPredictionsList
+          predictions={allPredictions}
+          hasResult={!!match.result}
+          isKnockout={isKnockout}
+        />
       )}
     </div>
   );

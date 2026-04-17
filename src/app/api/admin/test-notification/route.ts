@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendPushToUsers } from '@/lib/fcm';
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin') {
+  if (!session || !isSessionAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

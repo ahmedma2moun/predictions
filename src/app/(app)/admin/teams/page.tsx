@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -199,7 +200,7 @@ export default function AdminTeamsPage() {
               {filtered.map(team => (
                 <div key={team.externalId} className="flex items-center justify-between p-3 rounded-lg bg-accent">
                   <div className="flex items-center gap-3">
-                    {team.logo && <img src={team.logo} alt="" className="h-6 w-6 object-contain" />}
+                    {team.logo && <Image src={team.logo} alt={team.name} width={24} height={24} className="object-contain" />}
                     <p className="font-medium text-sm">{team.name}</p>
                   </div>
                   <Switch checked={!!team.isActive} onCheckedChange={v => toggleTeam(team, v)} />

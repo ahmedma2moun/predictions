@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin')
+  if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const groups = await prisma.group.findMany({
@@ -24,7 +24,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin')
+  if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { name } = await req.json();

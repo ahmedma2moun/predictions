@@ -46,7 +46,6 @@ export default function AdminMatchesPage() {
     const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch" }) });
     if (r.ok) {
       const data = await r.json();
-      console.table(data.debug);
       toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
       await loadMatches();
     } else {

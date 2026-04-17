@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { calculateScore } from '@/lib/scoring-engine';
 
 export async function POST() {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const rules = await prisma.scoringRule.findMany({ where: { isActive: true } });
   const finishedMatches = await prisma.match.findMany({

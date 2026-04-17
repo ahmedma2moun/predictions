@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 type Params = { params: Promise<{ id: string }> };
@@ -7,7 +7,7 @@ type Params = { params: Promise<{ id: string }> };
 // GET /api/admin/groups/[id] — full group detail with members
 export async function GET(_req: NextRequest, { params }: Params) {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin')
+  if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await params;
@@ -38,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 //   { action: 'add-member' | 'remove-member', userId: number }
 export async function PATCH(req: NextRequest, { params }: Params) {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin')
+  if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await params;
@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 // DELETE /api/admin/groups/[id] — delete a non-default group
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin')
+  if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await params;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth, getSessionUser } from '@/lib/auth';
 import { serializeMatch } from '@/models/Match';
 import { getMatchById } from '@/lib/services/match-service';
 
@@ -8,8 +8,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { matchId } = await params;
-  const isAdmin = (session.user as any).role === 'admin';
-  const userId  = Number((session.user as any).id);
+  const { id: userId, role } = getSessionUser(session);
+  const isAdmin = role === 'admin';
 
   const data = await getMatchById(Number(matchId), { userId, isAdmin });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });

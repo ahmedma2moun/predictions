@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth';
+import NextAuth, { type Session } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
@@ -49,3 +49,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: '/login',
   },
 });
+
+type AppSessionUser = { id: string; role: string };
+
+/** Returns the typed id (as number) and role from a NextAuth session. */
+export function getSessionUser(session: Session): { id: number; role: string } {
+  const u = session.user as AppSessionUser;
+  return { id: Number(u.id), role: u.role };
+}
+
+/** Returns true when the session belongs to an admin user. */
+export function isSessionAdmin(session: Session): boolean {
+  return (session.user as AppSessionUser).role === 'admin';
+}

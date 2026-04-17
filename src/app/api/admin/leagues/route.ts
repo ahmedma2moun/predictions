@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { fetchLeagues, type APILeague } from '@/lib/football/service';
 
 export async function GET() {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const leagues = await prisma.league.findMany({ orderBy: { name: 'asc' } });
   return NextResponse.json(leagues.map(l => ({ ...l, _id: l.id.toString() })));
@@ -13,7 +13,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
 
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
-  if (!session || (session.user as any).role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { externalId, name, country, logo, season, isActive } = await req.json();
 

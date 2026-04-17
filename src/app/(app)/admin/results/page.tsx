@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { KickoffTime } from "@/components/KickoffTime";
 import { Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
-
-type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
+import type { RuleBreakdown } from "@/components/ScoringBreakdown";
 
 type PredictionRow = {
   id: string;

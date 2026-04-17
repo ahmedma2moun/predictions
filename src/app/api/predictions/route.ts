@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth, getSessionUser } from '@/lib/auth';
 import { serializeMatch } from '@/models/Match';
 import { getUserPredictions, upsertPrediction } from '@/lib/services/prediction-service';
 
@@ -7,7 +7,7 @@ export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const userId = Number((session.user as any).id);
+  const { id: userId } = getSessionUser(session);
   const predictions = await getUserPredictions(userId);
 
   return NextResponse.json(predictions.map(p => ({
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid scores' }, { status: 400 });
   }
 
-  const userId = Number((session.user as any).id);
+  const { id: userId } = getSessionUser(session);
   const result = await upsertPrediction(userId, Number(matchId), homeScore, awayScore);
 
   if (result.error) return NextResponse.json({ error: result.error }, { status: result.status });

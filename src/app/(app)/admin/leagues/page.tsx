@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -116,7 +117,7 @@ export default function AdminLeaguesPage() {
             filtered.map(league => (
               <div key={league.externalId} className="flex items-center justify-between p-3 rounded-lg bg-accent">
                 <div className="flex items-center gap-3">
-                  {league.logo && <img src={league.logo} alt="" className="h-6 w-6 object-contain" />}
+                  {league.logo && <Image src={league.logo} alt={league.name} width={24} height={24} className="object-contain" />}
                   <div>
                     <p className="font-medium text-sm">{league.name}</p>
                     <p className="text-xs text-muted-foreground">{league.country} · {league.season}</p>

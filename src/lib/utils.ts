@@ -49,6 +49,12 @@ export function isKnockoutStage(stage: string | null | undefined): boolean {
   return !NON_KNOCKOUT_STAGES.has(stage);
 }
 
+export function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const remainder = n % 100;
+  return n + (s[(remainder - 20) % 10] ?? s[remainder] ?? s[0]);
+}
+
 export function getFridayDate(): Date {
   const now = new Date();
   const day = now.getUTCDay(); // 0=Sun, 5=Fri
