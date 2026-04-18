@@ -93,7 +93,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="matches"
         options={{
-          title: 'Matches',
+          title: 'Upcoming Matches',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" color={color} size={size} />
           ),
@@ -102,7 +102,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="predictions"
         options={{
-          title: 'My Picks',
+          title: 'My Score',
           href: isAdmin ? null : undefined,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="trending-up-outline" color={color} size={size} />

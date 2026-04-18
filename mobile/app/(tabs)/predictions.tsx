@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -11,10 +11,11 @@ import {
 import { Badge, Muted } from '@/components/ui';
 import { PredictionCard } from '@/components/PredictionCard';
 import { usePredictions } from '@/hooks/usePredictions';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { usePeriodFilter } from '@/hooks/usePeriodFilter';
+import { PeriodFilterBar } from '@/components/PeriodFilterBar';
+import { font, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 
-type TabKey = 'future' | 'past';
 const PAGE_SIZE = 20;
 
 export default function PredictionsScreen() {
@@ -27,16 +28,42 @@ export default function PredictionsScreen() {
     refreshing,
     error,
     onRefresh,
-    futurePreds,
-    pastPreds,
     totalPoints,
   } = usePredictions();
 
-  const [tab, setTab]               = useState<TabKey>('past');
-  const [pastVisible, setPastVisible] = useState(PAGE_SIZE);
+  const {
+    period, setPeriod,
+    weekOffset, setWeekOffset,
+    monthOffset, setMonthOffset,
+    weekLabel, monthLabel,
+    dateRange,
+  } = usePeriodFilter();
+
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [dateRange]);
+
+  const filtered = useMemo(() => {
+    if (!dateRange) return predictions;
+    const { from, to } = dateRange;
+    return predictions.filter(p => {
+      const t = new Date(p.match.kickoffTime).getTime();
+      return t >= from.getTime() && t < to.getTime();
+    });
+  }, [predictions, dateRange]);
+
+  const sorted = useMemo(
+    () => [...filtered].sort(
+      (a, b) => new Date(b.match.kickoffTime).getTime() - new Date(a.match.kickoffTime).getTime(),
+    ),
+    [filtered],
+  );
+
+  const page    = sorted.slice(0, visibleCount);
+  const hasMore = visibleCount < sorted.length;
 
   const renderItem = useCallback(
-    ({ item }: { item: (typeof futurePreds)[number] }) => <PredictionCard pred={item} />,
+    ({ item }: { item: (typeof sorted)[number] }) => <PredictionCard pred={item} />,
     [],
   );
 
@@ -48,12 +75,9 @@ export default function PredictionsScreen() {
     );
   }
 
-  const visible = tab === 'future' ? futurePreds : pastPreds.slice(0, pastVisible);
-  const hasMore = tab === 'past' && pastVisible < pastPreds.length;
-
   return (
     <FlatList
-      data={visible}
+      data={page}
       keyExtractor={item => item.id}
       contentContainerStyle={styles.list}
       style={{ backgroundColor: colors.background }}
@@ -63,25 +87,17 @@ export default function PredictionsScreen() {
       ListHeaderComponent={
         <View style={styles.header}>
           <View style={styles.headerRow}>
-            <Text style={styles.heading}>My Predictions</Text>
+            <Text style={styles.heading}>My Score</Text>
             <Badge variant="outline">{totalPoints} pts total</Badge>
           </View>
-          {predictions.length > 0 && (
-            <View style={styles.tabs}>
-              <TabButton
-                label="Upcoming"
-                count={futurePreds.length}
-                active={tab === 'future'}
-                onPress={() => setTab('future')}
-              />
-              <TabButton
-                label="Past"
-                count={pastPreds.length}
-                active={tab === 'past'}
-                onPress={() => setTab('past')}
-              />
-            </View>
-          )}
+          <PeriodFilterBar
+            period={period}
+            setPeriod={setPeriod}
+            weekLabel={weekLabel}
+            monthLabel={monthLabel}
+            setWeekOffset={setWeekOffset}
+            setMonthOffset={setMonthOffset}
+          />
         </View>
       }
       ListEmptyComponent={
@@ -90,52 +106,23 @@ export default function PredictionsScreen() {
             ? error
             : predictions.length === 0
             ? 'No predictions yet. Go predict some matches!'
-            : tab === 'future'
-            ? 'No upcoming predictions.'
-            : 'No past predictions yet.'}
+            : 'No predictions for this period.'}
         </Muted>
       }
       ListFooterComponent={
         hasMore ? (
           <Pressable
-            onPress={() => setPastVisible(n => n + PAGE_SIZE)}
+            onPress={() => setVisibleCount(n => n + PAGE_SIZE)}
             style={({ pressed }) => [styles.showMore, { opacity: pressed ? 0.6 : 1 }]}
           >
             <Text style={styles.showMoreText}>
-              Show more ({pastPreds.length - pastVisible} remaining)
+              Show more ({sorted.length - visibleCount} remaining)
             </Text>
           </Pressable>
         ) : null
       }
       renderItem={renderItem}
     />
-  );
-}
-
-function TabButton({
-  label, count, active, onPress,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.tabBtn,
-        active && styles.tabBtnActive,
-        pressed && { opacity: 0.75 },
-      ]}
-    >
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>
-        {label}
-        {count > 0 && <Text style={styles.tabCount}> ({count})</Text>}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -151,18 +138,6 @@ function makeStyles(c: Palette) {
     header: { marginBottom: spacing.sm, gap: spacing.md },
     headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     heading: { color: c.foreground, fontSize: font.size.xl, fontWeight: font.weight.bold },
-    tabs: {
-      flexDirection: 'row',
-      backgroundColor: c.cardElevated,
-      borderRadius: radius.md,
-      padding: 4,
-      gap: 4,
-    },
-    tabBtn: { flex: 1, paddingVertical: spacing.sm, borderRadius: radius.sm, alignItems: 'center' },
-    tabBtnActive: { backgroundColor: c.card },
-    tabText: { color: c.mutedForeground, fontSize: font.size.sm, fontWeight: font.weight.medium },
-    tabTextActive: { color: c.foreground, fontWeight: font.weight.semibold },
-    tabCount: { color: c.mutedForeground, fontWeight: font.weight.regular, fontSize: font.size.xs },
     showMore: { alignItems: 'center', paddingVertical: spacing.md },
     showMoreText: { color: c.mutedForeground, fontSize: font.size.sm },
   });

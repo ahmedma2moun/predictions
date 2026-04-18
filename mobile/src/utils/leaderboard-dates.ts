@@ -23,3 +23,14 @@ export function fmtDate(d: Date) {
 export function fmtMonthYear(d: Date) {
   return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
+
+export function computeWeekLabel(offset: number): string {
+  const { from, to } = getWeekBounds(offset);
+  const thursdayEnd = new Date(to);
+  thursdayEnd.setDate(to.getDate() - 1);
+  return `${fmtDate(from)} – ${fmtDate(thursdayEnd)}`;
+}
+
+export function computeMonthLabel(offset: number): string {
+  return fmtMonthYear(getMonthBounds(offset).from);
+}

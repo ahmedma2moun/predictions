@@ -1,11 +1,12 @@
 "use client";
-import { useState, useCallback } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KickoffTime } from "@/components/KickoffTime";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ScoringBreakdown, type RuleBreakdown } from "@/components/ScoringBreakdown";
+import { PeriodNav } from "@/app/(app)/leaderboard/PeriodNav";
+import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 
 export type SerializedPrediction = {
   _id: string;
@@ -157,61 +158,63 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
 
 const PAGE_SIZE = 20;
 
-export function PredictionTabs({
-  futurePreds,
-  pastPreds,
-}: {
-  futurePreds: SerializedPrediction[];
-  pastPreds: SerializedPrediction[];
-}) {
-  const [pastVisible, setPastVisible] = useState(PAGE_SIZE);
-  const showMore = useCallback(() => setPastVisible(n => n + PAGE_SIZE), []);
+export function PredictionTabs({ allPreds }: { allPreds: SerializedPrediction[] }) {
+  const {
+    period, setPeriod,
+    weekOffset, setWeekOffset,
+    monthOffset, setMonthOffset,
+    weekLabel, monthLabel,
+    dateRange,
+  } = usePeriodFilter();
 
-  const visiblePast = pastPreds.slice(0, pastVisible);
-  const hasMore = pastVisible < pastPreds.length;
+  const [visible, setVisible] = useState(PAGE_SIZE);
+  const showMore = useCallback(() => setVisible(n => n + PAGE_SIZE), []);
+
+  // Reset pagination when filter changes
+  useEffect(() => { setVisible(PAGE_SIZE); }, [dateRange]);
+
+  const filtered = useMemo(() => {
+    if (!dateRange) return allPreds;
+    const { from, to } = dateRange;
+    return allPreds.filter(p => {
+      const t = new Date(p.matchId.kickoffTime).getTime();
+      return t >= from.getTime() && t < to.getTime();
+    });
+  }, [allPreds, dateRange]);
+
+  const page    = filtered.slice(0, visible);
+  const hasMore = visible < filtered.length;
 
   return (
-    <Tabs defaultValue="past">
-      <TabsList className="w-full">
-        <TabsTrigger value="future" className="flex-1">
-          Upcoming
-          {futurePreds.length > 0 && (
-            <span className="ml-1.5 text-xs opacity-70">({futurePreds.length})</span>
-          )}
-        </TabsTrigger>
-        <TabsTrigger value="past" className="flex-1">
-          Past
-          {pastPreds.length > 0 && (
-            <span className="ml-1.5 text-xs opacity-70">({pastPreds.length})</span>
-          )}
-        </TabsTrigger>
-      </TabsList>
+    <div className="space-y-4">
+      <PeriodNav
+        period={period}
+        setPeriod={setPeriod}
+        weekOffset={weekOffset}
+        setWeekOffset={setWeekOffset}
+        monthOffset={monthOffset}
+        setMonthOffset={setMonthOffset}
+        weekLabel={weekLabel}
+        monthLabel={monthLabel}
+      />
 
-      <TabsContent value="future" className="space-y-3 mt-4">
-        {futurePreds.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No upcoming predictions.</p>
-        ) : (
-          futurePreds.map((pred) => <PredictionCard key={pred._id} pred={pred} />)
-        )}
-      </TabsContent>
-
-      <TabsContent value="past" className="space-y-3 mt-4">
-        {pastPreds.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No past predictions yet.</p>
+      <div className="space-y-3">
+        {filtered.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No predictions for this period.</p>
         ) : (
           <>
-            {visiblePast.map((pred) => <PredictionCard key={pred._id} pred={pred} />)}
+            {page.map((pred) => <PredictionCard key={pred._id} pred={pred} />)}
             {hasMore && (
               <button
                 onClick={showMore}
                 className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                Show more ({pastPreds.length - pastVisible} remaining)
+                Show more ({filtered.length - visible} remaining)
               </button>
             )}
           </>
         )}
-      </TabsContent>
-    </Tabs>
+      </div>
+    </div>
   );
 }

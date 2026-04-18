@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { fmtDate, fmtMonthYear, getMonthBounds, getWeekBounds } from '@/utils/leaderboard-dates';
 import type {
   LeaderboardEntry,
   LeaderboardGroup,
@@ -9,15 +8,20 @@ import type {
   LeaderboardUserPrediction,
 } from '@/types/api';
 import { useRemoteData } from './useRemoteData';
+import { usePeriodFilter } from './usePeriodFilter';
 
-export type Period = 'all' | 'month' | 'week';
+export type { Period } from './usePeriodFilter';
 
 export function useLeaderboard() {
   const { token, user } = useAuth();
 
-  const [period, setPeriod]           = useState<Period>('all');
-  const [weekOffset, setWeekOffset]   = useState(0);
-  const [monthOffset, setMonthOffset] = useState(0);
+  const {
+    period, setPeriod,
+    weekOffset, setWeekOffset,
+    monthOffset, setMonthOffset,
+    weekLabel, monthLabel,
+    dateRange,
+  } = usePeriodFilter();
 
   const [groups, setGroups]               = useState<LeaderboardGroup[]>([]);
   const [groupId, setGroupId]             = useState<string | null>(null);
@@ -31,12 +35,6 @@ export function useLeaderboard() {
   const [expandedLoading, setExpandedLoading] = useState(false);
   const expandedCache = useRef<Record<string, LeaderboardUserPrediction[]>>({});
   const [expandedData, setExpandedData] = useState<LeaderboardUserPrediction[] | null>(null);
-
-  const range = useMemo<{ from: Date; to: Date } | null>(() => {
-    if (period === 'week')  return getWeekBounds(weekOffset);
-    if (period === 'month') return getMonthBounds(monthOffset);
-    return null;
-  }, [period, weekOffset, monthOffset]);
 
   // Fire-once groups fetch with AbortController cleanup
   useEffect(() => {
@@ -67,22 +65,21 @@ export function useLeaderboard() {
   useEffect(() => {
     setExpandedUserId(null);
     setExpandedData(null);
-  }, [period, weekOffset, monthOffset, groupId, selectedLeagues]);
+  }, [dateRange, groupId, selectedLeagues]);
 
-  // Board entries via useRemoteData — AbortController and retry handled automatically.
-  // enabled=false until groupsReady so loading stays true during the groups bootstrap.
+  // Board entries via useRemoteData
   const { data: rawEntries, loading, refreshing, refresh: onRefresh } = useRemoteData<LeaderboardEntry[]>(
     (signal) => {
       let url = '/api/mobile/leaderboard?_=1';
-      if (range) {
-        url += `&from=${encodeURIComponent(range.from.toISOString())}`;
-        url += `&to=${encodeURIComponent(range.to.toISOString())}`;
+      if (dateRange) {
+        url += `&from=${encodeURIComponent(dateRange.from.toISOString())}`;
+        url += `&to=${encodeURIComponent(dateRange.to.toISOString())}`;
       }
       if (groupId) url += `&groupId=${encodeURIComponent(groupId)}`;
       for (const lid of selectedLeagues) url += `&leagueId=${encodeURIComponent(lid)}`;
       return apiRequest<LeaderboardEntry[]>(url, { token: token!, signal });
     },
-    [token, groupsReady, range, groupId, selectedLeagues],
+    [token, groupsReady, dateRange, groupId, selectedLeagues],
     { enabled: !!token && groupsReady },
   );
 
@@ -98,8 +95,8 @@ export function useLeaderboard() {
 
     const key = [
       userId,
-      range?.from.toISOString() ?? '',
-      range?.to.toISOString() ?? '',
+      dateRange?.from.toISOString() ?? '',
+      dateRange?.to.toISOString() ?? '',
       selectedLeagues.slice().sort().join(','),
     ].join(':');
 
@@ -112,9 +109,9 @@ export function useLeaderboard() {
     setExpandedData(null);
 
     let url = `/api/mobile/leaderboard/user-predictions?userId=${encodeURIComponent(userId)}`;
-    if (range) {
-      url += `&from=${encodeURIComponent(range.from.toISOString())}`;
-      url += `&to=${encodeURIComponent(range.to.toISOString())}`;
+    if (dateRange) {
+      url += `&from=${encodeURIComponent(dateRange.from.toISOString())}`;
+      url += `&to=${encodeURIComponent(dateRange.to.toISOString())}`;
     }
     for (const lid of selectedLeagues) url += `&leagueId=${encodeURIComponent(lid)}`;
 
@@ -131,16 +128,7 @@ export function useLeaderboard() {
     } finally {
       setExpandedLoading(false);
     }
-  }, [expandedUserId, token, range, selectedLeagues]);
-
-  const weekLabel = useMemo(() => {
-    const { from, to } = getWeekBounds(weekOffset);
-    const thursdayEnd = new Date(to);
-    thursdayEnd.setDate(to.getDate() - 1);
-    return `${fmtDate(from)} – ${fmtDate(thursdayEnd)}`;
-  }, [weekOffset]);
-
-  const monthLabel = useMemo(() => fmtMonthYear(getMonthBounds(monthOffset).from), [monthOffset]);
+  }, [expandedUserId, token, dateRange, selectedLeagues]);
 
   return {
     myId: user?.id,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import type { RuleBreakdown } from "@/components/ScoringBreakdown";
+import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,44 +37,18 @@ const CACHE_TTL_MS = 60_000;
 type LbCacheEntry = { data: LeaderboardEntry[]; ts: number };
 type UpCacheEntry = { data: UserPrediction[]; ts: number };
 
-// ── Date helpers ──────────────────────────────────────────────────────────────
-
-/** Week = Friday 00:00 to next Friday 00:00 (local time). */
-function getWeekBounds(offset: number): { from: Date; to: Date } {
-  const now = new Date();
-  const daysSinceFriday = (now.getDay() - 5 + 7) % 7;
-  const friday = new Date(now);
-  friday.setDate(now.getDate() - daysSinceFriday + offset * 7);
-  friday.setHours(0, 0, 0, 0);
-  const nextFriday = new Date(friday);
-  nextFriday.setDate(friday.getDate() + 7);
-  return { from: friday, to: nextFriday };
-}
-
-/** Month = first day of month 00:00 to first day of next month 00:00 (local). */
-function getMonthBounds(offset: number): { from: Date; to: Date } {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  const to   = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1);
-  return { from, to };
-}
-
-function fmtDate(d: Date) {
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-function fmtMonthYear(d: Date) {
-  return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-}
-
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useLeaderboard() {
   const { data: session } = useSession();
 
-  const [period, setPeriod]           = useState("all");
-  const [weekOffset, setWeekOffset]   = useState(0);
-  const [monthOffset, setMonthOffset] = useState(0);
+  const {
+    period, setPeriod,
+    weekOffset, setWeekOffset,
+    monthOffset, setMonthOffset,
+    weekLabel, monthLabel,
+    dateRange,
+  } = usePeriodFilter();
 
   const [groups, setGroups]           = useState<Group[]>([]);
   const [groupId, setGroupId]         = useState<string | null>(null);
@@ -94,12 +69,6 @@ export function useLeaderboard() {
   const lbCache = useRef<Record<string, LbCacheEntry>>({});
   const upCache = useRef<Record<string, UpCacheEntry>>({});
   const upData  = useRef<Record<string, UserPrediction[]>>({});
-
-  const getDateRange = useCallback((): { from: Date; to: Date } | null => {
-    if (period === "week")  return getWeekBounds(weekOffset);
-    if (period === "month") return getMonthBounds(monthOffset);
-    return null;
-  }, [period, weekOffset, monthOffset]);
 
   // Load groups
   useEffect(() => {
@@ -136,15 +105,14 @@ export function useLeaderboard() {
   // Collapse expanded row when filters change
   useEffect(() => {
     setExpandedUserId(null);
-  }, [period, weekOffset, monthOffset, groupId, selectedLeagues]);
+  }, [dateRange, groupId, selectedLeagues]);
 
   // Fetch leaderboard
   useEffect(() => {
     if (!groupsReady) return;
 
-    const range    = getDateRange();
-    const fromStr  = range ? range.from.toISOString() : "";
-    const toStr    = range ? range.to.toISOString()   : "";
+    const fromStr   = dateRange ? dateRange.from.toISOString() : "";
+    const toStr     = dateRange ? dateRange.to.toISOString()   : "";
     const leagueKey = selectedLeagues.slice().sort().join(",");
     const cacheKey  = `${fromStr}:${toStr}:${groupId ?? "all"}:${leagueKey}`;
 
@@ -161,7 +129,7 @@ export function useLeaderboard() {
     }
 
     let url = `/api/leaderboard?period=${period}`;
-    if (range) url += `&from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}`;
+    if (dateRange) url += `&from=${encodeURIComponent(dateRange.from.toISOString())}&to=${encodeURIComponent(dateRange.to.toISOString())}`;
     if (groupId) url += `&groupId=${groupId}`;
     for (const lid of selectedLeagues) url += `&leagueId=${lid}`;
 
@@ -174,7 +142,7 @@ export function useLeaderboard() {
         setIsRefreshing(false);
       })
       .catch(() => { setIsLoading(false); setIsRefreshing(false); });
-  }, [period, weekOffset, monthOffset, groupId, selectedLeagues, groupsReady, getDateRange]);
+  }, [period, dateRange, groupId, selectedLeagues, groupsReady]);
 
   async function toggleUser(userId: string) {
     if (expandedUserId === userId) {
@@ -182,9 +150,8 @@ export function useLeaderboard() {
       return;
     }
 
-    const range    = getDateRange();
-    const fromStr  = range ? range.from.toISOString() : "";
-    const toStr    = range ? range.to.toISOString()   : "";
+    const fromStr   = dateRange ? dateRange.from.toISOString() : "";
+    const toStr     = dateRange ? dateRange.to.toISOString()   : "";
     const leagueKey = selectedLeagues.slice().sort().join(",");
     const cacheKey  = `${userId}:${fromStr}:${toStr}:${leagueKey}`;
 
@@ -198,7 +165,7 @@ export function useLeaderboard() {
     setExpandedUserId(userId);
 
     let url = `/api/leaderboard/user-predictions?userId=${userId}`;
-    if (range) url += `&from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}`;
+    if (dateRange) url += `&from=${encodeURIComponent(dateRange.from.toISOString())}&to=${encodeURIComponent(dateRange.to.toISOString())}`;
     for (const lid of selectedLeagues) url += `&leagueId=${lid}`;
 
     try {
@@ -212,16 +179,6 @@ export function useLeaderboard() {
       setLoadingUserId(null);
     }
   }
-
-  // Computed labels
-  const weekLabel = (() => {
-    const { from, to } = getWeekBounds(weekOffset);
-    const thursdayEnd = new Date(to);
-    thursdayEnd.setDate(to.getDate() - 1);
-    return `${fmtDate(from)} – ${fmtDate(thursdayEnd)}`;
-  })();
-
-  const monthLabel = fmtMonthYear(getMonthBounds(monthOffset).from);
 
   const myId = (session?.user as { id?: string } | undefined)?.id;
 

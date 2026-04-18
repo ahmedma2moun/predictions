@@ -1,7 +1,5 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
-import { isMatchLocked } from "@/lib/utils";
 import { PredictionTabs, type SerializedPrediction } from "./PredictionTabs";
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
@@ -30,7 +28,7 @@ export default async function PredictionsPage() {
     take: 200,
   });
 
-  const serialized: SerializedPrediction[] = predictions.map((p) => ({
+  const allPreds: SerializedPrediction[] = predictions.map((p) => ({
     _id: p.id.toString(),
     homeScore: p.homeScore,
     awayScore: p.awayScore,
@@ -54,35 +52,23 @@ export default async function PredictionsPage() {
     },
   }));
 
-  const totalPoints = serialized.reduce((sum, p) => sum + (p.pointsAwarded || 0), 0);
+  allPreds.sort((a, b) => new Date(b.matchId.kickoffTime).getTime() - new Date(a.matchId.kickoffTime).getTime());
 
-  const futurePreds = serialized
-    .filter((p) => !isMatchLocked(p.matchId.kickoffTime))
-    .sort(
-      (a, b) =>
-        new Date(a.matchId.kickoffTime).getTime() - new Date(b.matchId.kickoffTime).getTime()
-    );
-
-  const pastPreds = serialized
-    .filter((p) => isMatchLocked(p.matchId.kickoffTime))
-    .sort(
-      (a, b) =>
-        new Date(b.matchId.kickoffTime).getTime() - new Date(a.matchId.kickoffTime).getTime()
-    );
+  const totalPoints = allPreds.reduce((sum, p) => sum + (p.pointsAwarded || 0), 0);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Predictions</h1>
+        <h1 className="text-2xl font-bold">My Score</h1>
         <Badge variant="outline" className="text-base px-3 py-1">
           {totalPoints} pts total
         </Badge>
       </div>
 
-      {serialized.length === 0 ? (
+      {allPreds.length === 0 ? (
         <p className="text-muted-foreground">No predictions yet. Go predict some matches!</p>
       ) : (
-        <PredictionTabs futurePreds={futurePreds} pastPreds={pastPreds} />
+        <PredictionTabs allPreds={allPreds} />
       )}
     </div>
   );

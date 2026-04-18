@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
-  { href: "/matches", label: "Matches", icon: Calendar },
-  { href: "/predictions", label: "My Picks", icon: TrendingUp, adminHidden: true },
+  { href: "/matches", label: "Upcoming Matches", icon: Calendar },
+  { href: "/predictions", label: "My Score", icon: TrendingUp, adminHidden: true },
   { href: "/leaderboard", label: "Leaders", icon: Trophy },
 ];
 
