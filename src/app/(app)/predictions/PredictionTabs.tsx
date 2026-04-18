@@ -175,6 +175,11 @@ export function PredictionTabs({ allPreds }: { allPreds: SerializedPrediction[] 
     });
   }, [allPreds, weekOffset]);
 
+  const weekPoints = useMemo(
+    () => filtered.reduce((sum, p) => sum + (p.pointsAwarded || 0), 0),
+    [filtered],
+  );
+
   const page    = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;
 
@@ -197,10 +202,13 @@ export function PredictionTabs({ allPreds }: { allPreds: SerializedPrediction[] 
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
+      <p className="text-center text-sm text-muted-foreground">
+        Week score: <span className="font-semibold text-foreground">{weekPoints} pts</span>
+      </p>
 
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Score processed for this period.</p>
+          <p className="text-muted-foreground text-sm">No score processed for this period.</p>
         ) : (
           <>
             {page.map((pred) => <PredictionCard key={pred._id} pred={pred} />)}

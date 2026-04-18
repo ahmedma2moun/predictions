@@ -54,6 +54,11 @@ export default function PredictionsScreen() {
     [filtered],
   );
 
+  const weekPoints = useMemo(
+    () => filtered.reduce((sum, p) => sum + (p.pointsAwarded ?? 0), 0),
+    [filtered],
+  );
+
   const page    = sorted.slice(0, visibleCount);
   const hasMore = visibleCount < sorted.length;
 
@@ -90,6 +95,10 @@ export default function PredictionsScreen() {
             onPrev={() => setWeekOffset(o => o - 1)}
             onNext={() => setWeekOffset(o => o + 1)}
           />
+          <Text style={styles.weekScore}>
+            Week score:{' '}
+            <Text style={styles.weekScoreValue}>{weekPoints} pts</Text>
+          </Text>
         </View>
       }
       ListEmptyComponent={
@@ -98,7 +107,7 @@ export default function PredictionsScreen() {
             ? error
             : predictions.length === 0
             ? 'No predictions yet. Go predict some matches!'
-            : 'Score processed for this period.'}
+            : 'No score processed for this period.'}
         </Muted>
       }
       ListFooterComponent={
@@ -148,6 +157,8 @@ function makeStyles(c: Palette) {
     heading: { color: c.foreground, fontSize: font.size.xl, fontWeight: font.weight.bold },
     showMore: { alignItems: 'center', paddingVertical: spacing.md },
     showMoreText: { color: c.mutedForeground, fontSize: font.size.sm },
+    weekScore: { textAlign: 'center', color: c.mutedForeground, fontSize: font.size.sm },
+    weekScoreValue: { color: c.foreground, fontWeight: font.weight.semibold },
     weekNav: {
       flexDirection: 'row',
       alignItems: 'center',
