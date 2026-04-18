@@ -98,7 +98,7 @@ export default function PredictionsScreen() {
             ? error
             : predictions.length === 0
             ? 'No predictions yet. Go predict some matches!'
-            : 'No predictions for this period.'}
+            : 'Score processed for this period.'}
         </Muted>
       }
       ListFooterComponent={

@@ -200,7 +200,7 @@ export function PredictionTabs({ allPreds }: { allPreds: SerializedPrediction[] 
 
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No predictions for this period.</p>
+          <p className="text-muted-foreground text-sm">Score processed for this period.</p>
         ) : (
           <>
             {page.map((pred) => <PredictionCard key={pred._id} pred={pred} />)}
