@@ -3,10 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KickoffTime } from "@/components/KickoffTime";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { ScoringBreakdown, type RuleBreakdown } from "@/components/ScoringBreakdown";
-import { PeriodNav } from "@/app/(app)/leaderboard/PeriodNav";
-import { usePeriodFilter } from "@/hooks/usePeriodFilter";
+import { computeWeekLabel, getWeekBounds } from "@/lib/period-filter";
 
 export type SerializedPrediction = {
   _id: string;
@@ -159,44 +158,45 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
 const PAGE_SIZE = 20;
 
 export function PredictionTabs({ allPreds }: { allPreds: SerializedPrediction[] }) {
-  const {
-    period, setPeriod,
-    weekOffset, setWeekOffset,
-    monthOffset, setMonthOffset,
-    weekLabel, monthLabel,
-    dateRange,
-  } = usePeriodFilter();
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekLabel = useMemo(() => computeWeekLabel(weekOffset), [weekOffset]);
 
   const [visible, setVisible] = useState(PAGE_SIZE);
   const showMore = useCallback(() => setVisible(n => n + PAGE_SIZE), []);
 
-  // Reset pagination when filter changes
-  useEffect(() => { setVisible(PAGE_SIZE); }, [dateRange]);
+  useEffect(() => { setVisible(PAGE_SIZE); }, [weekOffset]);
 
   const filtered = useMemo(() => {
-    if (!dateRange) return allPreds;
-    const { from, to } = dateRange;
+    const { from, to } = getWeekBounds(weekOffset);
     return allPreds.filter(p => {
+      if (!p.matchId.result) return false;
       const t = new Date(p.matchId.kickoffTime).getTime();
       return t >= from.getTime() && t < to.getTime();
     });
-  }, [allPreds, dateRange]);
+  }, [allPreds, weekOffset]);
 
   const page    = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;
 
   return (
     <div className="space-y-4">
-      <PeriodNav
-        period={period}
-        setPeriod={setPeriod}
-        weekOffset={weekOffset}
-        setWeekOffset={setWeekOffset}
-        monthOffset={monthOffset}
-        setMonthOffset={setMonthOffset}
-        weekLabel={weekLabel}
-        monthLabel={monthLabel}
-      />
+      <div className="flex items-center justify-between gap-2">
+        <button
+          onClick={() => setWeekOffset(o => o - 1)}
+          className="p-1.5 rounded-md hover:bg-accent transition-colors"
+          aria-label="Previous week"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-medium tabular-nums">{weekLabel}</span>
+        <button
+          onClick={() => setWeekOffset(o => o + 1)}
+          className="p-1.5 rounded-md hover:bg-accent transition-colors"
+          aria-label="Next week"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
 
       <div className="space-y-3">
         {filtered.length === 0 ? (

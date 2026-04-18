@@ -8,12 +8,12 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Badge, Muted } from '@/components/ui';
 import { PredictionCard } from '@/components/PredictionCard';
 import { usePredictions } from '@/hooks/usePredictions';
-import { usePeriodFilter } from '@/hooks/usePeriodFilter';
-import { PeriodFilterBar } from '@/components/PeriodFilterBar';
-import { font, spacing, type Palette } from '@/theme/colors';
+import { computeWeekLabel, getWeekBounds } from '@/utils/leaderboard-dates';
+import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 
 const PAGE_SIZE = 20;
@@ -31,26 +31,21 @@ export default function PredictionsScreen() {
     totalPoints,
   } = usePredictions();
 
-  const {
-    period, setPeriod,
-    weekOffset, setWeekOffset,
-    monthOffset, setMonthOffset,
-    weekLabel, monthLabel,
-    dateRange,
-  } = usePeriodFilter();
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekLabel = useMemo(() => computeWeekLabel(weekOffset), [weekOffset]);
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [dateRange]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [weekOffset]);
 
   const filtered = useMemo(() => {
-    if (!dateRange) return predictions;
-    const { from, to } = dateRange;
+    const { from, to } = getWeekBounds(weekOffset);
     return predictions.filter(p => {
+      if (!p.match.result) return false;
       const t = new Date(p.match.kickoffTime).getTime();
       return t >= from.getTime() && t < to.getTime();
     });
-  }, [predictions, dateRange]);
+  }, [predictions, weekOffset]);
 
   const sorted = useMemo(
     () => [...filtered].sort(
@@ -90,13 +85,10 @@ export default function PredictionsScreen() {
             <Text style={styles.heading}>My Score</Text>
             <Badge variant="outline">{totalPoints} pts total</Badge>
           </View>
-          <PeriodFilterBar
-            period={period}
-            setPeriod={setPeriod}
-            weekLabel={weekLabel}
-            monthLabel={monthLabel}
-            setWeekOffset={setWeekOffset}
-            setMonthOffset={setMonthOffset}
+          <WeekNav
+            label={weekLabel}
+            onPrev={() => setWeekOffset(o => o - 1)}
+            onNext={() => setWeekOffset(o => o + 1)}
           />
         </View>
       }
@@ -126,6 +118,22 @@ export default function PredictionsScreen() {
   );
 }
 
+function WeekNav({ label, onPrev, onNext }: { label: string; onPrev: () => void; onNext: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <View style={styles.weekNav}>
+      <Pressable onPress={onPrev} hitSlop={12} style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.6 }]}>
+        <Ionicons name="chevron-back" size={18} color={colors.foreground} />
+      </Pressable>
+      <Text style={styles.weekLabel}>{label}</Text>
+      <Pressable onPress={onNext} hitSlop={12} style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.6 }]}>
+        <Ionicons name="chevron-forward" size={18} color={colors.foreground} />
+      </Pressable>
+    </View>
+  );
+}
+
 function makeStyles(c: Palette) {
   return StyleSheet.create({
     center: {
@@ -140,5 +148,18 @@ function makeStyles(c: Palette) {
     heading: { color: c.foreground, fontSize: font.size.xl, fontWeight: font.weight.bold },
     showMore: { alignItems: 'center', paddingVertical: spacing.md },
     showMoreText: { color: c.mutedForeground, fontSize: font.size.sm },
+    weekNav: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.sm,
+    },
+    navBtn: { padding: 6, borderRadius: radius.sm },
+    weekLabel: {
+      color: c.foreground,
+      fontSize: font.size.sm,
+      fontWeight: font.weight.semibold,
+      fontVariant: ['tabular-nums'],
+    },
   });
 }
