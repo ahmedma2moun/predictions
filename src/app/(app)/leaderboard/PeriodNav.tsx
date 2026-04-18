@@ -1,10 +1,11 @@
 "use client";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { Period } from "@/lib/period-filter";
 
 type Props = {
-  period: string;
-  setPeriod: (v: string) => void;
+  period: Period;
+  setPeriod: (v: Period) => void;
   weekOffset: number;
   setWeekOffset: React.Dispatch<React.SetStateAction<number>>;
   monthOffset: number;
@@ -21,7 +22,7 @@ export function PeriodNav({
 }: Props) {
   return (
     <>
-      <Tabs value={period} onValueChange={setPeriod}>
+      <Tabs value={period} onValueChange={v => setPeriod(v as Period)}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="all">All Time</TabsTrigger>
           <TabsTrigger value="month">Month</TabsTrigger>
