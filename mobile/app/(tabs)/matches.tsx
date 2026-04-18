@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -24,6 +24,14 @@ export default function MatchesScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const router = useRouter();
   const { matches, loading, refreshing, error, onRefresh } = useMatches();
+
+  const isFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (isFirstFocus.current) { isFirstFocus.current = false; return; }
+      onRefresh();
+    }, [onRefresh]),
+  );
 
   const renderMatchItem = useCallback(({ item }: { item: MatchListItem }) => (
     <MatchRow match={item} onPress={() => router.push(ROUTES.matchDetail(item._id) as any)} />
