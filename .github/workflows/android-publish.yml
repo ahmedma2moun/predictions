@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
     paths:
-      - 'football-predictions/mobile/**'
+      - 'mobile/**'
 
 jobs:
   build-and-distribute:
