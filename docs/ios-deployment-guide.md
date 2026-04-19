@@ -15,6 +15,44 @@ This guide walks through deploying the Football Predictions iOS app to testers v
 
 ---
 
+## Step 0 — Create an Apple Developer Account
+
+Before anything else, you need a paid Apple Developer membership to sign and distribute iOS apps on real devices.
+
+### 0.1 Create an Apple ID (skip if you already have one)
+
+1. Go to [appleid.apple.com/account](https://appleid.apple.com/account).
+2. Fill in your name, country, email, and a strong password.
+3. Verify your email address and phone number when prompted.
+
+### 0.2 Enroll in the Apple Developer Program
+
+1. Go to [developer.apple.com/programs/enroll](https://developer.apple.com/programs/enroll) and sign in with your Apple ID.
+2. Choose **Individual** (for personal use) or **Organization** (for a company — requires a D-U-N-S number).
+3. Review and accept the Apple Developer Agreement.
+4. Pay the **$99 USD/year** membership fee via credit card.
+5. Apple sends a confirmation email within minutes; full activation can take up to 24–48 hours (usually instant).
+
+> **Organization enrollment tip:** If enrolling as an organization, obtain your company's D-U-N-S number first from [dnb.com](https://www.dnb.com/duns-number/lookup.html). Apple requires it for verification and it can take several business days.
+
+### 0.3 Accept the latest agreements in App Store Connect
+
+Some EAS credential operations fail silently if agreements are outdated:
+
+1. Sign in to [appstoreconnect.apple.com](https://appstoreconnect.apple.com).
+2. If a banner appears about pending agreements, click **Review Agreement** and accept.
+
+### 0.4 Enable Two-Factor Authentication
+
+Apple requires 2FA for Developer accounts:
+
+1. On your iPhone or Mac go to **Settings → [Your Name] → Sign-In & Security → Two-Factor Authentication**.
+2. Follow the prompts to enable it.
+
+> EAS uses 2FA during the `eas credentials` flow — have your trusted device nearby when running it.
+
+---
+
 ## Step 1 — Add an iOS App in Firebase
 
 1. Open [Firebase Console](https://console.firebase.google.com) → your project → **Add app** → iOS.

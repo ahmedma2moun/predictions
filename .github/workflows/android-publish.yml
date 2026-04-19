@@ -34,13 +34,12 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          eas build \
+          BUILD_JSON=$(eas build \
             --profile preview \
             --platform android \
             --non-interactive \
-            --json \
-            --output build-output.json
-          APK_URL=$(jq -r '.[0].artifacts.buildUrl' build-output.json)
+            --json 2>/dev/null)
+          APK_URL=$(echo "$BUILD_JSON" | jq -r '.[0].artifacts.buildUrl')
           echo "APK_URL=$APK_URL" >> $GITHUB_ENV
 
       - name: Download APK
