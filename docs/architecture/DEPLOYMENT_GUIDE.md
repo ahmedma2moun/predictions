@@ -247,6 +247,117 @@ Use `--profile preview` for Firebase distribution builds.
 
 ---
 
+## Auto-Publish Android APK on Mobile Changes (GitHub Actions)
+
+Every push that touches `football-predictions/mobile/**` automatically triggers an EAS build and distributes the APK via Firebase App Distribution.
+
+### How it works
+
+```
+git push (mobile/** changed)
+  └─► GitHub Actions workflow
+        ├─► eas build --profile preview --platform android
+        └─► firebase appdistribution:distribute → "testers" group
+```
+
+### Required GitHub Secrets
+
+Add these in **GitHub → Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+|---|---|
+| `EXPO_TOKEN` | EAS personal access token — generate at [expo.dev/accounts/ahmdma2mou/settings/access-tokens](https://expo.dev/accounts/ahmdma2mou/settings/access-tokens) |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON (see below) |
+
+**How to get `FIREBASE_SERVICE_ACCOUNT`:**
+1. Firebase console → Project settings → Service accounts
+2. **Generate new private key** → download the JSON
+3. Paste the entire JSON as the secret value (multi-line is fine)
+
+### Workflow file
+
+Create `.github/workflows/android-publish.yml` at the repository root:
+
+```yaml
+name: Android Auto-Publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'football-predictions/mobile/**'
+
+jobs:
+  build-and-distribute:
+    name: EAS Build → Firebase Distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: football-predictions/mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        working-directory: football-predictions/mobile
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build APK via EAS
+        working-directory: football-predictions/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --profile preview \
+            --platform android \
+            --non-interactive \
+            --json \
+            --output build-output.json
+          # Extract the APK download URL from the EAS JSON response
+          APK_URL=$(jq -r '.[0].artifacts.buildUrl' build-output.json)
+          echo "APK_URL=$APK_URL" >> $GITHUB_ENV
+
+      - name: Download APK
+        run: curl -L "$APK_URL" -o app-preview.apk
+
+      - name: Distribute via Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: "1:YOUR_FIREBASE_APP_NUMBER:android:YOUR_APP_ID"
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          groups: testers
+          file: app-preview.apk
+          releaseNotes: "Auto-build from commit ${{ github.sha }} — ${{ github.event.head_commit.message }}"
+```
+
+> **Replace `appId`** with your real Firebase Android app ID. Find it in Firebase console → Project settings → Your apps → App ID (format: `1:123456789:android:abcdef`).
+
+### One-time setup checklist
+
+- [ ] Create `.github/workflows/android-publish.yml` with the content above
+- [ ] Add `EXPO_TOKEN` secret to the GitHub repo
+- [ ] Add `FIREBASE_SERVICE_ACCOUNT` secret (the full service-account JSON)
+- [ ] Replace the `appId` placeholder in the workflow with your actual Firebase Android App ID
+- [ ] Ensure the `testers` group exists in Firebase App Distribution (see [Add Testers](#7-add-testers) above)
+- [ ] Push a trivial change under `football-predictions/mobile/` to verify the pipeline runs end-to-end
+
+### Notes
+
+- The workflow only triggers on pushes to `main`. Add `develop` to `branches:` if you want pre-release builds from a dev branch.
+- EAS builds run on Expo's cloud servers — no Android SDK needed on the GitHub runner.
+- Build minutes on the EAS free plan are limited (30 Android builds/month). The `preview` profile produces an APK suitable for direct installation; the `production` profile produces an AAB for Play Store submission.
+- If the EAS build step fails with "Project not found", confirm `EXPO_TOKEN` is valid and `eas.json` has `projectId: "9960a25c-d1cf-40e8-b03b-d1c3eb2c2950"` under `extra.eas`.
+
+---
+
 ## Vercel Plan Considerations
 
 | Feature | Hobby | Pro |

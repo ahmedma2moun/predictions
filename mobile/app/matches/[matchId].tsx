@@ -18,7 +18,7 @@ import { StandingsRow } from '@/components/StandingsRow';
 import { TeamColumn } from '@/components/TeamColumn';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
-import type { H2HMatch, MatchDetail } from '@/types/api';
+import type { GroupPredictionEntry, H2HMatch, LeaderboardGroup, MatchDetail } from '@/types/api';
 import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
 
 export default function MatchPredictionScreen() {
@@ -35,14 +35,19 @@ export default function MatchPredictionScreen() {
   const [saving, setSaving]       = useState(false);
   const [h2h, setH2h]             = useState<H2HMatch[] | null>(null);
   const [h2hLoading, setH2hLoading] = useState(true);
+  const [groups, setGroups]       = useState<LeaderboardGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [groupPredictions, setGroupPredictions] = useState<GroupPredictionEntry[] | null>(null);
+  const [groupPredictionsLoading, setGroupPredictionsLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !matchId) return;
     setH2hLoading(true);
     try {
-      const [data, h2hData] = await Promise.all([
+      const [data, h2hData, groupsData] = await Promise.all([
         apiRequest<MatchDetail>(`/api/mobile/matches/${matchId}`, { token }),
         apiRequest<H2HMatch[]>(`/api/mobile/matches/${matchId}/h2h`, { token }).catch(() => null),
+        apiRequest<LeaderboardGroup[]>(`/api/mobile/groups`, { token }).catch(() => []),
       ]);
       setMatch(data);
       if (data.prediction) {
@@ -50,6 +55,8 @@ export default function MatchPredictionScreen() {
         setAway(data.prediction.awayScore);
       }
       setH2h(h2hData);
+      setGroups(groupsData ?? []);
+      if (groupsData && groupsData.length > 0) setSelectedGroupId(groupsData[0].id);
     } catch (e: any) {
       Alert.alert('Failed to load match', e?.message ?? 'Unknown error');
     } finally {
@@ -59,6 +66,21 @@ export default function MatchPredictionScreen() {
   }, [token, matchId]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!token || !matchId || !selectedGroupId || !match) return;
+    const locked = isMatchLocked(match.kickoffTime);
+    if (!locked && !match.isAdmin) return;
+    setGroupPredictionsLoading(true);
+    setGroupPredictions(null);
+    apiRequest<GroupPredictionEntry[]>(
+      `/api/mobile/matches/${matchId}/group-predictions?groupId=${selectedGroupId}`,
+      { token },
+    )
+      .then(data => setGroupPredictions(data))
+      .catch(() => setGroupPredictions(null))
+      .finally(() => setGroupPredictionsLoading(false));
+  }, [token, matchId, selectedGroupId, match]);
 
   if (loading) {
     return (
@@ -212,6 +234,65 @@ export default function MatchPredictionScreen() {
         </Card>
       )}
 
+      {(locked || match.isAdmin) && groups.length > 0 && (
+        <Card>
+          <Text style={styles.sectionTitle}>Group Comparison</Text>
+          {groups.length > 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: spacing.sm }}
+              contentContainerStyle={{ gap: spacing.xs }}
+            >
+              {groups.map(g => (
+                <Pressable
+                  key={g.id}
+                  onPress={() => setSelectedGroupId(g.id)}
+                  style={[
+                    styles.groupTab,
+                    selectedGroupId === g.id && styles.groupTabActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.groupTabText,
+                      selectedGroupId === g.id && styles.groupTabTextActive,
+                    ]}
+                  >
+                    {g.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+          {groupPredictionsLoading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
+          ) : !groupPredictions || groupPredictions.length === 0 ? (
+            <Muted style={{ textAlign: 'center', paddingVertical: spacing.md }}>
+              No predictions in this group.
+            </Muted>
+          ) : (
+            groupPredictions.map(p => (
+              <View key={p.userId} style={styles.predRow}>
+                <Text style={styles.predName}>{p.userName ?? 'Unknown'}</Text>
+                {p.predicted ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <Text style={styles.predScore}>{p.homeScore} – {p.awayScore}</Text>
+                    {!knockout && match.result && (
+                      <Text style={(p.pointsAwarded ?? 0) > 0 ? styles.points : styles.zeroPoints}>
+                        {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded} pts` : '0 pts'}
+                      </Text>
+                    )}
+                  </View>
+                ) : (
+                  <Muted style={{ fontSize: font.size.xs, fontStyle: 'italic' }}>No prediction</Muted>
+                )}
+              </View>
+            ))
+          )}
+        </Card>
+      )}
+
       {(locked || match.isAdmin) && match.allPredictions && (
         <Card>
           <Text style={styles.sectionTitle}>All Predictions</Text>
@@ -292,5 +373,18 @@ function makeStyles(c: Palette) {
     },
     predName: { color: c.foreground, fontSize: font.size.sm, fontWeight: font.weight.medium },
     predScore: { color: c.foreground, fontSize: font.size.sm, fontVariant: ['tabular-nums'] },
+    groupTab: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    groupTabActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    groupTabText: { color: c.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.medium },
+    groupTabTextActive: { color: c.primaryForeground },
   });
 }

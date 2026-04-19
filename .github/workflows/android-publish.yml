@@ -1,0 +1,56 @@
+name: Android Auto-Publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'football-predictions/mobile/**'
+
+jobs:
+  build-and-distribute:
+    name: EAS Build → Firebase Distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: football-predictions/mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        working-directory: football-predictions/mobile
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build APK via EAS
+        working-directory: football-predictions/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --profile preview \
+            --platform android \
+            --non-interactive \
+            --json \
+            --output build-output.json
+          APK_URL=$(jq -r '.[0].artifacts.buildUrl' build-output.json)
+          echo "APK_URL=$APK_URL" >> $GITHUB_ENV
+
+      - name: Download APK
+        run: curl -L "$APK_URL" -o app-preview.apk
+
+      - name: Distribute via Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: "1:324923947200:android:9453983ba1902076c5d525"
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          groups: testers
+          file: app-preview.apk
+          releaseNotes: "Auto-build from commit ${{ github.sha }} — ${{ github.event.head_commit.message }}"

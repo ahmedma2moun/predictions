@@ -3,6 +3,7 @@ import { getWinner } from '@/lib/utils';
 import { Prisma, Match, Prediction } from '@prisma/client';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { GroupRepository } from '@/lib/repositories/group-repository';
 
 export type PredictionWithMatch = Prediction & {
   match: Match & { league: { name: string } | null };
@@ -116,6 +117,81 @@ export async function getUserPredictionHistory(
       pointsAwarded: p.pointsAwarded,
       rawBreakdown:  p.scoringBreakdown,
     }));
+}
+
+export interface GroupPredictionEntry {
+  userId: string;
+  userName: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  pointsAwarded: number | null;
+  scoringBreakdown: unknown;
+  predicted: boolean;
+}
+
+type GroupPredictionResult =
+  | { entries: GroupPredictionEntry[] }
+  | { error: string; status: number };
+
+export async function getGroupPredictionsForMatch(
+  matchId: number,
+  groupId: number,
+  requestingUserId: number,
+  isAdmin: boolean,
+): Promise<GroupPredictionResult> {
+  const match = await MatchRepository.findUnique({
+    where: { id: matchId },
+    select: { id: true, kickoffTime: true },
+  });
+  if (!match) return { error: 'Match not found', status: 404 };
+  if (!isAdmin && new Date() < match.kickoffTime) {
+    return { error: 'Predictions are not yet visible', status: 403 };
+  }
+
+  const group = await GroupRepository.findByIdWithMembers(groupId);
+  if (!group) return { error: 'Group not found', status: 404 };
+
+  const isMember = isAdmin || group.members.some(m => m.userId === requestingUserId);
+  if (!isMember) return { error: 'Forbidden', status: 403 };
+
+  const memberIds = group.members.map(m => m.userId);
+  const predictions = await PredictionRepository.findMany({
+    where: { matchId, userId: { in: memberIds } },
+    select: {
+      userId: true,
+      homeScore: true,
+      awayScore: true,
+      pointsAwarded: true,
+      scoringBreakdown: true,
+    },
+  });
+
+  const predMap = new Map(predictions.map(p => [p.userId, p]));
+
+  const entries: GroupPredictionEntry[] = group.members.map(m => {
+    const pred = predMap.get(m.userId);
+    return {
+      userId: m.userId.toString(),
+      userName: m.user.name,
+      homeScore: pred?.homeScore ?? null,
+      awayScore: pred?.awayScore ?? null,
+      pointsAwarded: pred?.pointsAwarded ?? null,
+      scoringBreakdown: pred?.scoringBreakdown ?? null,
+      predicted: !!pred,
+    };
+  });
+
+  entries.sort((a, b) => {
+    if (a.predicted !== b.predicted) return a.predicted ? -1 : 1;
+    if (a.pointsAwarded !== b.pointsAwarded) {
+      if (b.pointsAwarded === null) return -1;
+      if (a.pointsAwarded === null) return 1;
+      return b.pointsAwarded - a.pointsAwarded;
+    }
+    return (a.userName ?? '').localeCompare(b.userName ?? '');
+  });
+
+  return { entries };
 }
 
 export async function recalculateAllScores(rules: any[]) {

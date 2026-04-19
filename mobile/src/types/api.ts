@@ -136,6 +136,16 @@ export interface LeaderboardUserPrediction {
   scoringBreakdown: ScoringRuleBreakdown[] | null;
 }
 
+export interface GroupPredictionEntry {
+  userId: string;
+  userName: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  pointsAwarded: number | null;
+  scoringBreakdown: ScoringRuleBreakdown[] | null;
+  predicted: boolean;
+}
+
 export interface PredictionHistoryItem {
   id: string;
   userId: string;

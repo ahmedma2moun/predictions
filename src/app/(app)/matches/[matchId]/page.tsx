@@ -16,6 +16,7 @@ import { MatchStandings } from "./MatchStandings";
 import type { Standing } from "./MatchStandings";
 import { AllPredictionsList } from "./AllPredictionsList";
 import type { PredictionRow } from "./AllPredictionsList";
+import { GroupPredictions } from "./GroupPredictions";
 
 function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
   return (
@@ -294,6 +295,14 @@ export default function MatchPredictionPage() {
           homeTeamName={match.homeTeam.name}
           awayTeamName={match.awayTeam.name}
           standings={standings}
+        />
+      )}
+
+      {(locked || isAdmin) && (
+        <GroupPredictions
+          matchId={String(matchId)}
+          hasResult={!!match.result}
+          isKnockout={isKnockout}
         />
       )}
 
