@@ -20,17 +20,17 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: football-predictions/mobile/package-lock.json
+          cache-dependency-path: mobile/package-lock.json
 
       - name: Install mobile dependencies
-        working-directory: football-predictions/mobile
+        working-directory: mobile
         run: npm ci
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
       - name: Build APK via EAS
-        working-directory: football-predictions/mobile
+        working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
