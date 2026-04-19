@@ -214,17 +214,42 @@ export default function MatchPredictionScreen() {
         </Card>
       )}
 
-      {!h2hLoading && h2h && h2h.length > 0 && (
-        <Card>
-          <Text style={styles.sectionTitle}>Head to Head</Text>
-          <Muted style={{ fontSize: font.size.xs, marginBottom: spacing.sm }}>
-            Last {h2h.length} meeting{h2h.length !== 1 ? 's' : ''}
-          </Muted>
-          {h2h.map(m => (
-            <H2HRow key={`${m.date}:${m.homeTeamName}:${m.awayTeamName}`} m={m} />
-          ))}
-        </Card>
-      )}
+      {!h2hLoading && h2h && h2h.length > 0 && (() => {
+        const summary = computeH2HSummary(h2h, match.homeTeam.name, match.awayTeam.name);
+        return (
+          <Card>
+            <Text style={styles.sectionTitle}>Head to Head</Text>
+            <Muted style={{ fontSize: font.size.xs, marginBottom: spacing.sm }}>
+              Last {h2h.length} meeting{h2h.length !== 1 ? 's' : ''}
+            </Muted>
+            {summary && (
+              <View style={styles.h2hSummary}>
+                <View style={styles.h2hSummaryCol}>
+                  <Text style={styles.h2hSummaryNum}>{summary.homeWins}</Text>
+                  <Muted style={styles.h2hSummaryLabel} numberOfLines={1}>{match.homeTeam.name}</Muted>
+                </View>
+                <View style={styles.h2hSummaryCol}>
+                  <Text style={styles.h2hSummaryNum}>{summary.draws}</Text>
+                  <Muted style={styles.h2hSummaryLabel}>Draw</Muted>
+                </View>
+                <View style={styles.h2hSummaryCol}>
+                  <Text style={styles.h2hSummaryNum}>{summary.awayWins}</Text>
+                  <Muted style={styles.h2hSummaryLabel} numberOfLines={1}>{match.awayTeam.name}</Muted>
+                </View>
+              </View>
+            )}
+            {summary && (
+              <View style={styles.h2hSummaryStats}>
+                <Muted style={{ fontSize: font.size.xs }}>Avg {summary.avgGoals} goals/game</Muted>
+                <Muted style={{ fontSize: font.size.xs }}>Last: {summary.last.homeScore} – {summary.last.awayScore}</Muted>
+              </View>
+            )}
+            {h2h.map(m => (
+              <H2HRow key={`${m.date}:${m.homeTeamName}:${m.awayTeamName}`} m={m} />
+            ))}
+          </Card>
+        );
+      })()}
 
       {!knockout && (match.homeStanding || match.awayStanding) && (
         <Card>
@@ -321,6 +346,32 @@ export default function MatchPredictionScreen() {
   );
 }
 
+function teamsMatch(h2hName: string, upcomingName: string): boolean {
+  const a = h2hName.toLowerCase().trim();
+  const b = upcomingName.toLowerCase().trim();
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+function computeH2HSummary(h2h: import('@/types/api').H2HMatch[], homeTeamName: string, awayTeamName: string) {
+  const done = h2h.filter(m => m.homeScore !== null && m.awayScore !== null);
+  if (done.length === 0) return null;
+  let homeWins = 0, draws = 0, awayWins = 0, totalGoals = 0;
+  for (const m of done) {
+    const hs = m.homeScore!, as = m.awayScore!;
+    totalGoals += hs + as;
+    const leftIsHome = teamsMatch(m.homeTeamName, homeTeamName);
+    if (hs > as)      leftIsHome ? homeWins++ : awayWins++;
+    else if (as > hs) leftIsHome ? awayWins++ : homeWins++;
+    else              draws++;
+  }
+  const last = done[0];
+  return {
+    homeWins, draws, awayWins,
+    avgGoals: Math.round((totalGoals / done.length) * 10) / 10,
+    last: { homeScore: last.homeScore!, awayScore: last.awayScore! },
+  };
+}
+
 function makeStyles(c: Palette) {
   return StyleSheet.create({
     center: {
@@ -386,5 +437,24 @@ function makeStyles(c: Palette) {
     },
     groupTabText: { color: c.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.medium },
     groupTabTextActive: { color: c.primaryForeground },
+    h2hSummary: {
+      flexDirection: 'row',
+      marginBottom: spacing.xs,
+    },
+    h2hSummaryCol: { flex: 1, alignItems: 'center' },
+    h2hSummaryNum: {
+      color: c.foreground,
+      fontSize: font.size.lg,
+      fontWeight: font.weight.bold,
+    },
+    h2hSummaryLabel: { fontSize: font.size.xs, textAlign: 'center' },
+    h2hSummaryStats: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingTop: spacing.xs,
+      marginBottom: spacing.sm,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.border,
+    },
   });
 }

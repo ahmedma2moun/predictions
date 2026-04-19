@@ -288,7 +288,12 @@ export default function MatchPredictionPage() {
         </CardContent>
       </Card>
 
-      <MatchH2H h2h={h2h} loading={h2hLoading} />
+      <MatchH2H
+        h2h={h2h}
+        loading={h2hLoading}
+        homeTeamName={match.homeTeam?.name}
+        awayTeamName={match.awayTeam?.name}
+      />
 
       {!isKnockout && (
         <MatchStandings
