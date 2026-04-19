@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { KickoffTime } from "@/components/KickoffTime";
 import { LiveLockIcon } from "@/components/LiveLockIcon";
+import { DeadlineCountdown } from "@/components/DeadlineCountdown";
 import { CheckCircle } from "lucide-react";
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
@@ -73,6 +74,8 @@ export default async function MatchesPage() {
                       </Badge>
                     </div>
                   </div>
+
+                  <DeadlineCountdown kickoffTime={match.kickoffTime} />
 
                   {isKnockoutStage(serialized.stage) ? (
                     <p className="text-xs text-center text-muted-foreground mb-2">

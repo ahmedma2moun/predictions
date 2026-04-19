@@ -2,9 +2,10 @@ name: Android Auto-Publish
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - 'football-predictions/mobile/**'
+  workflow_dispatch:
 
 jobs:
   build-and-distribute:

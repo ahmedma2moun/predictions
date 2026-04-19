@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -95,6 +95,7 @@ const MatchRow = memo(function MatchRow({ match, onPress }: { match: MatchListIt
         </View>
 
         {headerLabel && <Text style={styles.headerLabel}>{headerLabel}</Text>}
+        {!locked && <CountdownText kickoffTime={match.kickoffTime} />}
 
         <View style={styles.teamsRow}>
           <TeamSide name={match.homeTeam.name} logo={match.homeTeam.logo} standing={match.homeStanding} />
@@ -143,6 +144,44 @@ function TeamSide({
         </Text>
       )}
     </View>
+  );
+}
+
+function getCountdownLabel(kickoffTime: string): string | null {
+  const ms = new Date(kickoffTime).getTime() - Date.now();
+  if (ms <= 0) return null;
+  const totalMinutes = Math.floor(ms / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remainHours = hours % 24;
+    return remainHours > 0 ? `${days}d ${remainHours}h left to predict` : `${days}d left to predict`;
+  }
+  if (hours > 0) return `${hours}h ${minutes}m left to predict`;
+  if (totalMinutes > 0) return `${totalMinutes}m left to predict`;
+  return '< 1m left to predict';
+}
+
+function CountdownText({ kickoffTime }: { kickoffTime: string }) {
+  const { colors } = useTheme();
+  const [label, setLabel] = useState(() => getCountdownLabel(kickoffTime));
+
+  useEffect(() => {
+    const intervalId = setInterval(() => setLabel(getCountdownLabel(kickoffTime)), 30_000);
+    const ms = new Date(kickoffTime).getTime() - Date.now();
+    const timeoutId = ms > 0 ? setTimeout(() => { setLabel(null); clearInterval(intervalId); }, ms) : null;
+    return () => {
+      clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [kickoffTime]);
+
+  if (!label) return null;
+  return (
+    <Text style={{ color: colors.warning, fontSize: font.size.xs, textAlign: 'center', marginTop: 4 }}>
+      ⏱ {label}
+    </Text>
   );
 }
 
