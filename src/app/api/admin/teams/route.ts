@@ -1,5 +1,6 @@
 import { TeamService } from '@/lib/services/team-service';
 import { LeagueService } from '@/lib/services/league-service';
+import { TeamLeagueRepository } from '@/lib/repositories/team-league-repository';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { fetchTeams, type APITeam } from '@/lib/football/service';
@@ -10,9 +11,9 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const leagueId = searchParams.get('leagueId');
-  const where = leagueId ? { leagueId: Number(leagueId) } : {};
+  if (!leagueId) return NextResponse.json({ error: 'leagueId required' }, { status: 400 });
 
-  const teams = await TeamService.getAll({ where, orderBy: { name: 'asc' } });
+  const teams = await TeamService.getByLeagueId(Number(leagueId));
   return NextResponse.json(teams.map(t => ({ ...t, _id: t.id.toString(), leagueId: t.leagueId.toString() })));
 }
 
@@ -24,13 +25,16 @@ export async function POST(req: NextRequest) {
   const league = await LeagueService.getById({ where: { id: Number(leagueId) } });
   if (!league) return NextResponse.json({ error: 'League not found' }, { status: 404 });
 
-  const [apiTeams, dbTeams] = await Promise.all([
+  const [apiTeams, existingLinks] = await Promise.all([
     fetchTeams(league.externalId, league.season),
-    TeamService.getAll({ where: { leagueId: league.id } }),
+    TeamLeagueRepository.findMany({
+      where: { leagueId: league.id },
+      include: { team: true },
+    }),
   ]);
 
-  const activeSet = new Set(dbTeams.map(t => t.externalId));
-  const dbMap = new Map(dbTeams.map(t => [t.externalId, t.id.toString()]));
+  const activeSet = new Set(existingLinks.filter(tl => tl.isActive).map(tl => tl.team.externalId));
+  const dbMap = new Map(existingLinks.map(tl => [tl.team.externalId, tl.team.id.toString()]));
 
   const result = apiTeams.map((t: APITeam) => ({
     externalId: t.team.id,
@@ -52,14 +56,22 @@ export async function PATCH(req: NextRequest) {
   const { externalId, name, logo, leagueId, externalLeagueId, isActive } = await req.json();
 
   if (isActive) {
-    const doc = await TeamService.upsert({
-      where: { externalId },
-      create: { externalId, name, logo, leagueId: Number(leagueId), externalLeagueId, isActive: true },
-      update: { name, logo, leagueId: Number(leagueId), externalLeagueId, isActive: true },
+    const { team, teamLeague } = await TeamService.syncTeamWithLeague({
+      externalId,
+      name,
+      logo,
+      leagueId: Number(leagueId),
+      externalLeagueId,
     });
-    return NextResponse.json({ ...doc, _id: doc.id.toString(), leagueId: doc.leagueId.toString() });
+    return NextResponse.json({
+      ...team,
+      _id: team.id.toString(),
+      leagueId: teamLeague.leagueId.toString(),
+      externalLeagueId: teamLeague.externalLeagueId,
+      isActive: teamLeague.isActive,
+    });
   } else {
-    await TeamService.remove({ where: { externalId } }).catch(() => null);
+    await TeamService.removeFromLeague(externalId, Number(leagueId));
     return NextResponse.json({ success: true });
   }
 }

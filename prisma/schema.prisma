@@ -43,30 +43,43 @@ model User {
 }
 
 model League {
-  id         Int      @id @default(autoincrement())
-  externalId Int      @unique
-  name       String
-  country    String
-  logo       String?
-  season     Int
-  isActive   Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  teams      Team[]
-  matches    Match[]
+  id          Int          @id @default(autoincrement())
+  externalId  Int          @unique
+  name        String
+  country     String
+  logo        String?
+  season      Int
+  isActive    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  teamLeagues TeamLeague[]
+  matches     Match[]
 }
 
 model Team {
+  id          Int          @id @default(autoincrement())
+  externalId  Int          @unique
+  name        String
+  logo        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  teamLeagues TeamLeague[]
+}
+
+model TeamLeague {
   id               Int      @id @default(autoincrement())
-  externalId       Int      @unique
-  name             String
-  logo             String?
+  teamId           Int
+  team             Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   leagueId         Int
   league           League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   externalLeagueId Int
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@unique([teamId, leagueId])
+  @@index([leagueId])
+  @@index([externalLeagueId])
 }
 
 model Match {

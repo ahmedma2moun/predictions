@@ -190,16 +190,7 @@ export async function sendNewMatchNotifications(weekStart: Date, insertedCount: 
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
 async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
-  const teams = await TeamService.getAll({
-    where: { isActive: true },
-    select: { externalId: true, externalLeagueId: true },
-  });
-  const map = new Map<number, Set<number>>();
-  for (const t of teams) {
-    if (!map.has(t.externalLeagueId)) map.set(t.externalLeagueId, new Set());
-    map.get(t.externalLeagueId)!.add(t.externalId);
-  }
-  return map;
+  return TeamService.getActiveTeamsByLeagueMap();
 }
 
 function filterByActiveTeams(fixtures: APIFixture[], activeTeamIds: Set<number> | undefined) {

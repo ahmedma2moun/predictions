@@ -1,4 +1,5 @@
 import { LeagueService } from '@/lib/services/league-service';
+import { TeamService } from '@/lib/services/team-service';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { fetchLeagues, type APILeague } from '@/lib/football/service';
@@ -56,8 +57,11 @@ export async function PATCH(req: NextRequest) {
     });
     return NextResponse.json({ ...doc, _id: doc.id.toString() });
   } else {
-    // onDelete: Cascade on Team handles team cleanup automatically
-    await LeagueService.remove({ where: { externalId } }).catch(() => null);
+    const league = await LeagueService.getById({ where: { externalId } });
+    if (league) {
+      await TeamService.deleteOrphansForLeague(league.id);
+      await LeagueService.remove({ where: { externalId } }).catch(() => null);
+    }
     return NextResponse.json({ success: true });
   }
 }
