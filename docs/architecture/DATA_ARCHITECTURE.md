@@ -15,8 +15,7 @@ PostgreSQL database
 ├── ScoringRule     — configurable scoring rules
 ├── Group           — user groups for sub-leaderboards
 ├── GroupMember     — many-to-many User ↔ Group
-├── TeamStanding    — cached league standings from football-data.org
-└── ResultCheckSlot — QStash job tracker, one row per unique kickoff time
+└── TeamStanding    — cached league standings from football-data.org
 ```
 
 ## Schema Reference
@@ -118,19 +117,6 @@ PostgreSQL database
 | groupId | Int | FK → Group (cascade delete) | |
 | userId | Int | FK → User (cascade delete) | |
 | | | **@@unique([groupId, userId])** | prevents duplicate membership |
-
-### `ResultCheckSlot`
-| Field | Type | Constraint | Notes |
-|---|---|---|---|
-| id | String | PK cuid | |
-| kickoffTime | DateTime | **unique** | Groups all matches sharing this start time |
-| qstashJobId | String? | | Current pending QStash message ID — nulled when done |
-| scheduledAt | DateTime | | When the next QStash job is set to fire |
-| status | String | default 'pending' | pending / done / abandoned |
-| createdAt / updatedAt | DateTime | | auto-managed |
-| | | **@@index([status, scheduledAt])** | used by instrumentation recovery query |
-
-**Status lifecycle**: `pending` → `done` (all matches finished) or `abandoned` (6h cap reached without all matches finishing). A slot in `done` state is never rescheduled. On deployment, `instrumentation.ts` re-schedules all `pending` slots whose matches are still unfinished.
 
 ### `TeamStanding`
 | Field | Type | Constraint | Notes |

@@ -55,14 +55,7 @@ cd football-predictions
 vercel --prod
 ```
 
-### 6. QStash (Upstash) Setup
-
-Result-check jobs are delivered via QStash — a serverless HTTP message queue.
-
-1. Sign up at upstash.com → create a QStash project
-2. Copy the three values from the QStash dashboard → set as env vars below
-
-### 7. Environment Variables (set in Vercel Dashboard)
+### 6. Environment Variables (set in Vercel Dashboard)
 
 ```
 DATABASE_URL=postgres://user:pass@host:6543/db?pgbouncer=true
@@ -74,13 +67,10 @@ FOOTBALL_API_KEY=<your-football-data.org-key>
 CRON_SECRET=<32+ char random string>
 GMAIL_USER=your-gmail@gmail.com
 GMAIL_APP_PASSWORD=<16-char app password>
-QSTASH_TOKEN=<token from Upstash QStash dashboard>
-QSTASH_CURRENT_SIGNING_KEY=<current signing key>
-QSTASH_NEXT_SIGNING_KEY=<next signing key>
 TRIGGER_SECRET=<32+ char random string — used by cron-job.org to authenticate fetch-results calls>
 ```
 
-### 8. Seed the Database
+### 7. Seed the Database
 
 ```bash
 # Run locally pointing at production DIRECT_URL
@@ -91,7 +81,7 @@ Creates: `admin@predictions.app` / `changeme123` + General group + 4 default sco
 
 **Change the admin password immediately after first login.**
 
-### 9. Initial Data Load
+### 8. Initial Data Load
 
 1. Log in as admin → `/admin/leagues` → "Fetch from API"
 2. Activate desired leagues (toggle switch)
@@ -117,8 +107,8 @@ Creates: `admin@predictions.app` / `changeme123` + General group + 4 default sco
 | Cron | UTC Schedule | CLT (UTC+2) | Purpose |
 |---|---|---|---|
 | db-export | 09:00 daily | 11:00 daily | JSON backup of all DB tables → email |
-| fetch-matches | 18:00 Thursday | 20:00 Thursday | Fetch fixtures + schedule QStash slots |
-| fetch-results | 23:00 daily | 01:00 daily | Safety-net pass for any missed results |
+| fetch-matches | 18:00 Thursday | 20:00 Thursday | Fetch fixtures for the upcoming week |
+| fetch-results | 23:00 daily | 01:00 daily | Fetch results for all unfinished past matches |
 | prediction-reminder | 16:00 Friday | 18:00 Friday | Remind users with missing predictions |
 | daily-reminder | 09:00 daily | 11:00 daily | Urgent reminder for today's matches |
 
@@ -151,22 +141,6 @@ The `fetch-results` handler accepts three sources:
 
 Add `TRIGGER_SECRET` to the environment variables table above and to your Vercel dashboard.
 
-## QStash Result-Check Jobs
-
-Result fetching is driven by **QStash** (Upstash), not crons. When `fetch-matches` inserts a fixture, it calls `scheduleSlot(kickoffTime)` which publishes a QStash job to fire at `kickoffTime + 2 hours`. QStash calls `POST /api/jobs/check-results` with the slot ID.
-
-| Endpoint | Auth | Called by | Purpose |
-|---|---|---|---|
-| `POST /api/jobs/check-results` | QStash signature | QStash | Check results for a kickoff-time slot, reschedule if unfinished |
-| `POST /api/jobs/reschedule-pending` | `Bearer CRON_SECRET` | Manual | Emergency: re-schedule all unfinished slots |
-
-**Automatic deployment recovery**: `src/instrumentation.ts` runs on every server start. It queries all matches with `kickoffTime < now` and `scoresProcessed = false` and re-schedules their slots immediately. No manual step required after deployment.
-
-**QStash retry logic**:
-- Initial check: `kickoffTime + 2h`
-- If unfinished: reschedule at `now + 30min`
-- Safety cap: abandon after `kickoffTime + 6h`
-
 ## Manual Triggers (testing/recovery)
 
 ```bash
@@ -178,10 +152,6 @@ curl https://your-app.vercel.app/api/cron/fetch-results \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 
 curl https://your-app.vercel.app/api/cron/db-export \
-  -H "Authorization: Bearer YOUR_CRON_SECRET"
-
-# Re-schedule all unfinished match slots (emergency recovery)
-curl -X POST https://your-app.vercel.app/api/jobs/reschedule-pending \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 
@@ -215,9 +185,67 @@ For database rollbacks, restore from the daily JSON export (db-export cron) or u
 - [ ] Cron endpoints return 200 with CRON_SECRET
 - [ ] Test email endpoint `/api/admin/test-email` delivers to admin inbox
 - [ ] db-export cron delivers JSON backup to configured recipients
-- [ ] QStash env vars set (`QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`)
 - [ ] `TRIGGER_SECRET` set in Vercel dashboard and matching the header configured in cron-job.org
-- [ ] After deploying: check server logs for `[instrumentation]` line confirming slots were rescheduled (or "No pending matches")
+
+## Mobile APK Distribution (Firebase App Distribution)
+
+### Prerequisites
+- Firebase project with the Android app registered
+- EAS CLI installed and authenticated
+- Firebase CLI installed and authenticated
+
+### 1. Create a Firebase Project
+1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+2. **Add project** → name it (e.g. `Antigravity Predictions`)
+3. Disable Google Analytics if not needed → **Create project**
+
+### 2. Register the Android App in Firebase
+- **Firebase Project ID**: `football-prediction-18478`
+
+1. In Firebase console → **Project settings** → **Add app** → Android
+2. Enter package name: `com.maamoun.footballpredictions`
+3. Download the generated `google-services.json` → replace `mobile/google-services.json`
+
+### 3. Enable App Distribution
+1. In Firebase console → left sidebar → **App Distribution**
+2. Click **Get started**
+
+### 4. Install Firebase CLI
+```bash
+npm install -g firebase-tools
+firebase login
+```
+
+### 5. Build the APK via EAS
+```bash
+cd football-predictions/mobile
+eas build --profile preview --platform android
+```
+EAS builds on Expo's cloud servers. When done, download the `.apk` from the EAS dashboard or the URL printed in the terminal.
+
+### 6. Distribute the APK via Firebase
+```bash
+firebase appdistribution:distribute path/to/app.apk \
+  --app android:com.maamoun.footballpredictions \
+  --groups "testers" \
+  --release-notes "Describe what changed in this build"
+```
+
+### 7. Add Testers
+1. Firebase console → **App Distribution** → **Testers & Groups**
+2. Create a group (e.g. `testers`)
+3. Add tester emails — they receive an email invite to install the **Firebase App Tester** app and then your APK
+
+### EAS Build Profiles (eas.json)
+| Profile | Output | Use case |
+|---|---|---|
+| `development` | APK | Local dev with dev client |
+| `preview` | APK | Internal distribution / Firebase |
+| `production` | AAB | Google Play Store submission |
+
+Use `--profile preview` for Firebase distribution builds.
+
+---
 
 ## Vercel Plan Considerations
 

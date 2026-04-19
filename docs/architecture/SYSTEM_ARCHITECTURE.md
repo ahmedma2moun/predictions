@@ -46,9 +46,6 @@ src/
 │   │   │   ├── prediction-reminder # Fri 16:00 UTC — remind unpredicted users
 │   │   │   ├── daily-reminder    # Daily 09:00 UTC — remind for today's matches
 │   │   │   └── db-export         # Daily 09:00 UTC — JSON backup via email
-│   │   └── jobs/
-│   │       ├── check-results     # POST — QStash-triggered per-slot result handler
-│   │       └── reschedule-pending # POST — manual deployment recovery (CRON_SECRET)
 │   ├── login/              # Public login page
 │   └── layout.tsx          # Root layout (dark mode, Inter font, Toaster)
 ├── lib/
@@ -65,9 +62,8 @@ src/
 │   ├── scoring-engine.ts   # calculateScore() — only place scoring logic lives
 │   ├── utils.ts            # formatKickoff(), isMatchLocked(), getWinner()
 │   ├── leaderboard.ts      # Leaderboard aggregation logic
-│   ├── matches-processor.ts  # Fixture upsert + slot scheduling (fetch-matches cron)
-│   ├── results-processor.ts  # Result update + scoring (safety-net cron + admin)
-│   ├── result-scheduler.ts   # QStash slot scheduler — scheduleSlot(), rescheduleSlot()
+│   ├── matches-processor.ts  # Fixture upsert (fetch-matches cron)
+│   ├── results-processor.ts  # Result update + scoring (fetch-results cron + admin)
 │   ├── standings.ts        # TeamStanding cache + football-data.org standings fetch
 │   ├── client-api.ts       # Typed fetch helpers for client components
 │   ├── email.ts            # Nodemailer (Gmail) — new-matches, results, reminders
@@ -203,39 +199,13 @@ Prediction + Result
 
 Max possible per match: **7 points** (correct_winner + exact_score).
 
-## Result Fetching — QStash Per-Slot Scheduling
-
-Rather than polling on fixed hourly crons, results are fetched via per-match-slot jobs scheduled through **QStash (Upstash)**.
-
-### Flow
+## Result Fetching Flow
 
 ```
 fetch-matches cron runs
     │
-    ├─ inserts new matches into DB
-    │
-    └─ groups inserted matches by kickoffTime
-           │
-           └─ for each unique kickoffTime → scheduleSlot(kickoffTime)
-                  │
-                  └─ publishes QStash job to fire at kickoffTime + 2h
-                         │
-                         ▼
-                POST /api/jobs/check-results  (called by QStash)
-                         │
-                         ├─ all matches in slot finished?
-                         │       └─ yes → markSlotDone()
-                         │
-                         └─ some still unfinished?
-                                 └─ rescheduleSlot() → new job at now + 30min
-                                    (repeats until all done or 6h cap)
+    └─ inserts new matches into DB
 ```
-
-**Deduplication**: Each kickoff time maps to exactly one `ResultCheckSlot` row. Before issuing a new QStash job the previous `qstashJobId` is cancelled. Inserting the same matches again (e.g. running the cron twice) is safe — `scheduleSlot()` is idempotent.
-
-**On deployment**: `src/instrumentation.ts` runs automatically when the server starts. It finds all matches with `kickoffTime < now` and `scoresProcessed = false` and re-schedules their slots immediately, so no results are lost across deployments.
-
-**Safety net**: The daily `fetch-results` cron at 23:00 UTC still runs `processMatchResults()` for any matches that slipped through (QStash delivery failures, API errors, etc.).
 
 ## Cron Job Flows
 
@@ -243,24 +213,16 @@ fetch-matches cron runs
 1. Load all active leagues
 2. For each: call football-data.org `/competitions/{id}/matches?dateFrom=…&dateTo=…`
 3. Check `externalId` existence, then `createMany()` — never overwrites existing
-4. Group newly inserted matches by `kickoffTime`, call `scheduleSlot()` once per unique time
-5. Send "new matches" email to each user with `notificationEmail` set
-6. Returns `{ inserted, skipped, errors }`
+4. Send "new matches" email to each user with `notificationEmail` set
+5. Returns `{ inserted, skipped, errors }`
 
-**check-results** (triggered by QStash, not a cron):
-1. Verifies QStash signature (`upstash-signature` header)
-2. Loads the `ResultCheckSlot` and its pending matches (same `kickoffTime`, not finished)
-3. Groups by league — one football-data.org API call per league
-4. Updates finished matches: `status`, `resultHomeScore`, `resultAwayScore`, `resultWinner`
-5. Scores predictions via `calculateScore()`, marks `scoresProcessed = true`
-6. Sends results email to affected users
-7. Refreshes league standings
-8. If all matches done → `markSlotDone()`. If any remain → `rescheduleSlot()` (+30 min)
-
-**fetch-results** (daily 23:00 UTC — safety net only):
+**fetch-results** (daily 23:00 UTC):
 1. Queries any match with `kickoffTime < now` and `status NOT IN (finished, cancelled)`
-2. Runs the same result + scoring logic as check-results
-3. Catches anything QStash missed (network failures, 6h cap reached, etc.)
+2. Groups by league — one football-data.org API call per league
+3. Updates finished matches: `status`, `resultHomeScore`, `resultAwayScore`, `resultWinner`
+4. Scores predictions via `calculateScore()`, marks `scoresProcessed = true`
+5. Sends results email to affected users
+6. Refreshes league standings
 
 **prediction-reminder** (Friday 16:00 UTC):
 1. Find all scheduled matches in the current week with kickoff in the future
@@ -287,7 +249,6 @@ fetch-matches cron runs
 | ORM | prisma | 6.19.3 | PostgreSQL schema + migrations |
 | Passwords | bcryptjs | 3.0.3 | Password hashing (cost 12) |
 | Email | nodemailer | — | Gmail SMTP for notifications |
-| Job queue | @upstash/qstash | 2.10.1 | Per-match-slot result-check scheduling |
 | UI | tailwindcss | 4.x | Utility-first CSS |
 | Components | shadcn/ui (radix-ui) | — | Accessible UI primitives |
 | Icons | lucide-react | 0.577.0 | Icon set |
@@ -319,10 +280,6 @@ fetch-matches cron runs
 ### ADR-6: Migrated from API-Football (RapidAPI) to football-data.org v4
 **Decision**: Replace RapidAPI/API-Football with football-data.org v4 directly.
 **Rationale**: Eliminates RapidAPI middleman and billing. football-data.org free tier provides 10 req/min which is sufficient for cron-based fetching. Public interface (`APIFixture`, `APILeague`, etc.) is unchanged — only the internal HTTP client changed.
-
-### ADR-8: QStash per-slot scheduling replaces fixed hourly crons
-**Decision**: Replace 8 repeated `fetch-results` cron entries with per-kickoff-slot QStash jobs scheduled at match-insert time.
-**Rationale**: Fixed hourly crons over-poll (most hours have no matches finishing), under-adapt (extra-time or postponed matches fall outside the window), and cap at Vercel's cron limit. QStash fires exactly when needed, retries every 30 minutes only while a match is still live, and the 6-hour safety cap prevents runaway jobs. Existing `processMatchResults` cron is kept as a nightly safety net.
 
 ### ADR-7: notificationEmail separate from login email
 **Decision**: Users have an optional `notificationEmail` field distinct from `email`.
