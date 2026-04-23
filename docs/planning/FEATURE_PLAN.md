@@ -142,11 +142,9 @@ Badge types and award triggers:
 - **Exact Score** 🎯 — first prediction with `exact_score` matched (auto-awarded by results processor)
 - **On a Roll** 🔥 — streak first reaches 3 correct in a row (auto-awarded after streak update)
 - **Perfect Week** ⭐ — all predictions in a matchday correct, once matchday is fully processed (auto-awarded)
-- **Group Champion** 🏆 — schema present; not yet auto-awarded (requires period-end trigger)
+- **Group Champion** 🏆 — awarded to the #1 user of any group-scoped leaderboard period that has ended (on the fly, no DB write). All-time winners can be persisted via an admin "Calculate All-Time Champions" button on `/admin`.
 
 Displayed on leaderboard rows (web + mobile) as emoji icons next to the user name. Active streaks ≥ 2 also show 🔥N inline.
-
-> **Note:** `group_champion` badge is stored in the schema but is not auto-awarded — it requires a manual admin action or a future period-end cron.
 
 ---
 

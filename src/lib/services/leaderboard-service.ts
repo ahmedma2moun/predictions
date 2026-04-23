@@ -127,5 +127,17 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
     }
   }
 
+  // On-the-fly group_champion: award to #1 for any group-scoped period that has ended.
+  // All-time (no `to`) is handled by the admin "Calculate All-Time Champions" action.
+  if (groupId && to) {
+    const periodEnd = new Date(to);
+    if (periodEnd <= new Date() && result.length > 0) {
+      const champion = result[0];
+      if (champion.totalPoints > 0 && !champion.badges.includes('group_champion')) {
+        champion.badges = [...champion.badges, 'group_champion'];
+      }
+    }
+  }
+
   return result;
 }

@@ -126,3 +126,37 @@ async function awardBadgeIfNew(userId: number, badge: BadgeKey): Promise<void> {
     });
   }
 }
+
+export async function awardAllTimeGroupChampions(): Promise<{ awarded: number; groups: number; winners: Array<{ groupId: number; groupName: string; userId: number; totalPoints: number }> }> {
+  const groups = await prisma.group.findMany({
+    select: { id: true, name: true, members: { select: { userId: true } } },
+  });
+
+  let awarded = 0;
+  const winners: Array<{ groupId: number; groupName: string; userId: number; totalPoints: number }> = [];
+
+  for (const group of groups) {
+    if (group.members.length === 0) continue;
+    const memberIds = group.members.map(m => m.userId);
+
+    const totals = await prisma.prediction.groupBy({
+      by: ['userId'],
+      where: { userId: { in: memberIds }, match: { status: 'finished' } },
+      _sum: { pointsAwarded: true },
+    });
+
+    if (totals.length === 0) continue;
+
+    const top = totals.reduce((best, curr) =>
+      (curr._sum.pointsAwarded ?? 0) > (best._sum.pointsAwarded ?? 0) ? curr : best,
+    );
+    const topPts = top._sum.pointsAwarded ?? 0;
+    if (topPts <= 0) continue;
+
+    await awardBadgeIfNew(top.userId, BadgeKey.group_champion);
+    awarded++;
+    winners.push({ groupId: group.id, groupName: group.name, userId: top.userId, totalPoints: topPts });
+  }
+
+  return { awarded, groups: groups.length, winners };
+}

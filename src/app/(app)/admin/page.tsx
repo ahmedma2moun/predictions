@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { ChampionsButton } from "./ChampionsButton";
 
 export default async function AdminDashboardPage() {
   await auth();
@@ -43,6 +44,17 @@ export default async function AdminDashboardPage() {
           <Link href="/admin/matches"><Button variant="outline">Manage Matches</Button></Link>
           <Link href="/admin/users"><Button variant="outline">Manage Users</Button></Link>
           <Link href="/admin/scoring"><Button variant="outline">Scoring Rules</Button></Link>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Badges</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Award the 🏆 group_champion badge to the top scorer in each group across all finished predictions.
+            Past-week and past-month champions show up automatically on the leaderboard — this is for the all-time winner.
+          </p>
+          <ChampionsButton />
         </CardContent>
       </Card>
     </div>
