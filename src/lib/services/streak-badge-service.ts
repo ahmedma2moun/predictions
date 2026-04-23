@@ -75,13 +75,12 @@ export async function updateStreaksAndBadges(
 
   // perfect_week badge: check when matchday is fully processed
   if (matchday !== null) {
-    await checkPerfectWeekBadge(matchId, userIds, matchday, externalLeagueId);
+    await checkPerfectWeekBadge(matchId, matchday, externalLeagueId);
   }
 }
 
 async function checkPerfectWeekBadge(
   currentMatchId: number,
-  userIds: number[],
   matchday: number,
   externalLeagueId: number,
 ): Promise<void> {
@@ -90,22 +89,36 @@ async function checkPerfectWeekBadge(
     select: { id: true, status: true, scoresProcessed: true },
   });
 
-  // All must be finished+processed (treat currentMatchId as done — scoresProcessed is set after this call)
-  const allDone = allMatchdayMatches.every(m =>
-    m.id === currentMatchId
-      ? m.status === 'finished'
-      : m.status === 'finished' && m.scoresProcessed,
-  );
+  // Postponed/cancelled matches will never be scored — treat them as done.
+  // For the current match scoresProcessed is set before this call, so only
+  // check status. All other finished matches must also have been fully scored.
+  const allDone = allMatchdayMatches.every(m => {
+    if (m.status === 'postponed' || m.status === 'cancelled') return true;
+    if (m.id === currentMatchId) return m.status === 'finished';
+    return m.status === 'finished' && m.scoresProcessed;
+  });
   if (!allDone) return;
 
-  const matchIds = allMatchdayMatches.map(m => m.id);
+  // Only consider playable matches when checking predictions
+  const matchIds = allMatchdayMatches
+    .filter(m => m.status !== 'postponed' && m.status !== 'cancelled')
+    .map(m => m.id);
+  if (matchIds.length === 0) return;
 
-  for (const userId of userIds) {
+  // Check every user who predicted ANY match in this matchday, not just the
+  // users who predicted the current match (they may have already been processed
+  // when an earlier match in the matchday was scored).
+  const predUsers = await prisma.prediction.findMany({
+    where: { matchId: { in: matchIds } },
+    select: { userId: true },
+    distinct: ['userId'],
+  });
+
+  for (const { userId } of predUsers) {
     const preds = await PredictionRepository.findMany({
       where: { userId, matchId: { in: matchIds } },
       select: { pointsAwarded: true },
     });
-
     if (preds.length === 0) continue;
     if (preds.every(p => (p.pointsAwarded ?? 0) > 0)) {
       await awardBadgeIfNew(userId, BadgeKey.perfect_week);
