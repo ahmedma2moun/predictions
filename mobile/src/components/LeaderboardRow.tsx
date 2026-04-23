@@ -19,6 +19,7 @@ interface Props {
   item: LeaderboardEntry;
   index: number;
   myId: string | undefined;
+  isCurrentPeriod: boolean;
   isExpanded: boolean;
   expandedLoading: boolean;
   expandedData: LeaderboardUserPrediction[] | null;
@@ -26,7 +27,7 @@ interface Props {
 }
 
 export const LeaderboardRow = memo(function LeaderboardRow({
-  item, index, myId, isExpanded, expandedLoading, expandedData, onToggle,
+  item, index, myId, isCurrentPeriod, isExpanded, expandedLoading, expandedData, onToggle,
 }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -55,7 +56,7 @@ export const LeaderboardRow = memo(function LeaderboardRow({
             <Text style={styles.name} numberOfLines={1}>
               {item.name}{isMe ? ' (you)' : ''}
             </Text>
-            <BadgeStrip badges={item.badges ?? []} currentStreak={item.currentStreak ?? 0} />
+            <BadgeStrip badges={item.badges ?? []} currentStreak={item.currentStreak ?? 0} isCurrentPeriod={isCurrentPeriod} />
           </View>
           <Muted style={{ fontSize: font.size.xs }}>{item.predictionsCount} picks</Muted>
         </View>
@@ -94,11 +95,13 @@ const BADGE_META: Record<string, string> = {
   group_champion:    '🏆',
 };
 
-function BadgeStrip({ badges, currentStreak }: { badges: string[]; currentStreak: number }) {
-  if (badges.length === 0 && currentStreak < 2) return null;
+function BadgeStrip({ badges, currentStreak, isCurrentPeriod }: { badges: string[]; currentStreak: number; isCurrentPeriod: boolean }) {
+  // perfect_week only shows in past-period views (same rule as web)
+  const visibleBadges = isCurrentPeriod ? badges.filter(b => b !== 'perfect_week') : badges;
+  if (visibleBadges.length === 0 && currentStreak < 2) return null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 1, flexShrink: 1 }}>
-      {badges.map(b => (
+      {visibleBadges.map(b => (
         <Text key={b} style={{ fontSize: 11, lineHeight: 14 }}>{BADGE_META[b] ?? '🏅'}</Text>
       ))}
       {currentStreak >= 2 && (

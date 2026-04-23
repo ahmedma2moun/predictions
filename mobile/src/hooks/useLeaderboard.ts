@@ -130,8 +130,11 @@ export function useLeaderboard() {
     }
   }, [expandedUserId, token, dateRange, selectedLeagues]);
 
+  const isCurrentPeriod = !dateRange || dateRange.to > new Date();
+
   return {
     myId: user?.id,
+    isCurrentPeriod,
     period, setPeriod,
     weekOffset, setWeekOffset,
     monthOffset, setMonthOffset,

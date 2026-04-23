@@ -1,5 +1,7 @@
 import { Tabs } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import * as SystemUI from 'expo-system-ui';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { font, spacing } from '@/theme/colors';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme/theme';
@@ -74,6 +76,12 @@ export default function TabsLayout() {
   const { colors } = useTheme();
   const isAdmin = user?.role === 'admin';
 
+  // Match the Android gesture-navigation-bar area to the tab bar colour so it
+  // doesn't look like the bar is floating above an empty strip at the bottom.
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.card);
+  }, [colors.card]);
+
   return (
     <Tabs
       screenOptions={{
@@ -84,6 +92,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          elevation: 0,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,

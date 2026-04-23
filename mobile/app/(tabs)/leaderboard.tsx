@@ -21,6 +21,7 @@ export default function LeaderboardScreen() {
 
   const {
     myId,
+    isCurrentPeriod,
     period, setPeriod,
     weekOffset, setWeekOffset,
     monthOffset, setMonthOffset,
@@ -44,13 +45,14 @@ export default function LeaderboardScreen() {
         item={item}
         index={index}
         myId={myId}
+        isCurrentPeriod={isCurrentPeriod}
         isExpanded={expandedUserId === item.userId}
         expandedLoading={expandedLoading}
         expandedData={expandedUserId === item.userId ? expandedData : null}
         onToggle={toggleExpand}
       />
     ),
-    [myId, expandedUserId, expandedLoading, expandedData, toggleExpand],
+    [myId, isCurrentPeriod, expandedUserId, expandedLoading, expandedData, toggleExpand],
   );
 
   if (loading) {
