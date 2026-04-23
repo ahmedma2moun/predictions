@@ -51,9 +51,12 @@ export const LeaderboardRow = memo(function LeaderboardRow({
         </Text>
         <Avatar name={item.name} url={item.avatarUrl} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.name} numberOfLines={1}>
-            {item.name}{isMe ? ' (you)' : ''}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>
+              {item.name}{isMe ? ' (you)' : ''}
+            </Text>
+            <BadgeStrip badges={item.badges ?? []} currentStreak={item.currentStreak ?? 0} />
+          </View>
           <Muted style={{ fontSize: font.size.xs }}>{item.predictionsCount} picks</Muted>
         </View>
         <Badge variant={isMe ? 'default' : 'outline'}>
@@ -83,6 +86,27 @@ export const LeaderboardRow = memo(function LeaderboardRow({
     </Card>
   );
 });
+
+const BADGE_META: Record<string, string> = {
+  first_exact_score: '🎯',
+  on_a_roll:         '🔥',
+  perfect_week:      '⭐',
+  group_champion:    '🏆',
+};
+
+function BadgeStrip({ badges, currentStreak }: { badges: string[]; currentStreak: number }) {
+  if (badges.length === 0 && currentStreak < 2) return null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 1, flexShrink: 1 }}>
+      {badges.map(b => (
+        <Text key={b} style={{ fontSize: 11, lineHeight: 14 }}>{BADGE_META[b] ?? '🏅'}</Text>
+      ))}
+      {currentStreak >= 2 && (
+        <Text style={{ fontSize: 11, color: '#fb923c', fontWeight: '600' }}>🔥{currentStreak}</Text>
+      )}
+    </View>
+  );
+}
 
 const Avatar = memo(function Avatar({ name, url }: { name: string; url: string | null }) {
   const { colors } = useTheme();
@@ -158,10 +182,17 @@ function makeStyles(c: Palette) {
       borderRadius: 16,
       backgroundColor: c.accent,
     },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 1,
+    },
     name: {
       color: c.foreground,
       fontSize: font.size.sm,
       fontWeight: font.weight.semibold,
+      flexShrink: 1,
     },
     expandedBox: {
       borderTopWidth: StyleSheet.hairlineWidth,
