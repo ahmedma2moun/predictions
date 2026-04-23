@@ -14,7 +14,10 @@ export type LeaderboardEntry = {
   predictionsCount: number;
   accuracy: number;
   currentStreak: number;
+  longestStreak: number;
   badges: string[];
+  exactScoreCount: number;
+  isGroupChampion: boolean;
 };
 
 export type Group = { id: string; name: string; isDefault: boolean };
@@ -184,6 +187,10 @@ export function useLeaderboard() {
 
   const myId = (session?.user as { id?: string } | undefined)?.id;
 
+  // "Current period" = all-time, or a date range whose end is still in the future.
+  // Past periods (last week, a named month that has ended, etc.) return false.
+  const isCurrentPeriod = !dateRange || dateRange.to > new Date();
+
   return {
     period, setPeriod,
     weekOffset, setWeekOffset,
@@ -198,5 +205,6 @@ export function useLeaderboard() {
     weekLabel,
     monthLabel,
     myId,
+    isCurrentPeriod,
   };
 }

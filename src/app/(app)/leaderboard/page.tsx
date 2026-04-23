@@ -1,29 +1,72 @@
 "use client";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Award } from "lucide-react";
 
-const BADGE_META: Record<string, { icon: string; label: string }> = {
-  first_exact_score: { icon: '🎯', label: 'Exact Score' },
-  on_a_roll:         { icon: '🔥', label: 'On a Roll' },
-  perfect_week:      { icon: '⭐', label: 'Perfect Week' },
-  group_champion:    { icon: '🏆', label: 'Group Champion' },
-};
+function BadgesPopover({
+  badges,
+  exactScoreCount,
+  longestStreak,
+}: {
+  badges: string[];
+  exactScoreCount: number;
+  longestStreak: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-function BadgeStrip({ badges, currentStreak }: { badges: string[]; currentStreak: number }) {
-  if (badges.length === 0 && currentStreak < 2) return null;
+  useEffect(() => {
+    if (!open) return;
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [open]);
+
+  const hasExact   = badges.includes('first_exact_score');
+  const hasRoll    = badges.includes('on_a_roll');
+  const hasPerfect = badges.includes('perfect_week');
+
+  if (!hasExact && !hasRoll && !hasPerfect) return null;
+
   return (
-    <span className="flex items-center gap-0.5 shrink-0">
-      {badges.map(b => (
-        <span key={b} title={BADGE_META[b]?.label ?? b} className="text-sm leading-none">
-          {BADGE_META[b]?.icon ?? '🏅'}
-        </span>
-      ))}
-      {currentStreak >= 2 && (
-        <span className="text-xs text-orange-400 font-semibold tabular-nums" title={`${currentStreak} correct in a row`}>
-          🔥{currentStreak}
-        </span>
+    <div ref={ref} className="relative inline-flex items-center">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        className="text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="View badges"
+      >
+        <Award className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-30 bg-popover border rounded-lg shadow-lg p-3 min-w-[200px]">
+          <p className="text-xs font-semibold mb-1.5 text-foreground">Badges</p>
+          <div className="space-y-1.5">
+            {hasExact && (
+              <div className="flex items-center justify-between gap-4 text-xs">
+                <span>🎯 Exact Score</span>
+                <span className="text-muted-foreground tabular-nums">×{exactScoreCount}</span>
+              </div>
+            )}
+            {hasRoll && (
+              <div className="flex items-center justify-between gap-4 text-xs">
+                <span>🔥 On a Roll</span>
+                <span className="text-muted-foreground tabular-nums">longest: {longestStreak}</span>
+              </div>
+            )}
+            {hasPerfect && (
+              <div className="flex items-center justify-between gap-4 text-xs">
+                <span>⭐ Perfect Week</span>
+                <span className="text-muted-foreground">earned</span>
+              </div>
+            )}
+          </div>
+        </div>
       )}
-    </span>
+    </div>
   );
 }
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -84,6 +127,7 @@ export default function LeaderboardPage() {
     upData, toggleUser,
     weekLabel, monthLabel,
     myId,
+    isCurrentPeriod,
   } = useLeaderboard();
 
   return (
@@ -171,7 +215,16 @@ export default function LeaderboardPage() {
                           <p className="font-medium text-sm truncate">
                             {entry.name}{isMe && " (you)"}
                           </p>
-                          <BadgeStrip badges={entry.badges ?? []} currentStreak={entry.currentStreak ?? 0} />
+                          {entry.isGroupChampion && (
+                            <span title="Group Champion" className="text-sm leading-none shrink-0">🏆</span>
+                          )}
+                          {isCurrentPeriod && (
+                            <BadgesPopover
+                              badges={entry.badges ?? []}
+                              exactScoreCount={entry.exactScoreCount ?? 0}
+                              longestStreak={entry.longestStreak ?? 0}
+                            />
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground">{entry.predictionsCount} picks</p>
                       </div>

@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { GroupRepository } from '@/lib/repositories/group-repository';
 import { UserRepository } from '@/lib/repositories/user-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
@@ -22,7 +23,10 @@ export interface LeaderboardEntry {
   correctPredictions: number;
   accuracy: number;
   currentStreak: number;
-  badges: string[];
+  longestStreak: number;
+  badges: string[];           // excludes 'group_champion'
+  exactScoreCount: number;
+  isGroupChampion: boolean;
 }
 
 export async function getLeaderboard(filters: LeaderboardFilters): Promise<LeaderboardEntry[]> {
@@ -80,11 +84,43 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
 
   if (allUserIds.length === 0) return [];
 
-  const users = await UserRepository.findMany({
-    where: { id: { in: allUserIds } },
-    select: { id: true, name: true, email: true, avatarUrl: true, currentStreak: true, badges: { select: { badge: true } } },
-  });
+  const [users, exactRows] = await Promise.all([
+    UserRepository.findMany({
+      where: { id: { in: allUserIds } },
+      select: {
+        id: true, name: true, email: true, avatarUrl: true,
+        currentStreak: true, longestStreak: true,
+        badges: { select: { badge: true } },
+      },
+    }),
+    prisma.$queryRaw<Array<{ userId: number; exactCount: number }>>(
+      Prisma.sql`
+        SELECT p."userId", COUNT(*)::int AS "exactCount"
+        FROM "Prediction" p
+        JOIN "Match" m ON m.id = p."matchId"
+        WHERE m.status = 'finished'
+          AND p."userId" = ANY(${allUserIds})
+          AND p."scoringBreakdown" IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM jsonb_array_elements((p."scoringBreakdown")::jsonb->'rules') r
+            WHERE r->>'key' = 'exact_score' AND r->>'matched' = 'true'
+          )
+        GROUP BY p."userId"
+      `,
+    ),
+  ]);
   const userMap = new Map(users.map(u => [u.id, u]));
+  const exactMap = new Map(exactRows.map(r => [Number(r.userId), Number(r.exactCount)]));
+
+  const buildBadgeFields = (u: (typeof users)[number]) => {
+    const allBadges = u.badges.map(b => b.badge as string);
+    return {
+      badges: allBadges.filter(b => b !== 'group_champion'),
+      isGroupChampion: allBadges.includes('group_champion'),
+      longestStreak: u.longestStreak,
+      exactScoreCount: exactMap.get(u.id) ?? 0,
+    };
+  };
 
   const result: LeaderboardEntry[] = rows.flatMap(entry => {
     const user = userMap.get(Number(entry.userId));
@@ -102,7 +138,7 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
       correctPredictions,
       accuracy: predictionsCount > 0 && maxPoints > 0 ? Math.round((totalPoints / (maxPoints * predictionsCount)) * 100) : 0,
       currentStreak: user.currentStreak,
-      badges: user.badges.map(b => b.badge as string),
+      ...buildBadgeFields(user),
     }];
   });
 
@@ -121,21 +157,19 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
           correctPredictions: 0,
           accuracy: 0,
           currentStreak: user.currentStreak,
-          badges: user.badges.map(b => b.badge as string),
+          ...buildBadgeFields(user),
         });
       }
     }
   }
 
-  // On-the-fly group_champion: award to #1 for any group-scoped period that has ended.
-  // All-time (no `to`) is handled by the admin "Calculate All-Time Champions" action.
+  // On-the-fly group_champion: set flag for #1 of any group-scoped period that has ended.
+  // All-time persisted winners already have isGroupChampion=true from the badge flag.
   if (groupId && to) {
     const periodEnd = new Date(to);
     if (periodEnd <= new Date() && result.length > 0) {
       const champion = result[0];
-      if (champion.totalPoints > 0 && !champion.badges.includes('group_champion')) {
-        champion.badges = [...champion.badges, 'group_champion'];
-      }
+      if (champion.totalPoints > 0) champion.isGroupChampion = true;
     }
   }
 

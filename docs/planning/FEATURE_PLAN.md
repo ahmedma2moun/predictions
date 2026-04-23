@@ -144,7 +144,10 @@ Badge types and award triggers:
 - **Perfect Week** ⭐ — all predictions in a matchday correct, once matchday is fully processed (auto-awarded)
 - **Group Champion** 🏆 — awarded to the #1 user of any group-scoped leaderboard period that has ended (on the fly, no DB write). All-time winners can be persisted via an admin "Calculate All-Time Champions" button on `/admin`.
 
-Displayed on leaderboard rows (web + mobile) as emoji icons next to the user name. Active streaks ≥ 2 also show 🔥N inline.
+Display:
+- **🏆 Group Champion** — always rendered inline beside the name. Shown both for persisted all-time winners and on-the-fly past-period winners.
+- **🎯 🔥 ⭐** — hidden inline. An Award-icon button next to the user name opens a popover listing only the badges that user has earned, shown **only when viewing a current / all-time period** (past-period views hide this popover to avoid mixing time-scoped and all-time data).
+- Popover shows: `🎯 Exact Score ×N` (total count), `🔥 On a Roll — longest: M` (user's longest streak), `⭐ Perfect Week` (binary).
 
 ---
 

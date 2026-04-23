@@ -29,7 +29,10 @@ export async function GET(req: NextRequest) {
       predictionsCount: entry.predictionsCount,
       accuracy: entry.accuracy,
       currentStreak: entry.currentStreak,
+      longestStreak: entry.longestStreak,
       badges: entry.badges,
+      exactScoreCount: entry.exactScoreCount,
+      isGroupChampion: entry.isGroupChampion,
     })),
     { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' } },
   );
