@@ -108,7 +108,7 @@ export default async function MatchesPage() {
                       )}
                       {homeStanding?.form && (
                         <div className="flex gap-0.5 mt-1 justify-center">
-                          {homeStanding.form.split('').slice(-5).map((c, i) => (
+                          {homeStanding.form.split('').slice(-5).map((c: string, i: number) => (
                             <span key={i} className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold ${c === 'W' ? 'bg-green-500' : c === 'D' ? 'bg-yellow-500' : 'bg-red-500'}`}>{c}</span>
                           ))}
                         </div>
@@ -141,7 +141,7 @@ export default async function MatchesPage() {
                       )}
                       {awayStanding?.form && (
                         <div className="flex gap-0.5 mt-1 justify-center">
-                          {awayStanding.form.split('').slice(-5).map((c, i) => (
+                          {awayStanding.form.split('').slice(-5).map((c: string, i: number) => (
                             <span key={i} className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold ${c === 'W' ? 'bg-green-500' : c === 'D' ? 'bg-yellow-500' : 'bg-red-500'}`}>{c}</span>
                           ))}
                         </div>
