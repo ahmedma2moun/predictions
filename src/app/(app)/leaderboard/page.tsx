@@ -25,11 +25,10 @@ function BadgesPopover({
     return () => document.removeEventListener("mousedown", onOutside);
   }, [open]);
 
-  const hasExact   = badges.includes('first_exact_score');
-  const hasRoll    = badges.includes('on_a_roll');
-  const hasPerfect = badges.includes('perfect_week');
+  const hasExact = badges.includes('first_exact_score');
+  const hasRoll  = badges.includes('on_a_roll');
 
-  if (!hasExact && !hasRoll && !hasPerfect) return null;
+  if (!hasExact && !hasRoll) return null;
 
   return (
     <div ref={ref} className="relative inline-flex items-center">
@@ -55,12 +54,6 @@ function BadgesPopover({
               <div className="flex items-center justify-between gap-4 text-xs">
                 <span>🔥 On a Roll</span>
                 <span className="text-muted-foreground tabular-nums">longest: {longestStreak}</span>
-              </div>
-            )}
-            {hasPerfect && (
-              <div className="flex items-center justify-between gap-4 text-xs">
-                <span>⭐ Perfect Week</span>
-                <span className="text-muted-foreground">earned</span>
               </div>
             )}
           </div>
@@ -217,6 +210,9 @@ export default function LeaderboardPage() {
                           </p>
                           {entry.isGroupChampion && (
                             <span title="Group Champion" className="text-sm leading-none shrink-0">🏆</span>
+                          )}
+                          {!isCurrentPeriod && entry.badges.includes('perfect_week') && (
+                            <span title="Perfect Week" className="text-sm leading-none shrink-0">⭐</span>
                           )}
                           {isCurrentPeriod && (
                             <BadgesPopover
