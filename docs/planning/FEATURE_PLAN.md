@@ -33,12 +33,12 @@ Show a `LIVE` / `HT` / `FT` badge on match cards derived from the stored `status
 
 ---
 
-### F2 — Team Form Strip ✅ Done
+### F2 — Team Form Strip ❌ Blocked
 
 **Layers:** Web + Mobile  
 **Effort:** Low | **Impact:** High
 
-The `form` string (e.g. `"WWDLW"`) is already fetched and stored in `TeamStanding`. Render as colored W/D/L dots on match cards and the match detail page. Zero new API calls.
+The `form` field exists on `TeamStanding` but the football-data.org free tier does not return form data — the field is always null. Unblocked only if the API starts returning it or a paid tier is used.
 
 ---
 
@@ -153,7 +153,7 @@ Display on leaderboard rows and a future profile screen.
 | # | Feature | Effort | Impact | New API calls | Status |
 |---|---|---|---|---|---|
 | F3 | Venue display | Low | Low | No | ❌ Blocked (no data in free tier) |
-| F2 | Form strip | Low | High | No | ✅ Done |
+| F2 | Form strip | Low | High | No | ❌ Blocked (no data in free tier) |
 | F1b | Status badge | Low | Medium | No | ✅ Done |
 | F9 | Deadline countdown | Low | Medium | No | ✅ Done |
 | F7 | H2H summary card | Low | Medium | No | ✅ Done |

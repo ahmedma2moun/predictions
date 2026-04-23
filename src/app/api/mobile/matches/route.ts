@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
   const result = items.map(({ match, prediction, homeStanding, awayStanding }) => ({
     ...serializeMatchForMobile({ ...match, leagueName: match.league?.name ?? null }),
     prediction,
-    homeStanding: homeStanding ? { position: homeStanding.position, points: homeStanding.points, form: homeStanding.form ?? null } : null,
-    awayStanding: awayStanding ? { position: awayStanding.position, points: awayStanding.points, form: awayStanding.form ?? null } : null,
+    homeStanding: homeStanding ? { position: homeStanding.position, points: homeStanding.points } : null,
+    awayStanding: awayStanding ? { position: awayStanding.position, points: awayStanding.points } : null,
   }));
 
   return NextResponse.json(result);

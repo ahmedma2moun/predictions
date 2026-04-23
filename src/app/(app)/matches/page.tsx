@@ -106,13 +106,6 @@ export default async function MatchesPage() {
                           {ordinal(homeStanding.position)} · {homeStanding.points} pts
                         </p>
                       )}
-                      {homeStanding?.form && (
-                        <div className="flex gap-0.5 mt-1 justify-center">
-                          {homeStanding.form.split('').slice(-5).map((c: string, i: number) => (
-                            <span key={i} className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold ${c === 'W' ? 'bg-green-500' : c === 'D' ? 'bg-yellow-500' : 'bg-red-500'}`}>{c}</span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <div className="px-4 text-center">
                       {prediction ? (
@@ -138,13 +131,6 @@ export default async function MatchesPage() {
                         <p className="text-xs text-muted-foreground mt-1">
                           {ordinal(awayStanding.position)} · {awayStanding.points} pts
                         </p>
-                      )}
-                      {awayStanding?.form && (
-                        <div className="flex gap-0.5 mt-1 justify-center">
-                          {awayStanding.form.split('').slice(-5).map((c: string, i: number) => (
-                            <span key={i} className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold ${c === 'W' ? 'bg-green-500' : c === 'D' ? 'bg-yellow-500' : 'bg-red-500'}`}>{c}</span>
-                          ))}
-                        </div>
                       )}
                     </div>
                   </div>
