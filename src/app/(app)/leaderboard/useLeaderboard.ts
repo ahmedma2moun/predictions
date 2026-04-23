@@ -13,6 +13,8 @@ export type LeaderboardEntry = {
   totalPoints: number;
   predictionsCount: number;
   accuracy: number;
+  currentStreak: number;
+  badges: string[];
 };
 
 export type Group = { id: string; name: string; isDefault: boolean };

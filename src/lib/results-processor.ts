@@ -1,5 +1,6 @@
 import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
 import { LeagueService } from '@/lib/services/league-service';
+import { updateStreaksAndBadges, updateUserStreaks } from '@/lib/services/streak-badge-service';
 import { logger } from '@/lib/logger';
 import { UserRepository } from '@/lib/repositories/user-repository';
 import { fetchFixtures, mapFixtureStatus } from '@/lib/football/service';
@@ -107,6 +108,9 @@ export async function correctMatchResult(
   }
 
   await MatchRepository.update({ where: { id: matchId }, data: { scoresProcessed: true } });
+
+  const affectedUserIds = [...new Set(updated.map(p => p.userId))];
+  await updateUserStreaks(affectedUserIds);
 
   // Send correction emails
   let emailsSent = 0;
@@ -306,6 +310,8 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
         }
 
         await MatchRepository.update({ where: { id: match.id }, data: { scoresProcessed: true } });
+
+        await updateStreaksAndBadges(match.id, scoredDetails, match.matchday, match.externalLeagueId);
       }
     } catch (e) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${externalLeagueId}):`, { error: e instanceof Error ? e.message : String(e) });
@@ -339,7 +345,7 @@ export async function batchScorePredictions(
   result: { homeScore: number; awayScore: number; winner: 'home' | 'away' | 'draw' },
   rules: ScoringRule[],
   logPrefix: string
-): Promise<{ scoredCount: number; errorsCount: number; scoredDetails: Array<{ userId: number; predictionHomeScore: number; predictionAwayScore: number; pointsAwarded: number; scoringBreakdown: unknown }> }> {
+): Promise<{ scoredCount: number; errorsCount: number; scoredDetails: Array<{ userId: number; predictionHomeScore: number; predictionAwayScore: number; pointsAwarded: number; scoringBreakdown: Array<{ key: string; ruleName: string; pointsAwarded: number; matched: boolean }> }> }> {
   const scoredDetails = [];
   let scoredCount = 0;
   let errorsCount = 0;
@@ -361,7 +367,7 @@ export async function batchScorePredictions(
         predictionHomeScore: pred.homeScore,
         predictionAwayScore: pred.awayScore,
         pointsAwarded: totalPoints,
-        scoringBreakdown: breakdown.map(r => ({ ruleName: r.ruleName, pointsAwarded: r.pointsAwarded, matched: r.matched })),
+        scoringBreakdown: breakdown.map(r => ({ key: r.key, ruleName: r.ruleName, pointsAwarded: r.pointsAwarded, matched: r.matched })),
       });
     } catch (e) {
       logger.error(`[${logPrefix}] Failed to score prediction ${pred.id}:`, { error: e instanceof Error ? e.message : String(e) });

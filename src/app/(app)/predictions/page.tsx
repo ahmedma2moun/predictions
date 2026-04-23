@@ -2,31 +2,36 @@ import { auth } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { PredictionTabs, type SerializedPrediction } from "./PredictionTabs";
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { getAccuracyStats } from '@/lib/services/prediction-service';
+import { AccuracyStatsCard } from './AccuracyStatsCard';
 
 export default async function PredictionsPage() {
   const session = await auth();
   const userId = Number((session!.user as { id: string }).id);
 
-  const predictions = await PredictionRepository.findMany({
-    where: { userId },
-    include: {
-      match: {
-        select: {
-          id: true,
-          kickoffTime: true,
-          status: true,
-          homeTeamName: true,
-          awayTeamName: true,
-          resultHomeScore: true,
-          resultAwayScore: true,
-          resultPenaltyHomeScore: true,
-          resultPenaltyAwayScore: true,
+  const [predictions, accuracyStats] = await Promise.all([
+    PredictionRepository.findMany({
+      where: { userId },
+      include: {
+        match: {
+          select: {
+            id: true,
+            kickoffTime: true,
+            status: true,
+            homeTeamName: true,
+            awayTeamName: true,
+            resultHomeScore: true,
+            resultAwayScore: true,
+            resultPenaltyHomeScore: true,
+            resultPenaltyAwayScore: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+    getAccuracyStats(userId),
+  ]);
 
   const allPreds: SerializedPrediction[] = predictions.map((p) => ({
     _id: p.id.toString(),
@@ -64,6 +69,10 @@ export default async function PredictionsPage() {
           {totalPoints} pts total
         </Badge>
       </div>
+
+      {accuracyStats.totalFinished > 0 && (
+        <AccuracyStatsCard stats={accuracyStats} />
+      )}
 
       {allPreds.length === 0 ? (
         <p className="text-muted-foreground">No predictions yet. Go predict some matches!</p>

@@ -13,6 +13,13 @@ enum Role {
   user
 }
 
+enum BadgeKey {
+  first_exact_score
+  on_a_roll
+  perfect_week
+  group_champion
+}
+
 enum MatchStatus {
   scheduled
   live
@@ -28,18 +35,32 @@ enum Winner {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  name         String
-  email        String        @unique
-  password     String
-  role         Role          @default(user)
+  id                Int           @id @default(autoincrement())
+  name              String
+  email             String        @unique
+  password          String
+  role              Role          @default(user)
   avatarUrl         String?
   notificationEmail String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  predictions  Prediction[]
-  groupMembers GroupMember[]
-  deviceTokens DeviceToken[]
+  currentStreak     Int           @default(0)
+  longestStreak     Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  predictions       Prediction[]
+  groupMembers      GroupMember[]
+  deviceTokens      DeviceToken[]
+  badges            UserBadge[]
+}
+
+model UserBadge {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge    BadgeKey
+  earnedAt DateTime @default(now())
+
+  @@unique([userId, badge])
+  @@index([userId])
 }
 
 model League {

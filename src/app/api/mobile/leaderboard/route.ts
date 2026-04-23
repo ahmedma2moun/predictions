@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
       totalPoints: entry.totalPoints,
       predictionsCount: entry.predictionsCount,
       accuracy: entry.accuracy,
+      currentStreak: entry.currentStreak,
+      badges: entry.badges,
     })),
     { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' } },
   );

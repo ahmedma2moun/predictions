@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client';
 import { GroupRepository } from '@/lib/repositories/group-repository';
 import { UserRepository } from '@/lib/repositories/user-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
+import { getMaxPointsPerMatch } from '@/lib/scoring-engine';
 
 export interface LeaderboardFilters {
   leagueIds?: number[];
@@ -19,6 +21,8 @@ export interface LeaderboardEntry {
   predictionsCount: number;
   correctPredictions: number;
   accuracy: number;
+  currentStreak: number;
+  badges: string[];
 }
 
 export async function getLeaderboard(filters: LeaderboardFilters): Promise<LeaderboardEntry[]> {
@@ -26,6 +30,11 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
 
   let userIdFilter: number[] | null = null;
   let groupKickoffGte: Date | null = null;
+
+  const [activeRules] = await Promise.all([
+    ScoringRuleService.getAll({ where: { isActive: true } }),
+  ]);
+  const maxPoints = getMaxPointsPerMatch(activeRules);
 
   if (groupId) {
     const group = await GroupRepository.findUnique({
@@ -73,7 +82,7 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
 
   const users = await UserRepository.findMany({
     where: { id: { in: allUserIds } },
-    select: { id: true, name: true, email: true, avatarUrl: true },
+    select: { id: true, name: true, email: true, avatarUrl: true, currentStreak: true, badges: { select: { badge: true } } },
   });
   const userMap = new Map(users.map(u => [u.id, u]));
 
@@ -82,15 +91,18 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
     if (!user) return [];
     const predictionsCount   = Number(entry.predictionsCount);
     const correctPredictions = Number(entry.correctPredictions);
+    const totalPoints        = Number(entry.totalPoints);
     return [{
       userId: Number(entry.userId),
       name: user.name,
       email: user.email,
       avatarUrl: user.avatarUrl ?? null,
-      totalPoints: Number(entry.totalPoints),
+      totalPoints,
       predictionsCount,
       correctPredictions,
-      accuracy: predictionsCount > 0 ? Math.round((correctPredictions / predictionsCount) * 100) : 0,
+      accuracy: predictionsCount > 0 && maxPoints > 0 ? Math.round((totalPoints / (maxPoints * predictionsCount)) * 100) : 0,
+      currentStreak: user.currentStreak,
+      badges: user.badges.map(b => b.badge as string),
     }];
   });
 
@@ -108,6 +120,8 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
           predictionsCount: 0,
           correctPredictions: 0,
           accuracy: 0,
+          currentStreak: user.currentStreak,
+          badges: user.badges.map(b => b.badge as string),
         });
       }
     }

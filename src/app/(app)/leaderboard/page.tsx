@@ -1,6 +1,31 @@
 "use client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
+const BADGE_META: Record<string, { icon: string; label: string }> = {
+  first_exact_score: { icon: '🎯', label: 'Exact Score' },
+  on_a_roll:         { icon: '🔥', label: 'On a Roll' },
+  perfect_week:      { icon: '⭐', label: 'Perfect Week' },
+  group_champion:    { icon: '🏆', label: 'Group Champion' },
+};
+
+function BadgeStrip({ badges, currentStreak }: { badges: string[]; currentStreak: number }) {
+  if (badges.length === 0 && currentStreak < 2) return null;
+  return (
+    <span className="flex items-center gap-0.5 shrink-0">
+      {badges.map(b => (
+        <span key={b} title={BADGE_META[b]?.label ?? b} className="text-sm leading-none">
+          {BADGE_META[b]?.icon ?? '🏅'}
+        </span>
+      ))}
+      {currentStreak >= 2 && (
+        <span className="text-xs text-orange-400 font-semibold tabular-nums" title={`${currentStreak} correct in a row`}>
+          🔥{currentStreak}
+        </span>
+      )}
+    </span>
+  );
+}
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KickoffTime } from "@/components/KickoffTime";
@@ -142,9 +167,12 @@ export default function LeaderboardPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
-                          {entry.name}{isMe && " (you)"}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium text-sm truncate">
+                            {entry.name}{isMe && " (you)"}
+                          </p>
+                          <BadgeStrip badges={entry.badges ?? []} currentStreak={entry.currentStreak ?? 0} />
+                        </div>
                         <p className="text-xs text-muted-foreground">{entry.predictionsCount} picks</p>
                       </div>
                       <Badge variant={isMe ? "default" : "outline"} className="font-bold shrink-0">

@@ -36,6 +36,15 @@ const ruleEvaluators: Record<string, RuleEvaluator> = {
 
 const TIERED_KEYS = ['exact_score', 'score_difference', 'one_team_score'];
 
+export function getMaxPointsPerMatch(rules: ScoringRule[]): number {
+  const active = rules.filter(r => r.isActive);
+  const winnerPoints = active.find(r => r.key === 'correct_winner')?.points ?? 0;
+  const tieredMax = active
+    .filter(r => TIERED_KEYS.includes(r.key))
+    .reduce((max, r) => Math.max(max, r.points), 0);
+  return winnerPoints + tieredMax;
+}
+
 export function calculateScore(
   prediction: PredictionInput,
   result: MatchResult,

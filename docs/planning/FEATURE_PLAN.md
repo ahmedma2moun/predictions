@@ -60,7 +60,7 @@ The `form` field exists on `TeamStanding` but the football-data.org free tier do
 
 ---
 
-### F5 — Personal Accuracy Stats ❌ Not started
+### F5 — Personal Accuracy Stats ✅ Done
 
 **Layers:** Web + Mobile  
 **Effort:** Medium | **Impact:** High
@@ -131,20 +131,22 @@ Scope the leaderboard to a single matchday using the existing `matchday` field o
 
 ---
 
-### F11 — Streaks & Badges ❌ Not started
+### F11 — Streaks & Badges ✅ Done
 
 **Layers:** Web + Mobile  
 **Effort:** High | **Impact:** High
 
-Track consecutive correct predictions from existing `Prediction` data. Requires a small migration to add `currentStreak` and `longestStreak` to the `User` model. Badges are computed — no API calls.
+Track consecutive correct predictions from existing `Prediction` data. Migration added `currentStreak` and `longestStreak` to `User`, and a new `UserBadge` join table.
 
-Badge types:
-- Exact Score (first exact score prediction)
-- On a Roll (3 correct in a row)
-- Perfect Week (all predictions correct in a matchday)
-- Group Champion (finished #1 in a group leaderboard period)
+Badge types and award triggers:
+- **Exact Score** 🎯 — first prediction with `exact_score` matched (auto-awarded by results processor)
+- **On a Roll** 🔥 — streak first reaches 3 correct in a row (auto-awarded after streak update)
+- **Perfect Week** ⭐ — all predictions in a matchday correct, once matchday is fully processed (auto-awarded)
+- **Group Champion** 🏆 — schema present; not yet auto-awarded (requires period-end trigger)
 
-Display on leaderboard rows and a future profile screen.
+Displayed on leaderboard rows (web + mobile) as emoji icons next to the user name. Active streaks ≥ 2 also show 🔥N inline.
+
+> **Note:** `group_champion` badge is stored in the schema but is not auto-awarded — it requires a manual admin action or a future period-end cron.
 
 ---
 
@@ -158,10 +160,10 @@ Display on leaderboard rows and a future profile screen.
 | F9 | Deadline countdown | Low | Medium | No | ✅ Done |
 | F7 | H2H summary card | Low | Medium | No | ✅ Done |
 | F6 | Group match comparison | Medium | High | No | ✅ Done |
-| F5 | Personal accuracy stats | Medium | High | No | ❌ Not started |
+| F5 | Personal accuracy stats | Medium | High | No | ✅ Done |
 | F4 | Full standings page | Medium | Medium | No | ❌ Not started |
 | F10 | Matchday mini-league | Medium | High | No | ⚠️ Partial |
-| F11 | Streaks & badges | High | High | No | ❌ Not started |
+| F11 | Streaks & badges | High | High | No | ✅ Done |
 
 ---
 

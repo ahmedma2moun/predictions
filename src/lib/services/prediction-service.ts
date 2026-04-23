@@ -4,6 +4,8 @@ import { Prisma, Match, Prediction } from '@prisma/client';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { GroupRepository } from '@/lib/repositories/group-repository';
+import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
+import { getMaxPointsPerMatch } from '@/lib/scoring-engine';
 
 export type PredictionWithMatch = Prediction & {
   match: Match & { league: { name: string } | null };
@@ -249,4 +251,97 @@ export async function recalculateAllScores(rules: any[]) {
   });
 
   return updated;
+}
+
+export interface AccuracyStats {
+  totalPoints: number;
+  overallAccuracy: number;
+  exactScorePct: number;
+  correctWinnerPct: number;
+  bestLeagueName: string | null;
+  currentStreak: number;
+  totalFinished: number;
+}
+
+type PredForStats = {
+  pointsAwarded: number | null;
+  scoringBreakdown: unknown;
+  match: { kickoffTime: Date; externalLeagueId: number | null; league: { name: string } | null };
+};
+
+export async function getAccuracyStats(userId: number): Promise<AccuracyStats> {
+  const [raw, activeRules] = await Promise.all([
+    PredictionRepository.findMany({
+      where: { userId, match: { status: 'finished' } },
+      include: {
+        match: {
+          select: {
+            kickoffTime: true,
+            externalLeagueId: true,
+            league: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { match: { kickoffTime: 'desc' } },
+    }),
+    ScoringRuleService.getAll({ where: { isActive: true } }),
+  ]);
+
+  const preds = raw as unknown as PredForStats[];
+  const maxPts = getMaxPointsPerMatch(activeRules);
+  const totalFinished = preds.length;
+
+  if (totalFinished === 0) {
+    return { totalPoints: 0, overallAccuracy: 0, exactScorePct: 0, correctWinnerPct: 0, bestLeagueName: null, currentStreak: 0, totalFinished: 0 };
+  }
+
+  let totalPoints = 0;
+  let exactCount = 0;
+  let winnerCount = 0;
+  let sumAccuracy = 0;
+  const leagueMap = new Map<number, { name: string; pts: number; count: number }>();
+
+  type BreakdownRow = { key: string; matched: boolean };
+
+  for (const pred of preds) {
+    const pts = pred.pointsAwarded ?? 0;
+    totalPoints += pts;
+    if (maxPts > 0) sumAccuracy += pts / maxPts;
+
+    const rules = (pred.scoringBreakdown as { rules?: BreakdownRow[] } | null)?.rules ?? [];
+    if (rules.some(r => r.key === 'exact_score' && r.matched)) exactCount++;
+    if (rules.some(r => r.key === 'correct_winner' && r.matched)) winnerCount++;
+
+    const leagueId = pred.match.externalLeagueId;
+    if (leagueId !== null) {
+      const leagueName = pred.match.league?.name ?? 'Unknown';
+      const entry = leagueMap.get(leagueId) ?? { name: leagueName, pts: 0, count: 0 };
+      entry.pts += pts;
+      entry.count++;
+      leagueMap.set(leagueId, entry);
+    }
+  }
+
+  let currentStreak = 0;
+  for (const pred of preds) {
+    if ((pred.pointsAwarded ?? 0) > 0) currentStreak++;
+    else break;
+  }
+
+  let bestLeagueName: string | null = null;
+  let bestAvg = -1;
+  for (const { name, pts, count } of leagueMap.values()) {
+    const avg = pts / count;
+    if (avg > bestAvg) { bestAvg = avg; bestLeagueName = name; }
+  }
+
+  return {
+    totalPoints,
+    overallAccuracy: maxPts > 0 ? Math.round((sumAccuracy / totalFinished) * 100) : 0,
+    exactScorePct: Math.round((exactCount / totalFinished) * 100),
+    correctWinnerPct: Math.round((winnerCount / totalFinished) * 100),
+    bestLeagueName,
+    currentStreak,
+    totalFinished,
+  };
 }
