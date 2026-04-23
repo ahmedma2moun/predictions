@@ -2,7 +2,7 @@ import { auth, getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { serializeMatch } from "@/models/Match";
 import { getStandingsMap, standingKey } from "@/lib/standings";
-import { formatStage, isKnockoutStage, ordinal } from "@/lib/utils";
+import { formatStage, formatMatchStatus, isKnockoutStage, ordinal } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
@@ -66,23 +66,25 @@ export default async function MatchesPage() {
                     <div className="flex items-center gap-2">
                       <LiveLockIcon kickoffTime={match.kickoffTime} />
                       {prediction && <CheckCircle className="h-3 w-3 text-green-500" />}
-                      <Badge
-                        variant={match.status === "live" ? "destructive" : "outline"}
-                        className="text-xs"
-                      >
-                        {match.status.toUpperCase()}
-                      </Badge>
+                      {match.status !== 'scheduled' && (
+                        <Badge
+                          variant={match.status === "live" ? "destructive" : "outline"}
+                          className="text-xs"
+                        >
+                          {formatMatchStatus(match.status)}
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
                   <DeadlineCountdown kickoffTime={match.kickoffTime} />
 
                   {isKnockoutStage(serialized.stage) ? (
-                    <p className="text-xs text-center text-muted-foreground mb-2">
+                    <p className="text-xs text-center text-muted-foreground mb-1">
                       {formatStage(serialized.stage!)}{serialized.leg ? ` · Leg ${serialized.leg}` : ''}
                     </p>
                   ) : match.matchday ? (
-                    <p className="text-xs text-center text-muted-foreground mb-2">
+                    <p className="text-xs text-center text-muted-foreground mb-1">
                       Matchday {match.matchday}
                     </p>
                   ) : null}
@@ -103,6 +105,13 @@ export default async function MatchesPage() {
                         <p className="text-xs text-muted-foreground mt-1">
                           {ordinal(homeStanding.position)} · {homeStanding.points} pts
                         </p>
+                      )}
+                      {homeStanding?.form && (
+                        <div className="flex gap-0.5 mt-1 justify-center">
+                          {homeStanding.form.split('').slice(-5).map((c, i) => (
+                            <span key={i} className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold ${c === 'W' ? 'bg-green-500' : c === 'D' ? 'bg-yellow-500' : 'bg-red-500'}`}>{c}</span>
+                          ))}
+                        </div>
                       )}
                     </div>
                     <div className="px-4 text-center">
@@ -129,6 +138,13 @@ export default async function MatchesPage() {
                         <p className="text-xs text-muted-foreground mt-1">
                           {ordinal(awayStanding.position)} · {awayStanding.points} pts
                         </p>
+                      )}
+                      {awayStanding?.form && (
+                        <div className="flex gap-0.5 mt-1 justify-center">
+                          {awayStanding.form.split('').slice(-5).map((c, i) => (
+                            <span key={i} className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold ${c === 'W' ? 'bg-green-500' : c === 'D' ? 'bg-yellow-500' : 'bg-red-500'}`}>{c}</span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>

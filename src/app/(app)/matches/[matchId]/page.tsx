@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { isMatchLocked, formatStage, isKnockoutStage, ordinal } from "@/lib/utils";
+import { isMatchLocked, formatStage, formatMatchStatus, isKnockoutStage, ordinal } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
-import { ChevronLeft, Minus, Plus, Lock, MapPin, Pencil, Check, X } from "lucide-react";
+import { ChevronLeft, Minus, Plus, Lock, Pencil, Check, X } from "lucide-react";
 import { MatchH2H } from "./MatchH2H";
 import type { H2HMatch } from "./MatchH2H";
 import { MatchStandings } from "./MatchStandings";
@@ -174,7 +174,7 @@ export default function MatchPredictionPage() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">{isAdmin ? "Match Details" : "Predict Score"}</CardTitle>
             <Badge variant={match.status === "live" ? "destructive" : locked ? "secondary" : "outline"}>
-              {locked ? <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Locked</span> : match.status.toUpperCase()}
+              {locked ? <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Locked</span> : formatMatchStatus(match.status)}
             </Badge>
           </div>
           <div className="space-y-1">
@@ -186,11 +186,6 @@ export default function MatchPredictionPage() {
             ) : match.matchday ? (
               <p className="text-xs text-muted-foreground">Matchday {match.matchday}</p>
             ) : null}
-            {match.venue && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-3 w-3" />{match.venue}
-              </p>
-            )}
           </div>
         </CardHeader>
         <CardContent>

@@ -55,6 +55,16 @@ export function ordinal(n: number): string {
   return n + (s[(remainder - 20) % 10] ?? s[remainder] ?? s[0]);
 }
 
+export function formatMatchStatus(status: string): string {
+  switch (status) {
+    case 'live':      return 'LIVE';
+    case 'finished':  return 'FT';
+    case 'postponed': return 'PST';
+    case 'cancelled': return 'CANC';
+    default:          return 'Upcoming';
+  }
+}
+
 export function getFridayDate(): Date {
   const now = new Date();
   const day = now.getUTCDay(); // 0=Sun, 5=Fri

@@ -3,6 +3,14 @@
 > Based on football-data.org free tier capabilities.  
 > All features below work within the existing API contract — no tier upgrade required.
 
+## Status Key
+
+| Badge | Meaning |
+|---|---|
+| ✅ Done | Fully implemented on web + mobile |
+| ⚠️ Partial | Exists but incomplete (see notes) |
+| ❌ Not started | Not yet implemented |
+
 ## Free Tier Constraints
 
 | Constraint | Value |
@@ -16,7 +24,7 @@
 
 ## Features
 
-### F1b — Match Status Badge
+### F1b — Match Status Badge ✅ Done
 
 **Layers:** Web + Mobile  
 **Effort:** Low | **Impact:** Medium
@@ -25,7 +33,7 @@ Show a `LIVE` / `HT` / `FT` badge on match cards derived from the stored `status
 
 ---
 
-### F2 — Team Form Strip
+### F2 — Team Form Strip ✅ Done
 
 **Layers:** Web + Mobile  
 **Effort:** Low | **Impact:** High
@@ -34,16 +42,16 @@ The `form` string (e.g. `"WWDLW"`) is already fetched and stored in `TeamStandin
 
 ---
 
-### F3 — Venue Display
+### F3 — Venue Display ❌ Blocked
 
 **Layers:** Web + Mobile  
 **Effort:** Low | **Impact:** Low
 
-`venue` is already stored on the `Match` model from the existing fixture fetch. Show it on the match detail page. Zero new API calls.
+`venue` is stored on the `Match` model but the football-data.org free tier does not return venue data in its responses — the field is always null. Unblocked only if the API starts returning it or a paid tier is used.
 
 ---
 
-### F4 — Full League Standings Page
+### F4 — Full League Standings Page ❌ Not started
 
 **Layers:** Web + Mobile  
 **Effort:** Medium | **Impact:** Medium
@@ -52,7 +60,7 @@ The `form` string (e.g. `"WWDLW"`) is already fetched and stored in `TeamStandin
 
 ---
 
-### F5 — Personal Accuracy Stats
+### F5 — Personal Accuracy Stats ❌ Not started
 
 **Layers:** Web + Mobile  
 **Effort:** Medium | **Impact:** High
@@ -68,9 +76,11 @@ Stats to surface:
 
 Display as a stats card at the top of the predictions page (web) and predictions tab (mobile).
 
+> **Note:** `accuracy` is already computed in `leaderboard-service.ts` but not surfaced on the predictions page.
+
 ---
 
-### F6 — Group Match Comparison
+### F6 — Group Match Comparison ✅ Done
 
 **Layers:** Web + Mobile  
 **Effort:** Medium | **Impact:** High
@@ -86,7 +96,7 @@ Zero new API calls.
 
 ---
 
-### F7 — H2H Summary Card
+### F7 — H2H Summary Card ✅ Done
 
 **Layers:** Web + Mobile  
 **Effort:** Low | **Impact:** Medium
@@ -101,7 +111,7 @@ Pure UI + small aggregation on existing data.
 
 ---
 
-### F9 — Deadline Countdown Timer
+### F9 — Deadline Countdown Timer ✅ Done
 
 **Layers:** Web + Mobile  
 **Effort:** Low | **Impact:** Medium
@@ -110,16 +120,18 @@ Client-side countdown to `kickoffTime` on match cards. Shows "2h 15m left to pre
 
 ---
 
-### F10 — Matchday Mini-League
+### F10 — Matchday Mini-League ⚠️ Partial
 
 **Layers:** Web + Mobile  
 **Effort:** Medium | **Impact:** High
 
 Scope the leaderboard to a single matchday using the existing `matchday` field on `Match`. Adds a "This Matchday" filter tab alongside the existing week/month/all-time options. No schema changes needed.
 
+> **Status:** Week/Month/All-time filters exist. The "This Matchday" tab is not yet implemented.
+
 ---
 
-### F11 — Streaks & Badges
+### F11 — Streaks & Badges ❌ Not started
 
 **Layers:** Web + Mobile  
 **Effort:** High | **Impact:** High
@@ -138,21 +150,21 @@ Display on leaderboard rows and a future profile screen.
 
 ## Priority Matrix
 
-| # | Feature | Effort | Impact | New API calls |
-|---|---|---|---|---|
-| F3 | Venue display | Low | Low | No |
-| F2 | Form strip | Low | High | No |
-| F1b | Status badge | Low | Medium | No |
-| F9 | Deadline countdown | Low | Medium | No |
-| F7 | H2H summary card | Low | Medium | No |
-| F5 | Personal accuracy stats | Medium | High | No |
-| F4 | Full standings page | Medium | Medium | No |
-| F6 | Group match comparison | Medium | High | No |
-| F10 | Matchday mini-league | Medium | High | No |
-| F11 | Streaks & badges | High | High | No |
+| # | Feature | Effort | Impact | New API calls | Status |
+|---|---|---|---|---|---|
+| F3 | Venue display | Low | Low | No | ❌ Blocked (no data in free tier) |
+| F2 | Form strip | Low | High | No | ✅ Done |
+| F1b | Status badge | Low | Medium | No | ✅ Done |
+| F9 | Deadline countdown | Low | Medium | No | ✅ Done |
+| F7 | H2H summary card | Low | Medium | No | ✅ Done |
+| F6 | Group match comparison | Medium | High | No | ✅ Done |
+| F5 | Personal accuracy stats | Medium | High | No | ❌ Not started |
+| F4 | Full standings page | Medium | Medium | No | ❌ Not started |
+| F10 | Matchday mini-league | Medium | High | No | ⚠️ Partial |
+| F11 | Streaks & badges | High | High | No | ❌ Not started |
 
 ---
 
 ## Recommended Starting Point
 
-**F2 + F1b + F9** — three UI-only changes, both web and mobile, data already in DB, no API calls, deliverable together.
+**F5 + F4 + F10** — F5 can reuse the already-computed `accuracy` from `leaderboard-service.ts`; F4 only needs a new page over fully-populated `TeamStanding` data; F10 just adds one filter tab to the existing leaderboard.
