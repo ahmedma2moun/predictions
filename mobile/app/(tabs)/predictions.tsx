@@ -11,7 +11,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Badge, Muted } from '@/components/ui';
 import { PredictionCard } from '@/components/PredictionCard';
+import { AccuracyStatsCard } from '@/components/AccuracyStatsCard';
 import { usePredictions } from '@/hooks/usePredictions';
+import { useAccuracyStats } from '@/hooks/useAccuracyStats';
 import { computeWeekLabel, getWeekBounds } from '@/utils/leaderboard-dates';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
@@ -30,6 +32,13 @@ export default function PredictionsScreen() {
     onRefresh,
     totalPoints,
   } = usePredictions();
+
+  const { data: accuracyStats, refresh: refreshStats } = useAccuracyStats();
+
+  const handleRefresh = useCallback(() => {
+    onRefresh();
+    refreshStats();
+  }, [onRefresh, refreshStats]);
 
   const [weekOffset, setWeekOffset] = useState(0);
   const weekLabel = useMemo(() => computeWeekLabel(weekOffset), [weekOffset]);
@@ -82,7 +91,7 @@ export default function PredictionsScreen() {
       contentContainerStyle={styles.list}
       style={{ backgroundColor: colors.background }}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
       }
       ListHeaderComponent={
         <View style={styles.header}>
@@ -90,6 +99,9 @@ export default function PredictionsScreen() {
             <Text style={styles.heading}>My Score</Text>
             <Badge variant="outline">{totalPoints} pts total</Badge>
           </View>
+          {accuracyStats && accuracyStats.totalFinished > 0 && (
+            <AccuracyStatsCard stats={accuracyStats} />
+          )}
           <WeekNav
             label={weekLabel}
             onPrev={() => setWeekOffset(o => o - 1)}

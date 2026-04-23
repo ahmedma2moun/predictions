@@ -108,6 +108,8 @@ export interface LeaderboardEntry {
   totalPoints: number;
   predictionsCount: number;
   accuracy: number;
+  currentStreak: number;
+  badges: string[];
 }
 
 export interface LeaderboardGroup {
@@ -144,6 +146,16 @@ export interface GroupPredictionEntry {
   pointsAwarded: number | null;
   scoringBreakdown: ScoringRuleBreakdown[] | null;
   predicted: boolean;
+}
+
+export interface AccuracyStats {
+  totalPoints: number;
+  overallAccuracy: number;
+  exactScorePct: number;
+  correctWinnerPct: number;
+  bestLeagueName: string | null;
+  currentStreak: number;
+  totalFinished: number;
 }
 
 export interface PredictionHistoryItem {
