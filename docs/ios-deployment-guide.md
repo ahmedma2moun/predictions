@@ -12,6 +12,7 @@ This guide walks through deploying the Football Predictions iOS app to testers v
 | Expo account | [expo.dev](https://expo.dev) — same account used for Android builds |
 | Firebase project | Already exists (`1:324923947200`) — just need an iOS app added |
 | EAS CLI | `npm install -g eas-cli` |
+| macOS / Xcode | **Not required** — EAS compiles on Expo's cloud macOS workers |
 
 ---
 
@@ -34,6 +35,8 @@ Before anything else, you need a paid Apple Developer membership to sign and dis
 5. Apple sends a confirmation email within minutes; full activation can take up to 24–48 hours (usually instant).
 
 > **Organization enrollment tip:** If enrolling as an organization, obtain your company's D-U-N-S number first from [dnb.com](https://www.dnb.com/duns-number/lookup.html). Apple requires it for verification and it can take several business days.
+
+> **Common error:** If `eas credentials` returns `You have no team associated with your Apple account`, it means the paid enrollment is not yet active. Verify at [developer.apple.com/account](https://developer.apple.com/account) that a Team Name and Team ID appear on the account overview page before proceeding. Activation can take up to 24–48 hours after payment.
 
 ### 0.3 Accept the latest agreements in App Store Connect
 
@@ -97,7 +100,9 @@ Open `football-predictions/mobile/eas.json` and add a new build profile:
 
 ## Step 4 — Set Up Apple Credentials in EAS
 
-EAS manages your provisioning profile and signing certificate automatically. Run this once locally:
+EAS manages your provisioning profile and signing certificate automatically. **No Mac or Xcode needed** — this command works on Windows and Linux and communicates with Apple's servers directly over the API.
+
+Run this once locally:
 
 ```bash
 cd football-predictions/mobile
@@ -109,7 +114,7 @@ Follow the prompts to:
 - Let EAS create or import a **Distribution Certificate**
 - Let EAS create an **Ad Hoc Provisioning Profile** (for internal distribution)
 
-EAS stores these credentials securely on its servers. CI only needs `EXPO_TOKEN` — no Apple credentials in GitHub Secrets.
+EAS stores these credentials securely on its servers. After this one-time setup, CI only needs `EXPO_TOKEN` — no Apple credentials in GitHub Secrets, no Mac in the pipeline.
 
 ---
 
