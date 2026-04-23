@@ -17,7 +17,7 @@ import { useMatches } from '@/hooks/useMatches';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { MatchListItem } from '@/types/api';
-import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked, ordinal } from '@/utils/format';
+import { formatKickoff, formatMatchStatus, formatStage, isKnockoutStage, isMatchLocked, ordinal } from '@/utils/format';
 
 export default function MatchesScreen() {
   const { colors } = useTheme();
@@ -88,9 +88,11 @@ const MatchRow = memo(function MatchRow({ match, onPress }: { match: MatchListIt
             {match.prediction && (
               <Ionicons name="checkmark-circle" size={14} color={colors.success} />
             )}
-            <Badge variant={match.status === 'live' ? 'destructive' : 'outline'}>
-              {match.status.toUpperCase()}
-            </Badge>
+            {match.status !== 'scheduled' && (
+              <Badge variant={match.status === 'live' ? 'destructive' : 'outline'}>
+                {formatMatchStatus(match.status)}
+              </Badge>
+            )}
           </View>
         </View>
 

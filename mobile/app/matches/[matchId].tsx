@@ -19,7 +19,7 @@ import { TeamColumn } from '@/components/TeamColumn';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { GroupPredictionEntry, H2HMatch, LeaderboardGroup, MatchDetail } from '@/types/api';
-import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
+import { formatKickoff, formatMatchStatus, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
 
 export default function MatchPredictionScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
@@ -135,7 +135,7 @@ export default function MatchPredictionScreen() {
             variant={match.status === 'live' ? 'destructive' : locked ? 'secondary' : 'outline'}
             icon={locked ? <Ionicons name="lock-closed" size={11} color={colors.foreground} /> : undefined}
           >
-            {locked ? 'Locked' : match.status.toUpperCase()}
+            {locked ? 'Locked' : formatMatchStatus(match.status)}
           </Badge>
         </View>
         <Muted>{formatKickoff(match.kickoffTime)}</Muted>
@@ -146,12 +146,6 @@ export default function MatchPredictionScreen() {
         ) : match.matchday ? (
           <Muted style={{ fontSize: font.size.xs, marginTop: 2 }}>Matchday {match.matchday}</Muted>
         ) : null}
-        {match.venue && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-            <Ionicons name="location-outline" size={11} color={colors.mutedForeground} />
-            <Muted style={{ fontSize: font.size.xs }}>{match.venue}</Muted>
-          </View>
-        )}
 
         <View style={styles.teamsRow}>
           <TeamColumn

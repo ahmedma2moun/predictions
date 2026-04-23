@@ -61,6 +61,16 @@ export function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
+export function formatMatchStatus(status: string): string {
+  switch (status) {
+    case 'live':      return 'LIVE';
+    case 'finished':  return 'FT';
+    case 'postponed': return 'PST';
+    case 'cancelled': return 'CANC';
+    default:          return 'Upcoming';
+  }
+}
+
 export function formatH2HDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-GB', {
     day: '2-digit', month: 'short', year: '2-digit',
