@@ -2,7 +2,7 @@
   "expo": {
     "name": "Football Predictions",
     "slug": "football-predictions",
-    "version": "0.1.0",
+    "version": "0.1.3",
     "orientation": "portrait",
     "scheme": "footballpredictions",
     "userInterfaceStyle": "automatic",
