@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -56,7 +57,13 @@ export const LeaderboardRow = memo(function LeaderboardRow({
             <Text style={styles.name} numberOfLines={1}>
               {item.name}{isMe ? ' (you)' : ''}
             </Text>
-            <BadgeStrip badges={item.badges ?? []} currentStreak={item.currentStreak ?? 0} isCurrentPeriod={isCurrentPeriod} />
+            <BadgeStrip
+                badges={item.badges ?? []}
+                isGroupChampion={item.isGroupChampion ?? false}
+                exactScoreCount={item.exactScoreCount ?? 0}
+                longestStreak={item.longestStreak ?? 0}
+                isCurrentPeriod={isCurrentPeriod}
+              />
           </View>
           <Muted style={{ fontSize: font.size.xs }}>{item.predictionsCount} picks</Muted>
         </View>
@@ -88,24 +95,107 @@ export const LeaderboardRow = memo(function LeaderboardRow({
   );
 });
 
-const BADGE_META: Record<string, string> = {
-  first_exact_score: '🎯',
-  on_a_roll:         '🔥',
-  perfect_week:      '⭐',
-  group_champion:    '🏆',
-};
+function BadgesPopover({
+  badges,
+  exactScoreCount,
+  longestStreak,
+}: {
+  badges: string[];
+  exactScoreCount: number;
+  longestStreak: number;
+}) {
+  const { colors } = useTheme();
+  const [open, setOpen] = useState(false);
 
-function BadgeStrip({ badges, currentStreak, isCurrentPeriod }: { badges: string[]; currentStreak: number; isCurrentPeriod: boolean }) {
-  // perfect_week only shows in past-period views (same rule as web)
-  const visibleBadges = isCurrentPeriod ? badges.filter(b => b !== 'perfect_week') : badges;
-  if (visibleBadges.length === 0 && currentStreak < 2) return null;
+  const hasExact = badges.includes('first_exact_score');
+  const hasRoll  = badges.includes('on_a_roll');
+  if (!hasExact && !hasRoll) return null;
+
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 1, flexShrink: 1 }}>
-      {visibleBadges.map(b => (
-        <Text key={b} style={{ fontSize: 11, lineHeight: 14 }}>{BADGE_META[b] ?? '🏅'}</Text>
-      ))}
-      {currentStreak >= 2 && (
-        <Text style={{ fontSize: 11, color: '#fb923c', fontWeight: '600' }}>🔥{currentStreak}</Text>
+    <>
+      <Pressable
+        hitSlop={8}
+        onPress={() => setOpen(true)}
+        style={({ pressed }) => [
+          { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
+          pressed && { opacity: 0.6 },
+        ]}
+        accessibilityLabel="View badges"
+      >
+        <Ionicons name="medal-outline" size={14} color={colors.mutedForeground} />
+      </Pressable>
+
+      <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}
+          onPress={() => setOpen(false)}
+        >
+          <Pressable
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: radius.lg,
+              paddingVertical: spacing.md,
+              paddingHorizontal: spacing.lg,
+              minWidth: 200,
+              maxWidth: 300,
+              shadowColor: '#000',
+              shadowOpacity: 0.35,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 8 },
+              elevation: 12,
+            }}
+            onPress={e => e.stopPropagation()}
+          >
+            <Text style={{ color: colors.foreground, fontSize: font.size.sm, fontWeight: font.weight.semibold, marginBottom: spacing.sm }}>
+              Badges
+            </Text>
+            <View style={{ gap: 6 }}>
+              {hasExact && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.lg }}>
+                  <Text style={{ color: colors.foreground, fontSize: font.size.xs }}>🎯 Exact Score</Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: font.size.xs, fontVariant: ['tabular-nums'] }}>×{exactScoreCount}</Text>
+                </View>
+              )}
+              {hasRoll && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.lg }}>
+                  <Text style={{ color: colors.foreground, fontSize: font.size.xs }}>🔥 On a Roll</Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: font.size.xs }}>longest: {longestStreak}</Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+function BadgeStrip({
+  badges,
+  isGroupChampion,
+  exactScoreCount,
+  longestStreak,
+  isCurrentPeriod,
+}: {
+  badges: string[];
+  isGroupChampion: boolean;
+  exactScoreCount: number;
+  longestStreak: number;
+  isCurrentPeriod: boolean;
+}) {
+  const hasExact = badges.includes('first_exact_score');
+  const hasRoll  = badges.includes('on_a_roll');
+  const showPopover = isCurrentPeriod && (hasExact || hasRoll);
+
+  if (!isGroupChampion && !showPopover) return null;
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 1 }}>
+      {isGroupChampion && <Text style={{ fontSize: 13, lineHeight: 16 }}>🏆</Text>}
+      {showPopover && (
+        <BadgesPopover badges={badges} exactScoreCount={exactScoreCount} longestStreak={longestStreak} />
       )}
     </View>
   );
