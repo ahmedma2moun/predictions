@@ -7,7 +7,7 @@ A full-stack football match predictions app where friends predict scores and com
 - **Auth**: NextAuth.js v5 (beta.30) — JWT strategy, credentials provider
 - **DB**: PostgreSQL via Prisma 6.19.3 — `DATABASE_URL` (pooled) + `DIRECT_URL` (non-pooled)
 - **Football API**: football-data.org v4 — `FOOTBALL_API_KEY` env var, free tier has rate limits
-- **Deployment**: Vercel with cron jobs defined in `vercel.json`
+- **Deployment**: Vercel — cron config belongs in `vercel.json` (currently empty; see DEPLOYMENT_GUIDE.md)
 - **Docs**: See `docs/architecture/INDEX.md` for full architecture documentation
 
 ## Build & Run
@@ -31,14 +31,14 @@ A full-stack football match predictions app where friends predict scores and com
 - **Auth**: NextAuth JWT — `role` stored in token, propagated to session via `jwt` + `session` callbacks in `src/lib/auth.ts`
 - **Admin check**: `(session.user as any).role === 'admin'` must appear in EVERY admin API handler — layout-level checks alone are not sufficient
 - **Cron auth**: All cron handlers verify `Authorization: Bearer ${CRON_SECRET}` before any work
-- **Secrets**: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `FOOTBALL_API_KEY`, `CRON_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD` — all via `.env.local`; never hard-coded
+- **Secrets**: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `MOBILE_JWT_SECRET`, `NEXTAUTH_URL`, `FOOTBALL_API_KEY`, `CRON_SECRET`, `TRIGGER_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD` — all via `.env.local`; never hard-coded
 
 ## Architecture Quick Map
 | Path | Purpose |
 |---|---|
 | `src/app/(app)/` | All authenticated pages: dashboard, matches, predictions, leaderboard, admin/* |
 | `src/app/api/` | REST endpoints — matches, predictions, leaderboard, groups, admin/* |
-| `src/app/api/cron/` | Vercel cron: `fetch-matches` (Fri 21:59 UTC), `fetch-results` (daily 23:00 UTC) |
+| `src/app/api/cron/` | Vercel cron: `fetch-matches` (Thu 18:00 UTC), `fetch-results` (daily 23:00 UTC), `prediction-reminder` (Fri 16:00 UTC), `daily-reminder` (daily 09:00 UTC), `db-export` (daily 09:00 UTC) |
 | `src/lib/prisma.ts` | Prisma singleton — the single source of DB access |
 | `src/lib/auth.ts` | NextAuth config — providers, JWT/session callbacks |
 | `src/lib/football/service.ts` | Football external service layer — all callers import from here; delegates to provider via factory |
@@ -60,27 +60,35 @@ A full-stack football match predictions app where friends predict scores and com
 |---|---|
 | Web frontend | `src/app/` |
 | API / backend | `src/app/api/` |
-| Android mobile | `../football-predictions-android/app/src/` |
+| Mobile (React Native / Expo) | `mobile/app/` |
 
 Do NOT implement a feature in only one layer and leave the others outdated.  
-Do NOT change an API contract without updating both the web frontend and the Android app.  
-Do NOT add a screen in the Android app without the equivalent web page (and vice versa).  
+Do NOT change an API contract without updating both the web frontend and the mobile app.  
+Do NOT add a screen in the mobile app without the equivalent web page (and vice versa).  
 When a task targets only one layer, flag it and ask which other layers need updating before proceeding.
 
 ## Service Layer Pattern
 
 All DB query logic lives in `src/lib/services/`. Route handlers do **only** three things: authenticate, call a service method, and serialize the response.
 
-| Service | File | Methods |
+| Service | File | Key Methods |
 |---|---|---|
 | Matches | `src/lib/services/match-service.ts` | `getMatches()`, `getMatchById()` |
 | Predictions | `src/lib/services/prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` |
 | Leaderboard | `src/lib/services/leaderboard-service.ts` | `getLeaderboard()` |
 | Groups | `src/lib/services/group-service.ts` | `getUserGroups()` |
 | Leagues | `src/lib/services/league-service.ts` | `getActiveLeagues()` |
+| Users | `src/lib/services/user-service.ts` | `getAllUsers()`, `createUser()`, `updateUser()` |
+| Teams | `src/lib/services/team-service.ts` | `getByLeagueId()`, `syncTeamWithLeague()` |
+| Scoring Rules | `src/lib/services/scoring-rule-service.ts` | `getAll()`, `update()` |
+| Devices | `src/lib/services/device-service.ts` | FCM token CRUD |
+| Streaks & Badges | `src/lib/services/streak-badge-service.ts` | `updateStreaksAndBadges()`, `awardAllTimeGroupChampions()` |
+
+Services call **repositories** (`src/lib/repositories/`), which are thin Prisma wrappers. The call chain is always: `route handler → service → repository → Prisma`.
 
 **Rules:**
 - **Never** write Prisma queries directly in a route handler — put them in the matching service
+- **Never** call a repository from a route handler — services are the only callers of repositories
 - Both `/api/*` and `/api/mobile/*` handlers call the **same** service method; only auth and serialization differ
 - Serialization (`serializeMatch` vs `serializeMatchForMobile`) stays in the route handler, not the service
 - When adding a new endpoint, create/extend the service first, then wire both web and mobile handlers

@@ -7,15 +7,18 @@ Schema source of truth: `prisma/schema.prisma`.
 
 ```
 PostgreSQL database
-├── User            — auth + profile + notification preference
+├── User            — auth + profile + notification preference + streaks
+├── UserBadge       — gamification badges awarded to users
 ├── League          — football competitions (admin-managed)
-├── Team            — teams per league (admin-managed)
+├── Team            — teams (shared across leagues)
+├── TeamLeague      — many-to-many Team ↔ League with activation flag
 ├── Match           — fixtures (fetched from API, inserted by externalId)
 ├── Prediction      — user predictions (unique: userId+matchId)
 ├── ScoringRule     — configurable scoring rules
 ├── Group           — user groups for sub-leaderboards
 ├── GroupMember     — many-to-many User ↔ Group
-└── TeamStanding    — cached league standings from football-data.org
+├── TeamStanding    — cached league standings from football-data.org
+└── DeviceToken     — FCM push tokens for mobile notifications
 ```
 
 ## Schema Reference
@@ -30,7 +33,18 @@ PostgreSQL database
 | role | Role enum | default 'user' | 'admin' \| 'user' |
 | avatarUrl | String? | | optional profile photo URL |
 | notificationEmail | String? | | email address for notifications (may differ from login email) |
+| currentStreak | Int | default 0 | consecutive scoring predictions (updated by streak-badge-service) |
+| longestStreak | Int | default 0 | all-time best scoring streak |
 | createdAt / updatedAt | DateTime | | auto-managed |
+
+### `UserBadge`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| userId | Int | FK → User (cascade delete) | |
+| badge | BadgeKey enum | | which badge was earned |
+| earnedAt | DateTime | default now() | |
+| | | **@@unique([userId, badge])** | a user earns each badge at most once |
 
 ### `League`
 | Field | Type | Constraint | Notes |
@@ -50,9 +64,20 @@ PostgreSQL database
 | externalId | Int | unique | football-data.org team ID |
 | name | String | | |
 | logo | String? | | crest URL |
+| createdAt / updatedAt | DateTime | | auto-managed |
+
+Teams are shared across leagues via the `TeamLeague` join table (a team can play in multiple competitions).
+
+### `TeamLeague`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| teamId | Int | FK → Team (cascade delete) | |
 | leagueId | Int | FK → League (cascade delete) | |
 | externalLeagueId | Int | | denormalized for query perf |
-| isActive | Boolean | default true | admin toggles |
+| isActive | Boolean | default true | admin toggles team visibility per league |
+| createdAt / updatedAt | DateTime | | auto-managed |
+| | | **@@unique([teamId, leagueId])** | |
 
 ### `Match`
 | Field | Type | Constraint | Notes |
@@ -73,8 +98,10 @@ PostgreSQL database
 | stage | String? | | e.g. "GROUP_STAGE", "QUARTER_FINALS" |
 | leg | Int? | | leg number for two-legged ties |
 | venue | String? | | stadium name |
-| resultHomeScore | Int? | | set when finished |
-| resultAwayScore | Int? | | set when finished |
+| resultHomeScore | Int? | | set when finished (regular time) |
+| resultAwayScore | Int? | | set when finished (regular time) |
+| resultPenaltyHomeScore | Int? | | set for matches decided by penalties |
+| resultPenaltyAwayScore | Int? | | set for matches decided by penalties |
 | resultWinner | Winner? | | home/away/draw |
 | scoresProcessed | Boolean | default false | true after predictions scored |
 | weekStart | DateTime | | Thursday UTC of fetch week |
@@ -133,6 +160,46 @@ PostgreSQL database
 | form | String? | | e.g. "WDWLW" |
 | updatedAt | DateTime | auto | used for 2-hour cache TTL check |
 | | | **@@unique([externalTeamId, externalLeagueId])** | |
+
+### `DeviceToken`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| userId | Int | FK → User (cascade delete) | |
+| token | String | unique | FCM registration token |
+| platform | String | default 'android' | device platform |
+| createdAt / updatedAt | DateTime | | auto-managed |
+| | | **@@index([userId])** | |
+
+## Enums
+
+| Enum | Values |
+|---|---|
+| `Role` | `admin`, `user` |
+| `BadgeKey` | `first_exact_score`, `on_a_roll`, `perfect_week`, `group_champion` |
+| `MatchStatus` | `scheduled`, `live`, `finished`, `postponed`, `cancelled` |
+| `Winner` | `home`, `away`, `draw` |
+
+## Repository Layer
+
+`src/lib/repositories/` provides thin Prisma wrappers used by the service layer. Each repository corresponds to one Prisma model and exposes standard CRUD methods (`findMany`, `findUnique`, `create`, `update`, `delete`, `upsert`).
+
+| Repository | Model |
+|---|---|
+| `match-repository.ts` | Match |
+| `prediction-repository.ts` | Prediction |
+| `league-repository.ts` | League |
+| `team-repository.ts` | Team |
+| `team-league-repository.ts` | TeamLeague |
+| `group-repository.ts` | Group |
+| `group-member-repository.ts` | GroupMember |
+| `user-repository.ts` | User |
+| `device-repository.ts` | DeviceToken |
+| `scoring-rule-repository.ts` | ScoringRule |
+| `team-standing-repository.ts` | TeamStanding |
+| `system-repository.ts` | Cross-model utilities (e.g. raw SQL helpers) |
+
+Route handlers and higher-level lib files should **not** import repositories directly — they use services, which call repositories.
 
 ## Default Scoring Rules
 

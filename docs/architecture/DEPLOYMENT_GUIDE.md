@@ -92,6 +92,8 @@ Creates: `admin@predictions.app` / `changeme123` + General group + 4 default sco
 
 ## Cron Jobs (`vercel.json`)
 
+> **Note**: The project's `vercel.json` is currently empty (`{}`). To activate Vercel-managed crons, add the `crons` block below. Vercel Hobby allows 2 crons; Pro allows unlimited. Alternatively, use [cron-job.org](#external-cron-provider-cron-joborg) to supplement or replace Vercel crons.
+
 ```json
 {
   "crons": [

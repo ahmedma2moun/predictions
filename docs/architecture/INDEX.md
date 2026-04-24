@@ -8,12 +8,13 @@
 │  ┌──────────────┐  ┌─────────────────────┐  ┌───────────────────┐  │
 │  │  Next.js     │  │    API Routes        │  │    Cron Jobs      │  │
 │  │  App Router  │─▶│  /api/*              │  │  /api/cron/*      │  │
-│  │  (web)       │  │  /api/mobile/*       │  │  /api/jobs/*      │  │
+│  │  (web)       │  │  /api/mobile/*       │  │  (5 scheduled)    │  │
 │  └──────────────┘  └──────────┬──────────┘  └──────┬────────────┘  │
 │                               │                     │               │
 │            ┌──────────────────▼─────────────────────▼────────────┐ │
-│            │              lib/services/                            │ │
+│            │     lib/services/ (10) → lib/repositories/ (12)       │ │
 │            │  match · prediction · leaderboard · group · league   │ │
+│            │  user · team · scoring-rule · device · streak-badge  │ │
 │            └────────────────────────┬─────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────┘
                                       │
@@ -59,8 +60,9 @@ Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → Postgr
 | Scoring tiers | Exclusive (exact > diff > one_team) | Prevents double-counting overlapping rules |
 | Email | Nodemailer + Gmail | Zero-cost transactional emails for a small group |
 | DB backup | Daily JSON export via cron | Guards against accidental data loss |
-| API architecture | Service layer (`lib/services/`) | Web and mobile routes share one query implementation; only auth and serialization differ |
+| API architecture | Service layer (`lib/services/`) → repository layer (`lib/repositories/`) | Web and mobile routes share one query implementation; only auth and serialization differ |
 | Mobile auth | JWT Bearer (separate from NextAuth) | Mobile can't use httpOnly cookies; `getMobileSession()` verifies a signed JWT from `SecureStore` |
+| Gamification | Streaks + badges (`streak-badge-service.ts`) | Scoring predictions builds current/longest streak; badges (first_exact_score, on_a_roll, group_champion) awarded automatically |
 
 ## Reading Order by Role
 

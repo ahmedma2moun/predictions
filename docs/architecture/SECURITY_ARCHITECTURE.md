@@ -54,10 +54,13 @@ HttpOnly cookie set (secure in production)
 | /login | ✓ | ✓ | ✓ |
 | /dashboard, /matches, /predictions, /leaderboard | ✗ | ✓ | ✓ |
 | /admin/* | ✗ | ✗ | ✓ |
-| GET /api/matches, /api/predictions, /api/leaderboard, /api/groups | ✗ | ✓ | ✓ |
+| GET /api/matches, /api/predictions, /api/leaderboard, /api/groups, /api/leagues | ✗ | ✓ | ✓ |
 | POST /api/predictions | ✗ | ✓ | ✓ |
 | /api/admin/* | ✗ | ✗ | ✓ |
-| /api/cron/* | ✗ | ✗ | Bearer token only |
+| /api/cron/* | ✗ | ✗ | Bearer `CRON_SECRET` or `TRIGGER_SECRET` |
+| /api/health | ✓ | ✓ | ✓ |
+| POST /api/mobile/auth/login | ✓ | ✓ | ✓ |
+| /api/mobile/* (all other) | ✗ | JWT Bearer | JWT Bearer |
 
 ## Secrets Architecture
 
@@ -69,7 +72,8 @@ HttpOnly cookie set (secure in production)
 | MOBILE_JWT_SECRET | Mobile API JWT signing key (falls back to NEXTAUTH_SECRET) | .env.local / Vercel env |
 | NEXTAUTH_URL | Canonical app URL | .env.local / Vercel env |
 | FOOTBALL_API_KEY | football-data.org v4 API key | .env.local / Vercel env |
-| CRON_SECRET | Bearer token for cron endpoint auth | .env.local / Vercel env |
+| CRON_SECRET | Bearer token for cron endpoint auth (Vercel + manual) | .env.local / Vercel env |
+| TRIGGER_SECRET | Bearer token for cron-job.org to call `/api/cron/fetch-results` | .env.local / Vercel env |
 | GMAIL_USER | Gmail sender address | .env.local / Vercel env |
 | GMAIL_APP_PASSWORD | Gmail App Password (not account password) | .env.local / Vercel env |
 

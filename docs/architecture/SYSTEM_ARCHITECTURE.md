@@ -38,14 +38,26 @@ src/
 │   │   │   ├── scoring-rules/  # GET + PATCH rules
 │   │   │   ├── recalculate/    # POST recalculate all scores
 │   │   │   ├── teams/      # Sync + activate teams
-│   │   │   ├── test-email/ # POST send test email to self
-│   │   │   └── users/      # CRUD users
-│   │   │   ├── cron/
+│   │   │   ├── test-email/     # POST send test email to self
+│   │   │   ├── test-notification/ # POST send push notification to users/all
+│   │   │   ├── notifications/devices/ # GET list FCM tokens for a user
+│   │   │   ├── calculate-champions/   # POST award group_champion badges
+│   │   │   └── users/          # CRUD users
+│   │   ├── cron/
 │   │   │   ├── fetch-matches     # Thu 18:00 UTC — fetch upcoming fixtures
 │   │   │   ├── fetch-results     # Daily 23:00 UTC — safety-net result pass
 │   │   │   ├── prediction-reminder # Fri 16:00 UTC — remind unpredicted users
 │   │   │   ├── daily-reminder    # Daily 09:00 UTC — remind for today's matches
 │   │   │   └── db-export         # Daily 09:00 UTC — JSON backup via email
+│   │   ├── mobile/           # Parallel route tree with JWT Bearer auth
+│   │   │   ├── auth/login/   # POST credential login → signed JWT
+│   │   │   ├── matches/      # GET list; [matchId]/ GET detail, group-predictions, h2h, predictions
+│   │   │   ├── predictions/  # GET history, POST submit; stats/ GET stats
+│   │   │   ├── leaderboard/  # GET ranked; user-predictions/ GET other users' picks
+│   │   │   ├── groups/       # GET user's groups
+│   │   │   ├── leagues/      # GET active leagues
+│   │   │   ├── devices/      # POST/DELETE FCM token registration
+│   │   │   └── profile/      # GET user profile
 │   ├── login/              # Public login page
 │   └── layout.tsx          # Root layout (dark mode, Inter font, Toaster)
 ├── lib/
@@ -58,7 +70,8 @@ src/
 │   │   ├── factory.ts      # Provider factory (reads FOOTBALL_PROVIDER env var)
 │   │   ├── types.ts        # Normalized types + IFootballProvider interface + mapFixtureStatus
 │   │   └── providers/
-│   │       └── football-data.ts  # football-data.org v4 implementation
+│   │       ├── football-data.ts  # football-data.org v4 implementation (default)
+│   │       └── api-football.ts   # API-Football (RapidAPI) alternative — activate via FOOTBALL_PROVIDER=api-football
 │   ├── scoring-engine.ts   # calculateScore() — only place scoring logic lives
 │   ├── utils.ts            # formatKickoff(), isMatchLocked(), getWinner()
 │   ├── leaderboard.ts      # Leaderboard aggregation logic
@@ -68,11 +81,22 @@ src/
 │   ├── client-api.ts       # Typed fetch helpers for client components
 │   ├── email.ts            # Nodemailer (Gmail) — new-matches, results, reminders
 │   ├── services/           # Service layer — all DB query logic lives here
-│   │   ├── match-service.ts      # getMatches(), getMatchById()
-│   │   ├── prediction-service.ts # getUserPredictions(), upsertPrediction(), getUserPredictionHistory()
-│   │   ├── leaderboard-service.ts # getLeaderboard()
-│   │   ├── group-service.ts      # getUserGroups()
-│   │   └── league-service.ts     # getActiveLeagues()
+│   │   ├── match-service.ts        # getMatches(), getMatchById()
+│   │   ├── prediction-service.ts   # getUserPredictions(), upsertPrediction(), getUserPredictionHistory()
+│   │   ├── leaderboard-service.ts  # getLeaderboard()
+│   │   ├── group-service.ts        # getUserGroups()
+│   │   ├── league-service.ts       # getActiveLeagues()
+│   │   ├── user-service.ts         # getAllUsers(), createUser(), updateUser(), checkEmailExists()
+│   │   ├── team-service.ts         # getByLeagueId(), syncTeamWithLeague(), deleteOrphansForLeague()
+│   │   ├── scoring-rule-service.ts # getAll(), update() — scoring rule CRUD
+│   │   ├── device-service.ts       # FCM token CRUD (getAll, create, upsert, remove, removeMany)
+│   │   └── streak-badge-service.ts # updateStreaksAndBadges(), awardAllTimeGroupChampions()
+│   ├── repositories/       # Thin Prisma wrappers — called by services, not route handlers
+│   │   ├── match-repository.ts, prediction-repository.ts, league-repository.ts
+│   │   ├── team-repository.ts, team-league-repository.ts, group-repository.ts
+│   │   ├── group-member-repository.ts, user-repository.ts, device-repository.ts
+│   │   ├── scoring-rule-repository.ts, team-standing-repository.ts
+│   │   └── system-repository.ts   # Cross-model raw SQL helpers
 │   └── export/
 │       ├── config.ts       # Export output dir + Gmail recipients
 │       ├── job.ts          # runExportJob() — serialize → gzip → email
@@ -121,15 +145,22 @@ All DB query logic lives in `src/lib/services/`. Route handlers (both `/api/*` a
 
 **Service catalogue:**
 
-| Service | Methods | Used by |
+| Service | Key Methods | Used by |
 |---|---|---|
-| `match-service.ts` | `getMatches()`, `getMatchById()` | `/api/matches`, `/api/mobile/matches` and detail routes |
-| `prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` | `/api/predictions`, `/api/mobile/predictions`, leaderboard user-predictions |
+| `match-service.ts` | `getMatches()`, `getMatchById()` | `/api/matches`, `/api/mobile/matches` |
+| `prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` | `/api/predictions`, `/api/mobile/predictions`, leaderboard routes |
 | `leaderboard-service.ts` | `getLeaderboard()` | `/api/leaderboard`, `/api/mobile/leaderboard` |
 | `group-service.ts` | `getUserGroups()` | `/api/groups`, `/api/mobile/groups` |
 | `league-service.ts` | `getActiveLeagues()` | `/api/leagues`, `/api/mobile/leagues` |
+| `user-service.ts` | `getAllUsers()`, `createUser()`, `updateUser()`, `checkEmailExists()` | `/api/admin/users`, auth |
+| `team-service.ts` | `getByLeagueId()`, `syncTeamWithLeague()`, `deleteOrphansForLeague()`, `getActiveTeamsByLeagueMap()` | `/api/admin/teams`, fixture processor |
+| `scoring-rule-service.ts` | `getAll()`, `update()` | `/api/admin/scoring-rules` |
+| `device-service.ts` | `getAll()`, `create()`, `upsert()`, `remove()`, `removeMany()` | `/api/mobile/devices`, `/api/admin/notifications/devices`, push notifications |
+| `streak-badge-service.ts` | `updateStreaksAndBadges()`, `awardAllTimeGroupChampions()` | `results-processor.ts`, `/api/admin/calculate-champions` |
 
 Services return neutral data (raw Prisma models + derived fields). Serialization is always the route handler's responsibility.
+
+Services call repositories (`src/lib/repositories/`), not Prisma directly. Route handlers call services, never repositories.
 
 ## Mobile API Layer
 
@@ -284,6 +315,10 @@ fetch-matches cron runs
 ### ADR-7: notificationEmail separate from login email
 **Decision**: Users have an optional `notificationEmail` field distinct from `email`.
 **Rationale**: Some users log in with a work email but prefer notifications to a personal address. Decoupling the two avoids forcing users to change their login credential.
+
+### ADR-8: Repository layer between services and Prisma
+**Decision**: Introduce `src/lib/repositories/` as thin wrappers around Prisma CRUD operations. Services call repositories; route handlers call services.
+**Rationale**: Keeps query construction (where/select/include) out of service business logic, making each layer independently testable and swappable.
 
 ### ADR-9: Service layer between route handlers and the database
 **Decision**: All Prisma queries live in `src/lib/services/`. Route handlers do only: authenticate → call service → serialize.
