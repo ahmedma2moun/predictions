@@ -1,9 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Award } from "lucide-react";
+
+type AnchorPos = { x: number; top?: number; bottom?: number };
 
 function BadgesPopover({
   badges,
@@ -15,29 +17,44 @@ function BadgesPopover({
   longestStreak: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<AnchorPos | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const hasExact = badges.includes('first_exact_score');
   const hasRoll  = badges.includes('on_a_roll');
 
   if (!hasExact && !hasRoll) return null;
 
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect();
+      const x = Math.max(108, Math.min(r.left + r.width / 2, window.innerWidth - 108));
+      setAnchor(r.top > 160
+        ? { x, bottom: window.innerHeight - r.top + 8 }
+        : { x, top: r.bottom + 8 },
+      );
+    }
+    setOpen(v => !v);
+  }
+
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        onClick={handleClick}
         className="text-muted-foreground hover:text-foreground transition-colors"
         aria-label="View badges"
       >
         <Award className="h-3.5 w-3.5" />
       </button>
-      {open && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onMouseDown={() => setOpen(false)}
-        >
+      {open && anchor && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onMouseDown={() => setOpen(false)} />
           <div
-            className="bg-popover border rounded-lg shadow-lg p-3 min-w-[200px]"
+            className="fixed z-50 bg-popover border rounded-lg shadow-lg p-3 min-w-[200px]"
+            style={{ left: anchor.x, transform: 'translateX(-50%)', top: anchor.top, bottom: anchor.bottom }}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <p className="text-xs font-semibold mb-1.5 text-foreground">Badges</p>
@@ -56,7 +73,7 @@ function BadgesPopover({
               )}
             </div>
           </div>
-        </div>,
+        </>,
         document.body,
       )}
     </>
@@ -211,10 +228,7 @@ export default function LeaderboardPage() {
                           {entry.isGroupChampion && (
                             <span title="Group Champion" className="text-sm leading-none shrink-0">🏆</span>
                           )}
-                          {!isCurrentPeriod && entry.badges.includes('perfect_week') && (
-                            <span title="Perfect Week" className="text-sm leading-none shrink-0">⭐</span>
-                          )}
-                          {isCurrentPeriod && (
+{isCurrentPeriod && (
                             <BadgesPopover
                               badges={entry.badges ?? []}
                               exactScoreCount={entry.exactScoreCount ?? 0}
