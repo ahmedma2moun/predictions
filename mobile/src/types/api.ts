@@ -109,7 +109,10 @@ export interface LeaderboardEntry {
   predictionsCount: number;
   accuracy: number;
   currentStreak: number;
+  longestStreak: number;
   badges: string[];
+  exactScoreCount: number;
+  isGroupChampion: boolean;
 }
 
 export interface LeaderboardGroup {
@@ -154,6 +157,7 @@ export interface AccuracyStats {
   exactScorePct: number;
   correctWinnerPct: number;
   bestLeagueName: string | null;
+  bestLeagueLogo: string | null;
   currentStreak: number;
   totalFinished: number;
 }

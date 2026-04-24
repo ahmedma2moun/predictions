@@ -259,6 +259,7 @@ export interface AccuracyStats {
   exactScorePct: number;
   correctWinnerPct: number;
   bestLeagueName: string | null;
+  bestLeagueLogo: string | null;
   currentStreak: number;
   totalFinished: number;
 }
@@ -266,7 +267,7 @@ export interface AccuracyStats {
 type PredForStats = {
   pointsAwarded: number | null;
   scoringBreakdown: unknown;
-  match: { kickoffTime: Date; externalLeagueId: number | null; league: { name: string } | null };
+  match: { kickoffTime: Date; externalLeagueId: number | null; league: { name: string; logo: string | null } | null };
 };
 
 export async function getAccuracyStats(userId: number): Promise<AccuracyStats> {
@@ -278,7 +279,7 @@ export async function getAccuracyStats(userId: number): Promise<AccuracyStats> {
           select: {
             kickoffTime: true,
             externalLeagueId: true,
-            league: { select: { name: true } },
+            league: { select: { name: true, logo: true } },
           },
         },
       },
@@ -292,14 +293,14 @@ export async function getAccuracyStats(userId: number): Promise<AccuracyStats> {
   const totalFinished = preds.length;
 
   if (totalFinished === 0) {
-    return { totalPoints: 0, overallAccuracy: 0, exactScorePct: 0, correctWinnerPct: 0, bestLeagueName: null, currentStreak: 0, totalFinished: 0 };
+    return { totalPoints: 0, overallAccuracy: 0, exactScorePct: 0, correctWinnerPct: 0, bestLeagueName: null, bestLeagueLogo: null, currentStreak: 0, totalFinished: 0 };
   }
 
   let totalPoints = 0;
   let exactCount = 0;
   let winnerCount = 0;
   let sumAccuracy = 0;
-  const leagueMap = new Map<number, { name: string; pts: number; count: number }>();
+  const leagueMap = new Map<number, { name: string; logo: string | null; pts: number; count: number }>();
 
   type BreakdownRow = { key: string; matched: boolean };
 
@@ -315,7 +316,8 @@ export async function getAccuracyStats(userId: number): Promise<AccuracyStats> {
     const leagueId = pred.match.externalLeagueId;
     if (leagueId !== null) {
       const leagueName = pred.match.league?.name ?? 'Unknown';
-      const entry = leagueMap.get(leagueId) ?? { name: leagueName, pts: 0, count: 0 };
+      const leagueLogo = pred.match.league?.logo ?? null;
+      const entry = leagueMap.get(leagueId) ?? { name: leagueName, logo: leagueLogo, pts: 0, count: 0 };
       entry.pts += pts;
       entry.count++;
       leagueMap.set(leagueId, entry);
@@ -329,10 +331,11 @@ export async function getAccuracyStats(userId: number): Promise<AccuracyStats> {
   }
 
   let bestLeagueName: string | null = null;
+  let bestLeagueLogo: string | null = null;
   let bestAvg = -1;
-  for (const { name, pts, count } of leagueMap.values()) {
+  for (const { name, logo, pts, count } of leagueMap.values()) {
     const avg = pts / count;
-    if (avg > bestAvg) { bestAvg = avg; bestLeagueName = name; }
+    if (avg > bestAvg) { bestAvg = avg; bestLeagueName = name; bestLeagueLogo = logo; }
   }
 
   return {
@@ -341,6 +344,7 @@ export async function getAccuracyStats(userId: number): Promise<AccuracyStats> {
     exactScorePct: Math.round((exactCount / totalFinished) * 100),
     correctWinnerPct: Math.round((winnerCount / totalFinished) * 100),
     bestLeagueName,
+    bestLeagueLogo,
     currentStreak,
     totalFinished,
   };
