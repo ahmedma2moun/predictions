@@ -84,39 +84,45 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* Bottom nav — mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 bg-card border-t border-border flex items-center">
-        {navItems.filter(item => !(isAdmin && item.adminHidden)).map(item => (
-          <Link
-            key={item.href}
-            href={item.href}
-            prefetch={false}
-            className={cn(
-              "flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
-              pathname.startsWith(item.href)
-                ? "text-primary"
-                : "text-muted-foreground"
-            )}
-          >
-            <item.icon className="h-5 w-5" />
-            {item.label}
-          </Link>
-        ))}
-        {isAdmin && (
-          <Link
-            href="/admin"
-            prefetch={false}
-            className={cn(
-              "flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
-              pathname.startsWith("/admin")
-                ? "text-primary"
-                : "text-muted-foreground"
-            )}
-          >
-            <Settings className="h-5 w-5" />
-            Admin
-          </Link>
-        )}
+      {/* Bottom nav — mobile
+          The outer nav has no fixed height so it can grow to fill the
+          iOS/Android safe-area inset below the home indicator.
+          bg-card extends through that inset, eliminating the floating gap.
+          The inner div is the fixed 64 px tap-target strip.        */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-[env(safe-area-inset-bottom,0px)]">
+        <div className="h-16 flex items-center">
+          {navItems.filter(item => !(isAdmin && item.adminHidden)).map(item => (
+            <Link
+              key={item.href}
+              href={item.href}
+              prefetch={false}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
+                pathname.startsWith(item.href)
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.label}
+            </Link>
+          ))}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              prefetch={false}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs transition-colors",
+                pathname.startsWith("/admin")
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              )}
+            >
+              <Settings className="h-5 w-5" />
+              Admin
+            </Link>
+          )}
+        </div>
       </nav>
     </>
   );
