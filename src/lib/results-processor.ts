@@ -311,7 +311,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
 
         await MatchRepository.update({ where: { id: match.id }, data: { scoresProcessed: true } });
 
-        await updateStreaksAndBadges(match.id, scoredDetails, match.matchday, match.externalLeagueId);
+        await updateStreaksAndBadges(scoredDetails);
       }
     } catch (e) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${externalLeagueId}):`, { error: e instanceof Error ? e.message : String(e) });
