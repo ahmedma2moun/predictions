@@ -1,5 +1,6 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Award } from "lucide-react";
@@ -14,16 +15,6 @@ function BadgesPopover({
   longestStreak: number;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
-  }, [open]);
 
   const hasExact = badges.includes('first_exact_score');
   const hasRoll  = badges.includes('on_a_roll');
@@ -31,7 +22,7 @@ function BadgesPopover({
   if (!hasExact && !hasRoll) return null;
 
   return (
-    <div ref={ref} className="relative inline-flex items-center">
+    <>
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
@@ -40,26 +31,35 @@ function BadgesPopover({
       >
         <Award className="h-3.5 w-3.5" />
       </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 z-30 bg-popover border rounded-lg shadow-lg p-3 min-w-[200px]">
-          <p className="text-xs font-semibold mb-1.5 text-foreground">Badges</p>
-          <div className="space-y-1.5">
-            {hasExact && (
-              <div className="flex items-center justify-between gap-4 text-xs">
-                <span>🎯 Exact Score</span>
-                <span className="text-muted-foreground tabular-nums">×{exactScoreCount}</span>
-              </div>
-            )}
-            {hasRoll && (
-              <div className="flex items-center justify-between gap-4 text-xs">
-                <span>🔥 On a Roll</span>
-                <span className="text-muted-foreground tabular-nums">longest: {longestStreak}</span>
-              </div>
-            )}
+      {open && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onMouseDown={() => setOpen(false)}
+        >
+          <div
+            className="bg-popover border rounded-lg shadow-lg p-3 min-w-[200px]"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <p className="text-xs font-semibold mb-1.5 text-foreground">Badges</p>
+            <div className="space-y-1.5">
+              {hasExact && (
+                <div className="flex items-center justify-between gap-4 text-xs">
+                  <span>🎯 Exact Score</span>
+                  <span className="text-muted-foreground tabular-nums">×{exactScoreCount}</span>
+                </div>
+              )}
+              {hasRoll && (
+                <div className="flex items-center justify-between gap-4 text-xs">
+                  <span>🔥 On a Roll</span>
+                  <span className="text-muted-foreground tabular-nums">longest: {longestStreak}</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

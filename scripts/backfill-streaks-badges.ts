@@ -86,15 +86,18 @@ async function main() {
     });
 
     const userAllCorrect = new Map<number, boolean>();
+    const userPredCount = new Map<number, number>();
     for (const p of preds) {
       const correct = (p.pointsAwarded ?? 0) > 0;
+      userPredCount.set(p.userId, (userPredCount.get(p.userId) ?? 0) + 1);
       const prev = userAllCorrect.get(p.userId);
       if (prev === undefined) userAllCorrect.set(p.userId, correct);
       else if (!correct) userAllCorrect.set(p.userId, false);
     }
 
     for (const [userId, allCorrect] of userAllCorrect) {
-      if (allCorrect) {
+      // Must have predicted every playable match AND got them all right
+      if (allCorrect && (userPredCount.get(userId) ?? 0) === matchIds.length) {
         await awardBadge(userId, BadgeKey.perfect_week);
         perfectAwards++;
       }

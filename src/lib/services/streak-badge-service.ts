@@ -119,7 +119,8 @@ async function checkPerfectWeekBadge(
       where: { userId, matchId: { in: matchIds } },
       select: { pointsAwarded: true },
     });
-    if (preds.length === 0) continue;
+    // Must have predicted every playable match AND got them all right
+    if (preds.length !== matchIds.length) continue;
     if (preds.every(p => (p.pointsAwarded ?? 0) > 0)) {
       await awardBadgeIfNew(userId, BadgeKey.perfect_week);
     }
