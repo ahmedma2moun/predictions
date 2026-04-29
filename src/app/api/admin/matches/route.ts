@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { serializeMatch } from '@/models/Match';
 import { processMatchResults } from '@/lib/results-processor';
-import { fetchAndInsertMatches } from '@/lib/matches-processor';
-import { format, addDays } from 'date-fns';
+import { fetchAndInsertMatches, sendNewMatchNotifications } from '@/lib/matches-processor';
+import { format, addDays, startOfISOWeek } from 'date-fns';
 import { safeParseBody } from '@/lib/request';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 
@@ -30,6 +30,40 @@ export async function POST(req: NextRequest) {
   const body = await safeParseBody<any>(req);
   if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   const { action, leagueId } = body;
+
+  // ── Create a custom (non-external) match ───────────────────────────────────
+  if (action === 'create-custom') {
+    const { homeTeamName, awayTeamName, kickoffTime } = body;
+    if (!homeTeamName?.trim() || !awayTeamName?.trim() || !kickoffTime) {
+      return NextResponse.json({ error: 'homeTeamName, awayTeamName and kickoffTime are required' }, { status: 400 });
+    }
+    const kickoff = new Date(kickoffTime);
+    if (isNaN(kickoff.getTime())) {
+      return NextResponse.json({ error: 'Invalid kickoffTime' }, { status: 400 });
+    }
+    const weekStart = startOfISOWeek(kickoff);
+    weekStart.setUTCHours(0, 0, 0, 0);
+
+    const match = await MatchRepository.create({
+      data: {
+        externalId: null,
+        externalLeagueId: 0,
+        homeTeamExtId: 0,
+        homeTeamName: homeTeamName.trim(),
+        awayTeamExtId: 0,
+        awayTeamName: awayTeamName.trim(),
+        kickoffTime: kickoff,
+        weekStart,
+        status: 'scheduled',
+        scoresProcessed: false,
+      },
+    });
+
+    // Notify users about the new custom match
+    await sendNewMatchNotifications(weekStart, 1, 'admin/create-custom');
+
+    return NextResponse.json({ match: serializeMatch(match) }, { status: 201 });
+  }
 
   // ── Fetch results for past matches without results ─────────────────────────
   if (action === 'fetch-results') {

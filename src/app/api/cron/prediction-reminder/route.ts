@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
       homeTeamName: m.homeTeamName,
       awayTeamName: m.awayTeamName,
       kickoffTime:  m.kickoffTime,
-      leagueName:   m.league?.name ?? 'Unknown League',
+      leagueName:   m.externalLeagueId === 0 ? 'Others' : (m.league?.name ?? 'Unknown League'),
     }));
 
     try {

@@ -121,6 +121,8 @@ export async function getMatchById(
   });
   if (!match) return null;
 
+  const isCustom = match.externalLeagueId === 0;
+
   const [prediction, standingMap] = await Promise.all([
     opts.isAdmin
       ? Promise.resolve(null)
@@ -128,7 +130,9 @@ export async function getMatchById(
           where: { userId: opts.userId, matchId: match.id },
           select: { homeScore: true, awayScore: true, predictedWinner: true, pointsAwarded: true },
         }),
-    getStandingsMap([{ externalLeagueId: match.externalLeagueId, season: 0 }]),
+    isCustom
+      ? Promise.resolve(new Map<string, unknown>())
+      : getStandingsMap([{ externalLeagueId: match.externalLeagueId, season: 0 }]),
   ]);
 
   let allPredictions: MatchPredictionRow[] | null = null;

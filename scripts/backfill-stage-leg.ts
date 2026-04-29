@@ -80,7 +80,7 @@ async function run() {
       byLeague.set(m.externalLeagueId, { externalIds: new Map(), minDate: m.kickoffTime, maxDate: m.kickoffTime });
     }
     const entry = byLeague.get(m.externalLeagueId)!;
-    entry.externalIds.set(m.externalId, m.id);
+    if (m.externalId !== null) entry.externalIds.set(m.externalId, m.id);
     if (m.kickoffTime < entry.minDate) entry.minDate = m.kickoffTime;
     if (m.kickoffTime > entry.maxDate) entry.maxDate = m.kickoffTime;
   }

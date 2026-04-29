@@ -105,7 +105,7 @@ model TeamLeague {
 
 model Match {
   id               Int          @id @default(autoincrement())
-  externalId       Int          @unique
+  externalId       Int?         @unique
   leagueId         Int?
   league           League?      @relation(fields: [leagueId], references: [id], onDelete: SetNull)
   externalLeagueId Int

@@ -16,6 +16,7 @@ export async function GET(
     select: { externalId: true },
   });
   if (!match) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!match.externalId) return NextResponse.json([]);
 
   try {
     const data = await getH2H(match.externalId, 5);

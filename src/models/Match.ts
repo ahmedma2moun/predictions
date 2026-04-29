@@ -1,6 +1,6 @@
 export interface IMatch {
   id: number;
-  externalId: number;
+  externalId: number | null;
   leagueId: number | null;
   externalLeagueId: number;
   homeTeamExtId: number;

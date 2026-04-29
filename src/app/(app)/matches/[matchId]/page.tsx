@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { isMatchLocked, formatStage, formatMatchStatus, isKnockoutStage, ordinal } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
-import { ChevronLeft, Minus, Plus, Lock, Pencil, Check, X } from "lucide-react";
+import { ChevronLeft, Minus, Plus, Lock, Pencil, Check, X, Calculator } from "lucide-react";
 import { MatchH2H } from "./MatchH2H";
 import type { H2HMatch } from "./MatchH2H";
 import { MatchStandings } from "./MatchStandings";
@@ -56,12 +56,16 @@ export default function MatchPredictionPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingResult, setEditingResult] = useState(false);
+  const [addingResult, setAddingResult] = useState(false);
   const [editHome, setEditHome] = useState("");
   const [editAway, setEditAway] = useState("");
   const [savingResult, setSavingResult] = useState(false);
+  const [calculatingScores, setCalculatingScores] = useState(false);
   const [locked, setLocked] = useState(false);
   const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
   const [h2hLoading, setH2hLoading] = useState(false);
+
+  const isCustom = match?.externalId === null || match?.externalId === undefined && match?.externalLeagueId === 0;
 
   useEffect(() => {
     setH2hLoading(true);
@@ -133,12 +137,33 @@ export default function MatchPredictionPage() {
           scoringBreakdown: p.scoringBreakdown,
         }))
       );
-      toast.success(`Result updated — ${data.emailsSent} correction email${data.emailsSent !== 1 ? "s" : ""} sent`);
+      toast.success(`Result saved — ${data.emailsSent} correction email${data.emailsSent !== 1 ? "s" : ""} sent`);
       setEditingResult(false);
+      setAddingResult(false);
     } catch (e: any) {
       toast.error(e.message ?? "Failed to update result");
     } finally {
       setSavingResult(false);
+    }
+  }
+
+  async function handleCalculateScores() {
+    setCalculatingScores(true);
+    try {
+      const res = await fetch(`/api/admin/results/${matchId}/calculate`, { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Failed to calculate");
+      }
+      const data = await res.json();
+      toast.success(`Scores calculated — ${data.scored} prediction${data.scored !== 1 ? "s" : ""} scored`);
+      // Refresh predictions list
+      const refreshed = await fetch(`/api/matches/${matchId}`).then(r => r.json());
+      setAllPredictions(refreshed.allPredictions ?? null);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to calculate scores");
+    } finally {
+      setCalculatingScores(false);
     }
   }
 
@@ -194,7 +219,7 @@ export default function MatchPredictionPage() {
               <div className="flex-1 flex flex-col items-center gap-3">
                 {match.homeTeam.logo && <Image src={match.homeTeam.logo} alt={match.homeTeam.name} width={64} height={64} className="object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.homeTeam.name}</p>
-                {!isKnockout && standings.home && (
+                {!isCustom && !isKnockout && standings.home && (
                   <p className="text-xs text-muted-foreground">{ordinal(standings.home.position)}</p>
                 )}
                 {!isAdmin && <ScoreInput value={homeScore} onChange={setHomeScore} disabled={locked} />}
@@ -203,7 +228,7 @@ export default function MatchPredictionPage() {
               <div className="flex-1 flex flex-col items-center gap-3">
                 {match.awayTeam.logo && <Image src={match.awayTeam.logo} alt={match.awayTeam.name} width={64} height={64} className="object-contain" />}
                 <p className="font-semibold text-center text-sm">{match.awayTeam.name}</p>
-                {!isKnockout && standings.away && (
+                {!isCustom && !isKnockout && standings.away && (
                   <p className="text-xs text-muted-foreground">{ordinal(standings.away.position)}</p>
                 )}
                 {!isAdmin && <ScoreInput value={awayScore} onChange={setAwayScore} disabled={locked} />}
@@ -216,6 +241,7 @@ export default function MatchPredictionPage() {
               </div>
             )}
 
+            {/* Existing result display / edit */}
             {match.result && (
               <div className="bg-accent rounded-lg p-3 text-center relative">
                 {isAdmin && !editingResult && (
@@ -268,6 +294,65 @@ export default function MatchPredictionPage() {
               </div>
             )}
 
+            {/* Admin: add result when none exists yet */}
+            {isAdmin && !match.result && (
+              <div className="border border-dashed border-border rounded-lg p-3">
+                {!addingResult ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => { setEditHome("0"); setEditAway("0"); setAddingResult(true); }}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Result
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground text-center">Enter Result</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={editHome}
+                        onChange={(e) => setEditHome(e.target.value)}
+                        className="w-16 h-9 text-center text-lg font-bold tabular-nums px-1"
+                        placeholder="0"
+                      />
+                      <span className="text-xl font-bold text-muted-foreground">–</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={editAway}
+                        onChange={(e) => setEditAway(e.target.value)}
+                        className="w-16 h-9 text-center text-lg font-bold tabular-nums px-1"
+                        placeholder="0"
+                      />
+                      <Button size="icon" variant="default" className="h-8 w-8" onClick={handleSaveResult} disabled={savingResult}>
+                        <Check className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAddingResult(false)} disabled={savingResult}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Admin: calculate scores button (shown after result exists) */}
+            {isAdmin && match.result && !editingResult && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                onClick={handleCalculateScores}
+                disabled={calculatingScores}
+              >
+                <Calculator className="h-3.5 w-3.5" />
+                {calculatingScores ? "Calculating..." : "Calculate Scores"}
+              </Button>
+            )}
+
             {!isAdmin && (
               !locked ? (
                 <form onSubmit={handleSubmit}>
@@ -283,14 +368,17 @@ export default function MatchPredictionPage() {
         </CardContent>
       </Card>
 
-      <MatchH2H
-        h2h={h2h}
-        loading={h2hLoading}
-        homeTeamName={match.homeTeam?.name}
-        awayTeamName={match.awayTeam?.name}
-      />
+      {/* H2H and standings are skipped for custom matches */}
+      {!isCustom && (
+        <MatchH2H
+          h2h={h2h}
+          loading={h2hLoading}
+          homeTeamName={match.homeTeam?.name}
+          awayTeamName={match.awayTeam?.name}
+        />
+      )}
 
-      {!isKnockout && (
+      {!isCustom && !isKnockout && (
         <MatchStandings
           homeTeamName={match.homeTeam.name}
           awayTeamName={match.awayTeam.name}

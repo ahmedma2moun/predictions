@@ -208,6 +208,10 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
   const userMatchMap = new Map<number, ResultMatchForEmail[]>();
 
   for (const [externalLeagueId, batch] of byLeague) {
+    if (externalLeagueId === 0) {
+      logger.info(`[${logPrefix}] Skipping ${batch.length} custom match(es) — results must be added manually`);
+      continue;
+    }
     const league = leagueMap.get(externalLeagueId);
     if (!league) {
       logger.warn(`[${logPrefix}] League ${externalLeagueId} not in active leagues — skipping`);
@@ -224,6 +228,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
       logger.info(`[${logPrefix}] ${league.name}: ${fixtures.length} fixtures from API, ${batch.length} pending in DB`);
 
       for (const match of batch) {
+        if (match.externalId === null) continue;
         const f = fixtureMap.get(match.externalId);
         if (!f) {
           logger.warn(`[${logPrefix}] Fixture ${match.externalId} not found in API response — skipping`);

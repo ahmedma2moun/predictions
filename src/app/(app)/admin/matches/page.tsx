@@ -3,10 +3,13 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/client-api";
 import { KickoffTime } from "@/components/KickoffTime";
+import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 
 type AdminMatch = {
   _id: string;
@@ -14,6 +17,7 @@ type AdminMatch = {
   awayTeam: { name: string };
   kickoffTime: string;
   status: string;
+  externalId: number | null;
   result?: { homeScore: number; awayScore: number };
 };
 
@@ -25,6 +29,13 @@ export default function AdminMatchesPage() {
   const [fetchingResults, setFetchingResults] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+
+  // Custom match form state
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customHome, setCustomHome] = useState("");
+  const [customAway, setCustomAway] = useState("");
+  const [customKickoff, setCustomKickoff] = useState("");
+  const [creatingCustom, setCreatingCustom] = useState(false);
 
   async function loadMatches() {
     try {
@@ -65,6 +76,31 @@ export default function AdminMatchesPage() {
       await toastApiError(r, "Failed to fetch results");
     }
     setFetchingResults(false);
+  }
+
+  async function createCustomMatch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!customHome.trim() || !customAway.trim() || !customKickoff) {
+      toast.error("All fields are required");
+      return;
+    }
+    setCreatingCustom(true);
+    const r = await fetch("/api/admin/matches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "create-custom", homeTeamName: customHome, awayTeamName: customAway, kickoffTime: customKickoff }),
+    });
+    if (r.ok) {
+      toast.success("Custom match created");
+      setCustomHome("");
+      setCustomAway("");
+      setCustomKickoff("");
+      setShowCustomForm(false);
+      await loadMatches();
+    } else {
+      await toastApiError(r, "Failed to create match");
+    }
+    setCreatingCustom(false);
   }
 
   const visibleMatches = [...matches].sort(
@@ -130,6 +166,58 @@ export default function AdminMatchesPage() {
           </Button>
         </div>
       </div>
+
+      {/* Custom match form */}
+      <Card>
+        <CardContent className="pt-4">
+          <button
+            type="button"
+            className="flex items-center gap-2 text-sm font-medium w-full text-left"
+            onClick={() => setShowCustomForm(v => !v)}
+          >
+            <Plus className="h-4 w-4" />
+            Add Custom Match
+            {showCustomForm ? <ChevronUp className="h-4 w-4 ml-auto" /> : <ChevronDown className="h-4 w-4 ml-auto" />}
+          </button>
+          {showCustomForm && (
+            <form onSubmit={createCustomMatch} className="mt-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="custom-home">Home Team</Label>
+                  <Input
+                    id="custom-home"
+                    placeholder="e.g. Algeria"
+                    value={customHome}
+                    onChange={e => setCustomHome(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="custom-away">Away Team</Label>
+                  <Input
+                    id="custom-away"
+                    placeholder="e.g. Morocco"
+                    value={customAway}
+                    onChange={e => setCustomAway(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="custom-kickoff">Kickoff Time</Label>
+                <Input
+                  id="custom-kickoff"
+                  type="datetime-local"
+                  value={customKickoff}
+                  onChange={e => setCustomKickoff(e.target.value)}
+                />
+              </div>
+              <Button type="submit" disabled={creatingCustom} className="w-full">
+                {creatingCustom ? "Creating..." : "Create Match"}
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="pt-4 space-y-2">
           {loading ? (
@@ -177,7 +265,12 @@ export default function AdminMatchesPage() {
                     className="h-4 w-4 rounded border-input shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{match.homeTeam.name} vs {match.awayTeam.name}</p>
+                    <p className="font-medium text-sm">
+                      {match.homeTeam.name} vs {match.awayTeam.name}
+                      {match.externalId === null && (
+                        <span className="ml-2 text-xs text-muted-foreground">(custom)</span>
+                      )}
+                    </p>
                     <p className="text-xs text-muted-foreground"><KickoffTime date={match.kickoffTime} /></p>
                     {match.result && (
                       <p className="text-xs text-muted-foreground">Result: {match.result.homeScore}–{match.result.awayScore}</p>

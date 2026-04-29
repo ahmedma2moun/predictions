@@ -155,7 +155,7 @@ export async function sendNewMatchNotifications(weekStart: Date, insertedCount: 
       homeTeamName: m.homeTeamName,
       awayTeamName: m.awayTeamName,
       kickoffTime: m.kickoffTime,
-      leagueName: m.league?.name ?? 'Unknown League',
+      leagueName: m.externalLeagueId === 0 ? 'Others' : (m.league?.name ?? 'Unknown League'),
     }));
     const recipients = await UserRepository.findMany({
       where: { notificationEmail: { not: null } },

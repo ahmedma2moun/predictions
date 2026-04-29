@@ -26,6 +26,10 @@ export class MatchRepository {
     return prisma.$transaction(promises);
   }
 
+  static create<T extends Prisma.MatchCreateArgs>(args: Prisma.SelectSubset<T, Prisma.MatchCreateArgs>) {
+    return prisma.match.create(args);
+  }
+
   static createMany<T extends Prisma.MatchCreateManyArgs>(args: Prisma.SelectSubset<T, Prisma.MatchCreateManyArgs>) {
     return prisma.match.createMany(args);
   }
