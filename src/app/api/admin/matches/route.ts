@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { serializeMatch } from '@/models/Match';
 import { processMatchResults } from '@/lib/results-processor';
-import { fetchAndInsertMatches, sendNewMatchNotifications } from '@/lib/matches-processor';
+import { fetchAndInsertMatches } from '@/lib/matches-processor';
 import { format, addDays, startOfISOWeek } from 'date-fns';
 import { safeParseBody } from '@/lib/request';
 import { MatchRepository } from '@/lib/repositories/match-repository';
@@ -58,9 +58,6 @@ export async function POST(req: NextRequest) {
         scoresProcessed: false,
       },
     });
-
-    // Notify users about the new custom match
-    await sendNewMatchNotifications(weekStart, 1, 'admin/create-custom');
 
     return NextResponse.json({ match: serializeMatch(match) }, { status: 201 });
   }

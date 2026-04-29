@@ -10,12 +10,12 @@ const transporter = nodemailer.createTransport({
 
 // Format a UTC Date to CLT (UTC+2) human-readable string
 function formatDate(date: Date): string {
-  const clt = new Date(date.getTime() + 2 * 60 * 60 * 1000);
+  const clt = new Date(date.getTime() + 3 * 60 * 60 * 1000);
   return clt.toUTCString().replace(' GMT', '');
 }
 
 function formatShortDate(date: Date): string {
-  const clt = new Date(date.getTime() + 2 * 60 * 60 * 1000);
+  const clt = new Date(date.getTime() + 3 * 60 * 60 * 1000);
   return clt.toISOString().slice(0, 16).replace('T', ' ');
 }
 
