@@ -43,7 +43,7 @@ export class GroupRepository {
     return prisma.group.findUnique({
       where: { id },
       include: {
-        members: { include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } } },
+        members: { include: { user: { select: { id: true, name: true, email: true, avatarUrl: true, role: true } } } },
       },
     });
   }

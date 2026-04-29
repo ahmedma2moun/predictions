@@ -156,7 +156,8 @@ export async function getGroupPredictionsForMatch(
   const isMember = isAdmin || group.members.some(m => m.userId === requestingUserId);
   if (!isMember) return { error: 'Forbidden', status: 403 };
 
-  const memberIds = group.members.map(m => m.userId);
+  const nonAdminMembers = group.members.filter(m => m.user.role !== 'admin');
+  const memberIds = nonAdminMembers.map(m => m.userId);
   const predictions = await PredictionRepository.findMany({
     where: { matchId, userId: { in: memberIds } },
     select: {
@@ -170,7 +171,7 @@ export async function getGroupPredictionsForMatch(
 
   const predMap = new Map(predictions.map(p => [p.userId, p]));
 
-  const entries: GroupPredictionEntry[] = group.members.map(m => {
+  const entries: GroupPredictionEntry[] = nonAdminMembers.map(m => {
     const pred = predMap.get(m.userId);
     return {
       userId: m.userId.toString(),

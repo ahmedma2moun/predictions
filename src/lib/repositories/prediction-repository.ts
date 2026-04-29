@@ -36,6 +36,7 @@ export class PredictionRepository {
           SUM(CASE WHEN p."pointsAwarded" > 0 THEN 1 ELSE 0 END) AS "correctPredictions"
         FROM "Prediction" p
         JOIN "Match" m ON m.id = p."matchId"
+        JOIN "User" u ON u.id = p."userId" AND u.role::text != 'admin'
         WHERE ${whereClause}
         GROUP BY p."userId"
         ORDER BY "totalPoints" DESC

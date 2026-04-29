@@ -18,6 +18,7 @@ export async function getUserGroupLeaderboards(userId: number): Promise<GroupLea
           name: true,
           createdAt: true,
           members: {
+            where: { user: { role: { not: 'admin' } } },
             select: { userId: true, user: { select: { name: true } } },
           },
         },

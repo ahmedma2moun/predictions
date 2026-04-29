@@ -43,7 +43,7 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
   if (groupId) {
     const group = await GroupRepository.findUnique({
       where: { id: groupId },
-      select: { isDefault: true, createdAt: true, members: { select: { userId: true } } },
+      select: { isDefault: true, createdAt: true, members: { select: { userId: true, user: { select: { role: true } } } } },
     });
     if (!group) return [];
 
@@ -53,7 +53,7 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
       groupKickoffGte   = existingGte && existingGte > groupGte ? existingGte : groupGte;
     }
 
-    userIdFilter = group.members.map(m => m.userId);
+    userIdFilter = group.members.filter(m => m.user.role !== 'admin').map(m => m.userId);
     if (userIdFilter.length === 0) return [];
   }
 
@@ -86,7 +86,7 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
 
   const [users, exactRows] = await Promise.all([
     UserRepository.findMany({
-      where: { id: { in: allUserIds } },
+      where: { id: { in: allUserIds }, role: { not: 'admin' } },
       select: {
         id: true, name: true, email: true, avatarUrl: true,
         currentStreak: true, longestStreak: true,
