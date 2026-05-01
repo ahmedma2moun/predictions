@@ -110,7 +110,10 @@ export async function GET(req: NextRequest) {
         .filter(u => u._count.matchId >= upcomingMatchIds.length)
         .map(u => u.userId),
     );
-    const mobileUsersToNotify = allMobileUserIds.filter(id => !fullyPredicted.has(id));
+    const emailUserIds = new Set(users.map(u => u.id));
+    const mobileUsersToNotify = allMobileUserIds.filter(
+      id => !fullyPredicted.has(id) && !emailUserIds.has(id),
+    );
 
     if (mobileUsersToNotify.length > 0) {
       try {
