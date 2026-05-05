@@ -10,7 +10,8 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.maamoun.footballpredictions",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "com.maamoun.footballpredictions",
