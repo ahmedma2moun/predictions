@@ -64,11 +64,17 @@ export async function registerForPushNotifications(jwt: string): Promise<string 
   if (!granted) return null;
 
   let fcmToken: string;
-  if (Platform.OS === 'ios') {
-    fcmToken = await messaging().getToken();
-  } else {
-    const { data } = await Notifications.getDevicePushTokenAsync();
-    fcmToken = data;
+  try {
+    if (Platform.OS === 'ios') {
+      fcmToken = await messaging().getToken();
+    } else {
+      const { data } = await Notifications.getDevicePushTokenAsync();
+      fcmToken = data;
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[push] failed to get FCM token', e);
+    return null;
   }
   if (!fcmToken || typeof fcmToken !== 'string') return null;
 
