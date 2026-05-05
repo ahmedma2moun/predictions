@@ -47,6 +47,6 @@ jobs:
         with:
           appId: "1:324923947200:ios:e7b86d3c43a3f633c5d525"
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          groups: ios-testers
+          groups: ios
           file: app-preview.ipa
           releaseNotes: "Auto-build from commit ${{ github.sha }} — ${{ github.event.head_commit.message }}"
