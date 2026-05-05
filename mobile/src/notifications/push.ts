@@ -29,6 +29,13 @@ async function ensureAndroidChannel() {
 }
 
 async function requestPermissions(): Promise<boolean> {
+  if (Platform.OS === 'ios') {
+    const authStatus = await messaging().requestPermission();
+    return (
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL
+    );
+  }
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === 'granted') return true;
   const { status } = await Notifications.requestPermissionsAsync();
@@ -73,10 +80,8 @@ export async function registerForPushNotifications(jwt: string): Promise<string 
     });
     await SecureStore.setItemAsync(LAST_REGISTERED_TOKEN, fcmToken);
   } catch (e) {
-    if (__DEV__) {
-      // eslint-disable-next-line no-console
-      console.warn('[push] device registration failed', e);
-    }
+    // eslint-disable-next-line no-console
+    console.warn('[push] device registration failed', e);
     return null;
   }
   return fcmToken;
