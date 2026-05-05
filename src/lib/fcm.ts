@@ -10,9 +10,16 @@ function initFirebase(): void {
   initializeApp({ credential: cert(serviceAccount) });
 }
 
+export type FCMResult = {
+  token: string;
+  success: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+};
+
 /**
- * Sends a push notification to every registered Android device belonging to
- * the given user IDs. Silently deletes stale tokens FCM marks as unregistered.
+ * Sends a push notification to every registered device belonging to the given
+ * user IDs. Silently deletes stale tokens FCM marks as unregistered.
  * Failures are thrown to callers — wrap in try/catch at call sites.
  */
 export async function sendPushToUsers(
@@ -22,15 +29,15 @@ export async function sendPushToUsers(
     body: string;
     data?: Record<string, string>;
   },
-): Promise<void> {
-  if (userIds.length === 0) return;
+): Promise<FCMResult[]> {
+  if (userIds.length === 0) return [];
   initFirebase();
 
   const deviceTokens = await prisma.deviceToken.findMany({
     where: { userId: { in: userIds } },
     select: { id: true, token: true },
   });
-  if (deviceTokens.length === 0) return;
+  if (deviceTokens.length === 0) return [];
 
   const response = await getMessaging().sendEachForMulticast({
     tokens: deviceTokens.map(d => d.token),
@@ -41,6 +48,10 @@ export async function sendPushToUsers(
       notification: { channelId: 'predictions' },
     },
     apns: {
+      headers: {
+        'apns-push-type': 'alert',
+        'apns-priority': '10',
+      },
       payload: {
         aps: {
           sound: 'default',
@@ -50,17 +61,25 @@ export async function sendPushToUsers(
     },
   });
 
-  // Clean up tokens FCM reports as permanently invalid
+  const results: FCMResult[] = [];
   const staleIds: number[] = [];
+
   response.responses.forEach((r, i) => {
-    if (
-      !r.success &&
-      r.error?.code === 'messaging/registration-token-not-registered'
-    ) {
+    const token = deviceTokens[i].token;
+    results.push({
+      token: token.slice(0, 20) + '...',
+      success: r.success,
+      errorCode: r.error?.code,
+      errorMessage: r.error?.message,
+    });
+    if (!r.success && r.error?.code === 'messaging/registration-token-not-registered') {
       staleIds.push(deviceTokens[i].id);
     }
   });
+
   if (staleIds.length > 0) {
     await prisma.deviceToken.deleteMany({ where: { id: { in: staleIds } } });
   }
+
+  return results;
 }
