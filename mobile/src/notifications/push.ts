@@ -1,3 +1,4 @@
+import messaging from '@react-native-firebase/messaging';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
@@ -55,7 +56,13 @@ export async function registerForPushNotifications(jwt: string): Promise<string 
   const granted = await requestPermissions();
   if (!granted) return null;
 
-  const { data: fcmToken } = await Notifications.getDevicePushTokenAsync();
+  let fcmToken: string;
+  if (Platform.OS === 'ios') {
+    fcmToken = await messaging().getToken();
+  } else {
+    const { data } = await Notifications.getDevicePushTokenAsync();
+    fcmToken = data;
+  }
   if (!fcmToken || typeof fcmToken !== 'string') return null;
 
   try {
