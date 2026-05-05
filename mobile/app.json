@@ -55,7 +55,7 @@
             "kotlinVersion": "1.9.25"
           },
           "ios": {
-            "useModularHeaders": true
+            "useFrameworks": "static"
           }
         }
       ]
