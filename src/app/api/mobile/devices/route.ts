@@ -9,14 +9,15 @@ export async function POST(req: NextRequest) {
 
   const body = await safeParseBody<any>(req);
   if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-  const { fcmToken } = body;
+  const { fcmToken, platform } = body;
   if (!fcmToken || typeof fcmToken !== 'string') {
     return NextResponse.json({ error: 'fcmToken is required' }, { status: 400 });
   }
+  const resolvedPlatform = platform === 'ios' ? 'ios' : 'android';
 
   await DeviceTokenService.upsert({
     where: { token: fcmToken },
-    create: { userId: Number(session.id), token: fcmToken, platform: 'android' },
+    create: { userId: Number(session.id), token: fcmToken, platform: resolvedPlatform },
     update: { userId: Number(session.id), updatedAt: new Date() },
   });
 

@@ -40,6 +40,14 @@ export async function sendPushToUsers(
       priority: 'high',
       notification: { channelId: 'predictions' },
     },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+        },
+      },
+    },
   });
 
   // Clean up tokens FCM reports as permanently invalid

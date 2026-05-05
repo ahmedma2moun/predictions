@@ -61,7 +61,7 @@ export async function registerForPushNotifications(jwt: string): Promise<string 
   try {
     await apiRequest('/api/mobile/devices', {
       method: 'POST',
-      body: { fcmToken },
+      body: { fcmToken, platform: Platform.OS },
       token: jwt,
     });
     await SecureStore.setItemAsync(LAST_REGISTERED_TOKEN, fcmToken);
