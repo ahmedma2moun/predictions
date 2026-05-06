@@ -31,13 +31,16 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          BUILD_JSON=$(eas build \
+          eas build \
             --profile testflight \
             --platform ios \
             --non-interactive \
-            --json 2>/dev/null)
-          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.[0].id')
+            --json \
+            --no-wait > /tmp/eas-build.json
+          cat /tmp/eas-build.json
+          BUILD_ID=$(jq -r '.[0].id // .id' /tmp/eas-build.json)
           echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "Build queued: $BUILD_ID"
 
       - name: Submit to TestFlight via EAS
         working-directory: mobile
