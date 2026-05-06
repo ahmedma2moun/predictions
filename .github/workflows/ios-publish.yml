@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-and-distribute:
-    name: EAS Build → Firebase Distribution (iOS)
+    name: EAS Build → TestFlight (iOS)
     runs-on: ubuntu-latest
 
     steps:
@@ -32,21 +32,26 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           BUILD_JSON=$(eas build \
-            --profile preview \
+            --profile testflight \
             --platform ios \
             --non-interactive \
             --json 2>/dev/null)
-          IPA_URL=$(echo "$BUILD_JSON" | jq -r '.[0].artifacts.buildUrl')
-          echo "IPA_URL=$IPA_URL" >> $GITHUB_ENV
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.[0].id')
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
 
-      - name: Download IPA
-        run: curl -L "$IPA_URL" -o app-preview.ipa
-
-      - name: Distribute via Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
-        with:
-          appId: "1:324923947200:ios:e7b86d3c43a3f633c5d525"
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          groups: ios
-          file: app-preview.ipa
-          releaseNotes: "Auto-build from commit ${{ github.sha }} — ${{ github.event.head_commit.message }}"
+      - name: Submit to TestFlight via EAS
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "${{ secrets.ASC_API_KEY_CONTENT }}" > /tmp/AuthKey.p8
+          eas submit \
+            --platform ios \
+            --profile testflight \
+            --id "$BUILD_ID" \
+            --apple-api-key /tmp/AuthKey.p8 \
+            --apple-api-key-id "${{ secrets.ASC_API_KEY_ID }}" \
+            --apple-api-issuer-id "${{ secrets.ASC_API_KEY_ISSUER_ID }}" \
+            --asc-app-id "${{ secrets.ASC_APP_ID }}" \
+            --non-interactive
+          rm -f /tmp/AuthKey.p8
