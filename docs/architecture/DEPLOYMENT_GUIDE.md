@@ -360,6 +360,167 @@ jobs:
 
 ---
 
+## iOS Distribution via TestFlight (GitHub Actions + EAS)
+
+### Overview
+
+```
+Manual trigger (GitHub Actions)
+  └─► eas build --profile testflight --platform ios   (App Store-signed IPA, latest Xcode)
+        └─► eas submit --profile testflight            (uploads to App Store Connect)
+              └─► Apple processing (~5-15 min)
+                    └─► TestFlight → Internal / External testers
+```
+
+The workflow is in `.github/workflows/ios-publish.yml` and triggered manually from the Actions tab.
+
+---
+
+### Prerequisites
+
+- Apple Developer Program membership (paid, $99/year)
+- App created in App Store Connect (bundle ID: `com.maamoun.footballpredictions`, App ID: `6766777997`)
+- EAS CLI installed locally and authenticated (`eas login`)
+- App Store Connect API key (key ID: `LTCXFV6Q3S`, file: `mobile/AuthKey_LTCXFV6Q3S.p8`)
+
+---
+
+### One-Time Local Setup
+
+#### 1. Generate App Store Distribution Credentials in EAS
+
+Run this once from your machine (interactive — cannot be done in CI):
+
+```bash
+cd mobile
+eas credentials --platform ios
+```
+
+When prompted:
+- **Distribution type** → **App Store** (not Ad Hoc)
+- **Certificate** → let EAS generate a new App Store Distribution Certificate
+- **Provisioning Profile** → let EAS generate it automatically
+
+EAS stores the certificate and provisioning profile on its servers. All subsequent CI builds use them automatically.
+
+#### 2. Add `ITSAppUsesNonExemptEncryption` to `app.json`
+
+Already done — `mobile/app.json` has:
+```json
+"infoPlist": {
+  "ITSAppUsesNonExemptEncryption": false
+}
+```
+This prevents an Apple compliance warning that blocks TestFlight upload.
+
+---
+
+### Required GitHub Secrets
+
+Go to **GitHub → Settings → Secrets and variables → Actions** and add:
+
+| Secret | Value | Where to find it |
+|---|---|---|
+| `EXPO_TOKEN` | EAS personal access token | expo.dev → Account → Access Tokens |
+| `ASC_API_KEY_ID` | `LTCXFV6Q3S` | From the `.p8` filename |
+| `ASC_API_KEY_ISSUER_ID` | UUID shown at the top of the Keys page | App Store Connect → Users and Access → [Keys](https://appstoreconnect.apple.com/access/integrations/api) |
+| `ASC_API_KEY_CONTENT` | Full contents of `AuthKey_LTCXFV6Q3S.p8` | Paste the entire file including `-----BEGIN/END PRIVATE KEY-----` |
+
+`ASC_APP_ID` (`6766777997`) is hardcoded in `eas.json` — no secret needed.
+
+---
+
+### EAS Configuration (`eas.json`)
+
+```json
+"build": {
+  "testflight": {
+    "autoIncrement": true,
+    "ios": {
+      "buildConfiguration": "Release",
+      "simulator": false,
+      "image": "latest"        // always uses newest Xcode — required by Apple since Apr 2026
+    }
+  }
+},
+"submit": {
+  "testflight": {
+    "ios": {
+      "ascAppId": "6766777997",
+      "ascApiKeyIssuerId": "$ASC_API_KEY_ISSUER_ID",   // read from env var at submit time
+      "ascApiKeyId": "$ASC_API_KEY_ID",
+      "ascApiKeyPath": "/tmp/AuthKey.p8"               // written by the CI step
+    }
+  }
+}
+```
+
+---
+
+### Triggering a Build
+
+1. Go to **GitHub → Actions → iOS Auto-Publish**
+2. Click **Run workflow** → **Run workflow**
+3. The workflow will:
+   - Build the IPA on EAS cloud (App Store-signed, latest Xcode)
+   - Submit the IPA to App Store Connect via `eas submit`
+4. Check [expo.dev](https://expo.dev) → your project → Builds to monitor build progress
+
+---
+
+### TestFlight: Internal Testing
+
+Internal testers are Apple Developer team members — no Beta App Review required, available immediately after Apple processing (~5-15 min).
+
+1. App Store Connect → your app → **TestFlight** tab
+2. Left sidebar → **Internal Testing** → click **+** to create a group
+3. Add testers by **Apple ID email** — they must first be added as team members:
+   - App Store Connect → **Users and Access** → **People** → **+** → invite by email
+   - They accept the invite, then can be added to the Internal Testing group
+4. Once the build finishes processing, select it and assign it to the group
+5. Testers receive an email → install **TestFlight** app → install your build
+
+---
+
+### TestFlight: External Testing
+
+External testers do **not** need to be team members. Requires a one-time **Beta App Review** by Apple (usually a few hours, up to 1 business day).
+
+1. App Store Connect → **TestFlight** → left sidebar → **+** next to **External Testing** (or create a group)
+2. Name the group (e.g. `Friends`, `Beta`)
+3. Add testers by email — up to 10,000 testers
+4. Select the build to test → click **Submit for Beta Review**
+5. Fill in **Test Information** (what to test, sign-in info if needed) — required for external groups
+6. Apple reviews → you get an email when approved
+7. Testers receive an email → install **TestFlight** → install your build
+
+> **Note**: Once a build passes Beta App Review, subsequent builds of the same app do **not** require re-review unless you add new external groups or make significant changes.
+
+---
+
+### Build Profiles Summary
+
+| Profile | Distribution | Xcode | Use case |
+|---|---|---|---|
+| `development` | Internal (ad-hoc) | Default | Local dev with dev client |
+| `preview` | Internal (ad-hoc) | Default | Android APK for Firebase |
+| `testflight` | App Store | Latest | iOS TestFlight |
+| `production` | App Store | Latest | App Store release |
+
+---
+
+### Troubleshooting
+
+| Error | Fix |
+|---|---|
+| `Distribution Certificate is not validated` | Run `eas credentials --platform ios` locally and set up App Store credentials |
+| `This build can no longer be submitted` (Xcode too old) | `"image": "latest"` is already set in `eas.json` — ensure you're on EAS CLI ≥ 14 |
+| `Invalid ascAppId` | Must be digits only — hardcoded as `6766777997` in `eas.json` |
+| `Nonexistent flags` in `eas submit` | Credentials go in `eas.json` submit config, not CLI flags |
+| Build stuck / not appearing in TestFlight | Check [expo.dev](https://expo.dev) build status; Apple processing can take up to 15 min |
+
+---
+
 ## Vercel Plan Considerations
 
 | Feature | Hobby | Pro |
