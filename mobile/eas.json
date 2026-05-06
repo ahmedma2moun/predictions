@@ -34,7 +34,8 @@
       },
       "ios": {
         "buildConfiguration": "Release",
-        "simulator": false
+        "simulator": false,
+        "image": "latest"
       }
     },
     "production": {
@@ -46,7 +47,12 @@
   },
   "submit": {
     "testflight": {
-      "ios": {}
+      "ios": {
+        "ascAppId": "$ASC_APP_ID",
+        "ascApiKeyIssuerId": "$ASC_API_KEY_ISSUER_ID",
+        "ascApiKeyId": "$ASC_API_KEY_ID",
+        "ascApiKeyPath": "/tmp/AuthKey.p8"
+      }
     },
     "production": {}
   }

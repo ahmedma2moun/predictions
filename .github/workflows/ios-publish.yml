@@ -46,15 +46,14 @@ jobs:
         working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
         run: |
           echo "${{ secrets.ASC_API_KEY_CONTENT }}" > /tmp/AuthKey.p8
           eas submit \
             --platform ios \
             --profile testflight \
             --id "$BUILD_ID" \
-            --apple-api-key /tmp/AuthKey.p8 \
-            --apple-api-key-id "${{ secrets.ASC_API_KEY_ID }}" \
-            --apple-api-issuer-id "${{ secrets.ASC_API_KEY_ISSUER_ID }}" \
-            --asc-app-id "${{ secrets.ASC_APP_ID }}" \
             --non-interactive
           rm -f /tmp/AuthKey.p8
