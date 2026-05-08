@@ -23,15 +23,14 @@ function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n);
 }
 
-/** Format kickoff in CLT (UTC+2) — matches `formatKickoff()` in web utils.ts. */
+/** Format kickoff in the device's local timezone. */
 export function formatKickoff(date: string | Date): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  const clt = new Date(d.getTime() + 2 * 60 * 60 * 1000);
-  const day = DAYS[clt.getUTCDay()];
-  const dayNum = pad2(clt.getUTCDate());
-  const month = MONTHS[clt.getUTCMonth()];
-  const h = pad2(clt.getUTCHours());
-  const m = pad2(clt.getUTCMinutes());
+  const day = DAYS[d.getDay()];
+  const dayNum = pad2(d.getDate());
+  const month = MONTHS[d.getMonth()];
+  const h = pad2(d.getHours());
+  const m = pad2(d.getMinutes());
   return `${day} ${dayNum} ${month}, ${h}:${m}`;
 }
 
