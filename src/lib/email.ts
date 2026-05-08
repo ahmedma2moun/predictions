@@ -436,6 +436,7 @@ export async function sendCronRunEmail(
   cronName: string,
   summary: Record<string, string | number>,
   remindedEmails?: string[],
+  pushNotifiedUserIds?: number[],
 ): Promise<void> {
   const to = 'ahmed.m.maamoun94@gmail.com';
   const timestamp = new Date().toUTCString();
@@ -453,9 +454,19 @@ export async function sendCronRunEmail(
   const remindedBlock = remindedEmails && remindedEmails.length > 0
     ? `
       <div style="margin-top:16px;">
-        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;">Reminded users (${remindedEmails.length}):</div>
+        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;">Reminded via email (${remindedEmails.length}):</div>
         <ul style="margin:0;padding:0 0 0 18px;font-size:13px;color:#1a1a1a;">
           ${remindedEmails.map(e => `<li style="margin-bottom:2px;">${e}</li>`).join('')}
+        </ul>
+      </div>`
+    : '';
+
+  const pushBlock = pushNotifiedUserIds && pushNotifiedUserIds.length > 0
+    ? `
+      <div style="margin-top:12px;">
+        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;">Reminded via push (${pushNotifiedUserIds.length} device user${pushNotifiedUserIds.length !== 1 ? 's' : ''}):</div>
+        <ul style="margin:0;padding:0 0 0 18px;font-size:13px;color:#1a1a1a;">
+          ${pushNotifiedUserIds.map(id => `<li style="margin-bottom:2px;">User ID: ${id}</li>`).join('')}
         </ul>
       </div>`
     : '';
@@ -471,6 +482,7 @@ export async function sendCronRunEmail(
           <tbody>${rows}</tbody>
         </table>
         ${remindedBlock}
+        ${pushBlock}
       </div>
     </div>`;
 

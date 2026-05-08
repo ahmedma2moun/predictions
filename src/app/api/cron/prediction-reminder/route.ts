@@ -93,11 +93,13 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // FCM push — only send to mobile users who still have missing predictions
+  // FCM push — send to ALL users with device tokens who still have missing predictions
   const allMobileUserIds = (await DeviceTokenService.getAll({
     select: { userId: true },
     distinct: ['userId'],
   })).map(d => d.userId);
+
+  let pushNotifiedUserIds: number[] = [];
 
   if (allMobileUserIds.length > 0) {
     const predCounts = (await PredictionRepository.groupBy({
@@ -110,9 +112,8 @@ export async function GET(req: NextRequest) {
         .filter(u => u._count.matchId >= upcomingMatchIds.length)
         .map(u => u.userId),
     );
-    const emailUserIds = new Set(users.map(u => u.id));
     const mobileUsersToNotify = allMobileUserIds.filter(
-      id => !fullyPredicted.has(id) && !emailUserIds.has(id),
+      id => !fullyPredicted.has(id),
     );
 
     if (mobileUsersToNotify.length > 0) {
@@ -122,6 +123,7 @@ export async function GET(req: NextRequest) {
           body: 'You still have matches without a prediction this week.',
           data: { type: 'prediction_reminder' },
         });
+        pushNotifiedUserIds = mobileUsersToNotify;
       } catch (e) {
         logger.error('[cron/prediction-reminder] FCM push failed:', { error: e instanceof Error ? e.message : String(e) });
       }
@@ -138,7 +140,7 @@ export async function GET(req: NextRequest) {
   logger.info('[cron/prediction-reminder] Done —', JSON.parse(JSON.stringify(summary)));
 
   try {
-    await sendCronRunEmail('prediction-reminder', summary, remindedEmails);
+    await sendCronRunEmail('prediction-reminder', summary, remindedEmails, pushNotifiedUserIds);
   } catch (e) {
     logger.error('[cron/prediction-reminder] Failed to send cron notification email:', { error: e instanceof Error ? e.message : String(e) });
   }

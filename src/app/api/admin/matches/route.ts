@@ -6,6 +6,11 @@ import { fetchAndInsertMatches } from '@/lib/matches-processor';
 import { format, addDays, startOfISOWeek } from 'date-fns';
 import { safeParseBody } from '@/lib/request';
 import { MatchRepository } from '@/lib/repositories/match-repository';
+import { UserRepository } from '@/lib/repositories/user-repository';
+import { DeviceTokenRepository } from '@/lib/repositories/device-repository';
+import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
+import { sendPushToUsers } from '@/lib/fcm';
+import { logger } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -58,6 +63,38 @@ export async function POST(req: NextRequest) {
         scoresProcessed: false,
       },
     });
+
+    // Send notifications for the new custom match (fire-and-forget, don't fail the request)
+    (async () => {
+      try {
+        const matchForEmail: MatchForEmail = {
+          homeTeamName: match.homeTeamName,
+          awayTeamName: match.awayTeamName,
+          kickoffTime: match.kickoffTime,
+          leagueName: 'Others',
+        };
+        const emailUsers = await UserRepository.findMany({
+          where: { notificationEmail: { not: null } },
+          select: { notificationEmail: true },
+        });
+        for (const u of emailUsers) {
+          if (u.notificationEmail) await sendNewMatchesEmail(u.notificationEmail, [matchForEmail]);
+        }
+        const pushUserIds = (await DeviceTokenRepository.findMany({
+          select: { userId: true },
+          distinct: ['userId'],
+        })).map(d => d.userId);
+        if (pushUserIds.length > 0) {
+          await sendPushToUsers(pushUserIds, {
+            title: 'New match added',
+            body: `${match.homeTeamName} vs ${match.awayTeamName} — place your prediction!`,
+            data: { type: 'new_matches' },
+          });
+        }
+      } catch (e) {
+        logger.error('[admin/matches] Failed to send custom match notifications:', { error: e instanceof Error ? e.message : String(e) });
+      }
+    })();
 
     return NextResponse.json({ match: serializeMatch(match) }, { status: 201 });
   }

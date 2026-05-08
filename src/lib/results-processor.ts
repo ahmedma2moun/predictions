@@ -146,6 +146,19 @@ export async function correctMatchResult(
     }
   }
 
+  // FCM push — notify all users who predicted on this match
+  if (affectedUserIds.length > 0) {
+    try {
+      await sendPushToUsers(affectedUserIds, {
+        title: 'Result correction',
+        body: `${match.homeTeamName} vs ${match.awayTeamName} result has been updated — check your score!`,
+        data: { type: 'result_correction' },
+      });
+    } catch (e) {
+      logger.error('[result-correction] FCM push failed:', { error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
   return {
     emailsSent,
     predictions: updated.map(p => ({
