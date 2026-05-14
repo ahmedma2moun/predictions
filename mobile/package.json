@@ -15,14 +15,17 @@
     "release": "semantic-release"
   },
   "dependencies": {
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@expo/vector-icons": "~14.0.4",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-firebase/app": "^24.0.0",
     "@react-native-firebase/messaging": "^24.0.0",
     "expo": "~52.0.20",
+    "expo-blur": "~14.0.3",
     "expo-build-properties": "~0.13.3",
     "expo-constants": "~17.0.3",
     "expo-device": "~7.0.1",
+    "expo-font": "~13.0.4",
     "expo-image": "~2.0.7",
     "expo-linking": "~7.0.3",
     "expo-notifications": "~0.29.11",

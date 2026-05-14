@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Badge, Muted } from '@/components/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Muted } from '@/components/ui';
 import { PredictionCard } from '@/components/PredictionCard';
 import { AccuracyStatsCard } from '@/components/AccuracyStatsCard';
+import { AppHeader } from '@/components/AppHeader';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useAccuracyStats } from '@/hooks/useAccuracyStats';
 import { computeWeekLabel, getWeekBounds } from '@/utils/leaderboard-dates';
@@ -23,6 +25,7 @@ const PAGE_SIZE = 20;
 export default function PredictionsScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
 
   const {
     predictions,
@@ -44,7 +47,6 @@ export default function PredictionsScreen() {
   const weekLabel = useMemo(() => computeWeekLabel(weekOffset), [weekOffset]);
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
   useEffect(() => { setVisibleCount(PAGE_SIZE); }, [weekOffset]);
 
   const filtered = useMemo(() => {
@@ -68,6 +70,16 @@ export default function PredictionsScreen() {
     [filtered],
   );
 
+  // Last 10 scored predictions across all time for sparkline
+  const recentPoints = useMemo(() => {
+    return [...predictions]
+      .filter(p => p.match.result != null)
+      .sort((a, b) => new Date(b.match.kickoffTime).getTime() - new Date(a.match.kickoffTime).getTime())
+      .slice(0, 10)
+      .reverse()
+      .map(p => p.pointsAwarded ?? 0);
+  }, [predictions]);
+
   const page    = sorted.slice(0, visibleCount);
   const hasMore = visibleCount < sorted.length;
 
@@ -78,82 +90,117 @@ export default function PredictionsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }
 
   return (
-    <FlatList
-      data={page}
-      keyExtractor={item => item.id}
-      contentContainerStyle={styles.list}
-      style={{ backgroundColor: colors.background }}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
-      }
-      ListHeaderComponent={
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <Text style={styles.heading}>My Score</Text>
-            <Badge variant="outline">{totalPoints} pts total</Badge>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <AppHeader title="My Score" subtitle={`${totalPoints} pts total`} />
+      <FlatList
+        data={page}
+        keyExtractor={item => item.id}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 90 }]}
+        style={{ backgroundColor: colors.background }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+        }
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            {accuracyStats && accuracyStats.totalFinished > 0 && (
+              <AccuracyStatsCard
+                stats={accuracyStats}
+                weekPoints={weekPoints}
+                recentPoints={recentPoints}
+              />
+            )}
+            <WeekNav
+              label={weekLabel}
+              onPrev={() => setWeekOffset(o => o - 1)}
+              onNext={() => setWeekOffset(o => o + 1)}
+            />
           </View>
-          {accuracyStats && accuracyStats.totalFinished > 0 && (
-            <AccuracyStatsCard stats={accuracyStats} />
-          )}
-          <WeekNav
-            label={weekLabel}
-            onPrev={() => setWeekOffset(o => o - 1)}
-            onNext={() => setWeekOffset(o => o + 1)}
-          />
-          <Text style={styles.weekScore}>
-            Week score:{' '}
-            <Text style={styles.weekScoreValue}>{weekPoints} pts</Text>
-          </Text>
-        </View>
-      }
-      ListEmptyComponent={
-        <Muted style={{ textAlign: 'center', marginTop: spacing.xl }}>
-          {error
-            ? error
-            : predictions.length === 0
-            ? 'No predictions yet. Go predict some matches!'
-            : 'No score processed for this period.'}
-        </Muted>
-      }
-      ListFooterComponent={
-        hasMore ? (
-          <Pressable
-            onPress={() => setVisibleCount(n => n + PAGE_SIZE)}
-            style={({ pressed }) => [styles.showMore, { opacity: pressed ? 0.6 : 1 }]}
-          >
-            <Text style={styles.showMoreText}>
-              Show more ({sorted.length - visibleCount} remaining)
-            </Text>
-          </Pressable>
-        ) : null
-      }
-      renderItem={renderItem}
-    />
+        }
+        ListEmptyComponent={
+          <Muted style={{ textAlign: 'center', marginTop: spacing.xl }}>
+            {error
+              ? error
+              : predictions.length === 0
+              ? 'No predictions yet. Go predict some matches!'
+              : 'No scored predictions for this week.'}
+          </Muted>
+        }
+        ListFooterComponent={
+          hasMore ? (
+            <Pressable
+              onPress={() => setVisibleCount(n => n + PAGE_SIZE)}
+              style={({ pressed }) => [styles.showMore, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              <Text style={[styles.showMoreText, { color: colors.mutedForeground }]}>
+                Show more ({sorted.length - visibleCount} remaining)
+              </Text>
+            </Pressable>
+          ) : null
+        }
+        renderItem={renderItem}
+      />
+    </View>
   );
 }
 
 function WeekNav({ label, onPrev, onNext }: { label: string; onPrev: () => void; onNext: () => void }) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View style={styles.weekNav}>
-      <Pressable onPress={onPrev} hitSlop={12} style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.6 }]}>
+    <View style={styles2.weekNav}>
+      <Pressable
+        onPress={onPrev}
+        hitSlop={12}
+        style={({ pressed }) => [
+          styles2.navBtn,
+          { backgroundColor: colors.cardElevated, borderColor: colors.border },
+          pressed && { opacity: 0.6 },
+        ]}
+      >
         <Ionicons name="chevron-back" size={18} color={colors.foreground} />
       </Pressable>
-      <Text style={styles.weekLabel}>{label}</Text>
-      <Pressable onPress={onNext} hitSlop={12} style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.6 }]}>
+      <Text style={[styles2.weekLabel, { color: colors.foreground }]}>{label}</Text>
+      <Pressable
+        onPress={onNext}
+        hitSlop={12}
+        style={({ pressed }) => [
+          styles2.navBtn,
+          { backgroundColor: colors.cardElevated, borderColor: colors.border },
+          pressed && { opacity: 0.6 },
+        ]}
+      >
         <Ionicons name="chevron-forward" size={18} color={colors.foreground} />
       </Pressable>
     </View>
   );
 }
+
+const styles2 = StyleSheet.create({
+  weekNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  navBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weekLabel: {
+    fontSize: font.size.sm,
+    fontWeight: font.weight.semibold,
+    fontVariant: ['tabular-nums'],
+  },
+});
 
 function makeStyles(c: Palette) {
   return StyleSheet.create({
@@ -163,26 +210,9 @@ function makeStyles(c: Palette) {
       justifyContent: 'center',
       backgroundColor: c.background,
     },
-    list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
-    header: { marginBottom: spacing.sm, gap: spacing.md },
-    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    heading: { color: c.foreground, fontSize: font.size.xl, fontWeight: font.weight.bold },
+    list: { padding: spacing.lg, gap: spacing.md },
+    listHeader: { gap: spacing.md, marginBottom: spacing.sm },
     showMore: { alignItems: 'center', paddingVertical: spacing.md },
-    showMoreText: { color: c.mutedForeground, fontSize: font.size.sm },
-    weekScore: { textAlign: 'center', color: c.mutedForeground, fontSize: font.size.sm },
-    weekScoreValue: { color: c.foreground, fontWeight: font.weight.semibold },
-    weekNav: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
-    },
-    navBtn: { padding: 6, borderRadius: radius.sm },
-    weekLabel: {
-      color: c.foreground,
-      fontSize: font.size.sm,
-      fontWeight: font.weight.semibold,
-      fontVariant: ['tabular-nums'],
-    },
+    showMoreText: { fontSize: font.size.sm },
   });
 }

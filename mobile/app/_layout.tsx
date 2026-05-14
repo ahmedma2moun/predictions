@@ -4,6 +4,11 @@ import * as Notifications from 'expo-notifications';
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  useFonts,
+  JetBrainsMono_400Regular,
+  JetBrainsMono_700Bold,
+} from '@expo-google-fonts/jetbrains-mono';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { ROUTES } from '@/constants/routes';
 import { ThemeProvider, useTheme } from '@/theme/theme';
@@ -71,7 +76,7 @@ function ThemedShell() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen
               name="matches/[matchId]"
-              options={{ title: 'Predict Score', headerBackTitle: 'Back' }}
+              options={{ headerShown: false }}
             />
           </Stack>
         </AuthGate>
@@ -81,6 +86,13 @@ function ThemedShell() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    JetBrainsMono: JetBrainsMono_400Regular,
+    JetBrainsMonoBold: JetBrainsMono_700Bold,
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>

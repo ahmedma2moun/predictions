@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { Badge, Card, Muted } from '@/components/ui';
+import { Card, Muted } from '@/components/ui';
 import { ScoringBreakdown } from '@/components/ScoringBreakdown';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
@@ -19,6 +19,11 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
   const match = pred.match;
   const isFinished = match.status === 'finished';
   const isLocked = match.status !== 'scheduled';
+  const isExact =
+    isFinished &&
+    match.result &&
+    pred.homeScore === match.result.homeScore &&
+    pred.awayScore === match.result.awayScore;
 
   const [open, setOpen]                   = useState(false);
   const [others, setOthers]               = useState<OtherPrediction[] | null>(null);
@@ -39,82 +44,102 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
     setOpen(v => !v);
   }, [open, others, token, match._id]);
 
-  const awardedHighlight = isFinished && pred.pointsAwarded > 0;
+  const pts = pred.pointsAwarded ?? 0;
+  const chipBg = isExact ? colors.primarySoft : pts > 0 ? colors.cardElevated : colors.cardElevated;
+  const chipBorder = isExact ? colors.primarySoftBorder : colors.border;
+  const chipValueColor = isExact ? colors.primary : pts > 0 ? colors.warning : colors.mutedForeground;
 
   return (
-    <Card style={[styles.predCard, awardedHighlight && { borderColor: colors.primarySoftBorder }]}>
-      <View style={styles.cardTop}>
-        <Muted style={{ fontSize: font.size.xs }}>{formatKickoff(match.kickoffTime)}</Muted>
-        <View style={styles.cardTopRight}>
-          <Badge variant={isFinished ? 'secondary' : 'outline'}>
-            {match.status.toUpperCase()}
-          </Badge>
-          {isFinished && (
-            <View style={styles.pointsWithInfo}>
-              <Badge variant={pred.pointsAwarded > 0 ? 'default' : 'secondary'}>
-                +{pred.pointsAwarded} pts
-              </Badge>
-              {pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
-                <ScoringBreakdown rules={pred.scoringBreakdown} />
-              )}
+    <Card style={styles.tile}>
+      {/* Main row: left info + right points chip */}
+      <View style={styles.mainRow}>
+        {/* Left column */}
+        <View style={styles.leftCol}>
+          <Text style={[styles.dayCaption, { color: colors.mutedForeground }]}>
+            {formatKickoff(match.kickoffTime)}
+          </Text>
+          <Text style={[styles.matchTitle, { color: colors.foreground }]} numberOfLines={1}>
+            {match.homeTeam.name}{' '}
+            <Text style={{ color: colors.mutedForeground, fontWeight: font.weight.regular }}>vs</Text>
+            {' '}{match.awayTeam.name}
+          </Text>
+          {isFinished && match.result && (
+            <View style={styles.picksRow}>
+              <ScoreCell
+                label="PICK"
+                score={`${pred.homeScore}–${pred.awayScore}`}
+                dim
+                colors={colors}
+              />
+              <ScoreCell
+                label="FINAL"
+                score={`${match.result.homeScore}–${match.result.awayScore}`}
+                dim={false}
+                colors={colors}
+              />
+            </View>
+          )}
+          {!isFinished && (
+            <View style={styles.picksRow}>
+              <ScoreCell label="YOUR PICK" score={`${pred.homeScore}–${pred.awayScore}`} dim colors={colors} />
             </View>
           )}
         </View>
+
+        {/* Right points chip */}
+        {isFinished && (
+          <View style={[styles.ptsChip, { backgroundColor: chipBg, borderColor: chipBorder }]}>
+            <Text style={[styles.ptsValue, { color: chipValueColor, fontFamily: 'JetBrainsMonoBold' }]}>
+              {pts > 0 ? `+${pts}` : '0'}
+            </Text>
+            <Text style={[styles.ptsCaption, { color: chipValueColor }]}>
+              {isExact ? 'EXACT' : 'pts'}
+            </Text>
+            {pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
+              <ScoringBreakdown rules={pred.scoringBreakdown} />
+            )}
+          </View>
+        )}
       </View>
 
-      <View style={styles.grid}>
-        <View style={styles.sideCol}>
-          <Muted style={styles.gridLabel}>Home</Muted>
-          <Text style={styles.teamName} numberOfLines={2}>{match.homeTeam.name}</Text>
-        </View>
-        <View style={styles.pickCol}>
-          <Muted style={styles.gridLabel}>Your pick</Muted>
-          <Text style={styles.pickScore}>{pred.homeScore} – {pred.awayScore}</Text>
-          {isFinished && match.result && (
-            <Muted style={{ fontSize: font.size.xs, textAlign: 'center' }}>
-              Result: {match.result.homeScore} – {match.result.awayScore}
-              {match.result.penaltyHomeScore != null && (
-                <> ({match.result.penaltyHomeScore} – {match.result.penaltyAwayScore} pen)</>
-              )}
-            </Muted>
-          )}
-        </View>
-        <View style={styles.sideCol}>
-          <Muted style={styles.gridLabel}>Away</Muted>
-          <Text style={styles.teamName} numberOfLines={2}>{match.awayTeam.name}</Text>
-        </View>
-      </View>
-
+      {/* Expand toggle */}
       {isLocked && (
         <Pressable
           onPress={toggle}
-          style={({ pressed }) => [styles.toggleBtn, { opacity: pressed ? 0.6 : 1 }]}
+          style={({ pressed }) => [
+            styles.toggleBtn,
+            { borderTopColor: colors.border, opacity: pressed ? 0.6 : 1 },
+          ]}
         >
           {loadingOthers ? (
-            <Text style={styles.toggleText}>Loading…</Text>
+            <ActivityIndicator size="small" color={colors.mutedForeground} />
           ) : (
             <>
-              <Text style={styles.toggleText}>{open ? 'Hide' : 'Show'} all predictions</Text>
+              <Text style={[styles.toggleText, { color: colors.mutedForeground }]}>
+                {open ? 'Hide' : 'Show'} all predictions
+              </Text>
               <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.mutedForeground} />
             </>
           )}
         </Pressable>
       )}
 
+      {/* Expanded others */}
       {open && others && others.length > 0 && (
         <View style={styles.othersBox}>
           {others.map(o => (
-            <View key={o.userId} style={styles.otherRow}>
-              <Text style={styles.otherName} numberOfLines={1}>{o.userName}</Text>
+            <View key={o.userId} style={[styles.otherRow, { backgroundColor: colors.cardElevated }]}>
+              <Text style={[styles.otherName, { color: colors.foreground }]} numberOfLines={1}>
+                {o.userName}
+              </Text>
               <View style={styles.otherRight}>
-                <Text style={styles.otherScore}>{o.homeScore} – {o.awayScore}</Text>
+                <Text style={[styles.otherScore, { color: colors.foreground, fontFamily: 'JetBrainsMono' }]}>
+                  {o.homeScore}–{o.awayScore}
+                </Text>
                 {isFinished && (
                   <>
-                    <Text style={[
-                      styles.otherPts,
-                      { color: (o.pointsAwarded ?? 0) > 0 ? colors.success : colors.mutedForeground },
-                    ]}>
-                      +{o.pointsAwarded ?? 0} pts
+                    <Text style={[styles.otherPts, { color: (o.pointsAwarded ?? 0) > 0 ? colors.warning : colors.mutedForeground }]}>
+                      +{o.pointsAwarded ?? 0}
                     </Text>
                     {o.scoringBreakdown && o.scoringBreakdown.length > 0 && (
                       <ScoringBreakdown rules={o.scoringBreakdown} />
@@ -136,42 +161,76 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
   );
 });
 
+function ScoreCell({
+  label,
+  score,
+  dim,
+  colors,
+}: {
+  label: string;
+  score: string;
+  dim: boolean;
+  colors: any;
+}) {
+  return (
+    <View style={{ gap: 2 }}>
+      <Text style={{ color: colors.mutedForeground, fontSize: 10, fontWeight: '700', letterSpacing: 0.6 }}>
+        {label}
+      </Text>
+      <Text
+        style={{
+          color: dim ? colors.mutedForeground : colors.foreground,
+          fontSize: 12.5,
+          fontFamily: 'JetBrainsMono',
+          fontVariant: ['tabular-nums'] as any,
+          fontWeight: dim ? '400' : '700',
+        }}
+      >
+        {score}
+      </Text>
+    </View>
+  );
+}
+
 function makeStyles(c: Palette) {
   return StyleSheet.create({
-    predCard: { gap: spacing.sm, paddingVertical: spacing.md },
-    cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    cardTopRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-    pointsWithInfo: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-
-    grid: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    sideCol: { flex: 1, alignItems: 'center', gap: 2 },
-    pickCol: { flex: 1, alignItems: 'center', gap: 2 },
-    gridLabel: { fontSize: font.size.xs },
-    teamName: {
-      color: c.foreground,
-      fontSize: font.size.sm,
-      fontWeight: font.weight.medium,
-      textAlign: 'center',
+    tile: { gap: spacing.xs, paddingVertical: spacing.md },
+    mainRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md,
     },
-    pickScore: {
-      color: c.foreground,
-      fontSize: font.size.lg,
+    leftCol: { flex: 1, gap: 5, minWidth: 0 },
+    dayCaption: { fontSize: font.size.xs },
+    matchTitle: { fontSize: 13.5, fontWeight: font.weight.semibold },
+    picksRow: { flexDirection: 'row', gap: spacing.md, marginTop: 4 },
+    ptsChip: {
+      width: 72,
+      paddingVertical: 10,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      alignItems: 'center',
+      gap: 2,
+      flexShrink: 0,
+    },
+    ptsValue: {
+      fontSize: 22,
       fontWeight: font.weight.bold,
       fontVariant: ['tabular-nums'],
+      lineHeight: 26,
     },
-
+    ptsCaption: { fontSize: 9.5, fontWeight: font.weight.bold, letterSpacing: 0.5 },
     toggleBtn: {
       marginTop: spacing.xs,
       paddingTop: spacing.sm,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: c.border,
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
       gap: 4,
     },
-    toggleText: { color: c.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.medium },
-
+    toggleText: { fontSize: font.size.xs, fontWeight: font.weight.medium },
     othersBox: { marginTop: spacing.xs, gap: 4 },
     otherRow: {
       flexDirection: 'row',
@@ -180,12 +239,11 @@ function makeStyles(c: Palette) {
       paddingVertical: 6,
       paddingHorizontal: spacing.sm,
       borderRadius: radius.sm,
-      backgroundColor: c.cardElevated,
       gap: spacing.sm,
     },
-    otherName: { flex: 1, color: c.foreground, fontSize: font.size.xs, fontWeight: font.weight.medium },
+    otherName: { flex: 1, fontSize: font.size.xs, fontWeight: font.weight.medium },
     otherRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    otherScore: { color: c.foreground, fontSize: font.size.xs, fontVariant: ['tabular-nums'] },
+    otherScore: { fontSize: font.size.xs, fontVariant: ['tabular-nums'] },
     otherPts: { fontSize: font.size.xs, fontWeight: font.weight.semibold },
   });
 }

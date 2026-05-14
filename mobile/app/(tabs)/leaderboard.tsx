@@ -7,17 +7,19 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LeaderboardFilters } from '@/components/LeaderboardFilters';
-import { LeaderboardRow } from '@/components/LeaderboardRow';
+import { LeaderboardRow, Podium } from '@/components/LeaderboardRow';
+import { AppHeader } from '@/components/AppHeader';
 import { Muted } from '@/components/ui';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import type { LeaderboardEntry } from '@/types/api';
-import { font, spacing, type Palette } from '@/theme/colors';
+import { spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 
 export default function LeaderboardScreen() {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
 
   const {
     myId,
@@ -39,11 +41,20 @@ export default function LeaderboardScreen() {
     monthLabel,
   } = useLeaderboard();
 
+  const showPodium = entries.length >= 3 && isCurrentPeriod;
+  const listEntries = showPodium ? entries.slice(3) : entries;
+
+  // subtitle: group name + player count
+  const groupName = groups.find(g => g.id === groupId)?.name;
+  const subtitle = groupName
+    ? `${groupName} · ${entries.length} player${entries.length !== 1 ? 's' : ''}`
+    : `${entries.length} player${entries.length !== 1 ? 's' : ''}`;
+
   const renderItem = useCallback(
     ({ item, index }: { item: LeaderboardEntry; index: number }) => (
       <LeaderboardRow
         item={item}
-        index={index}
+        index={showPodium ? index + 3 : index}
         myId={myId}
         isCurrentPeriod={isCurrentPeriod}
         isExpanded={expandedUserId === item.userId}
@@ -52,71 +63,64 @@ export default function LeaderboardScreen() {
         onToggle={toggleExpand}
       />
     ),
-    [myId, isCurrentPeriod, expandedUserId, expandedLoading, expandedData, toggleExpand],
+    [myId, isCurrentPeriod, expandedUserId, expandedLoading, expandedData, toggleExpand, showPodium],
   );
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }
 
   return (
-    <FlatList
-      data={entries}
-      keyExtractor={e => e.userId}
-      contentContainerStyle={styles.list}
-      style={{ backgroundColor: colors.background }}
-      extraData={{ expandedUserId, expandedLoading }}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-      }
-      ListHeaderComponent={
-        <View style={{ gap: spacing.md }}>
-          <Text style={styles.heading}>Leaderboard</Text>
-          <LeaderboardFilters
-            groups={groups}
-            groupId={groupId}
-            setGroupId={setGroupId}
-            leagues={leagues}
-            selectedLeagues={selectedLeagues}
-            setSelectedLeagues={setSelectedLeagues}
-            leagueDropdownOpen={leagueDropdownOpen}
-            setLeagueDropdownOpen={setLeagueDropdownOpen}
-            period={period}
-            setPeriod={setPeriod}
-            weekLabel={weekLabel}
-            monthLabel={monthLabel}
-            setWeekOffset={setWeekOffset}
-            setMonthOffset={setMonthOffset}
-          />
-        </View>
-      }
-      ListEmptyComponent={
-        <Muted style={{ textAlign: 'center', marginTop: spacing.xl }}>
-          No predictions yet
-        </Muted>
-      }
-      renderItem={renderItem}
-    />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <AppHeader title="Leaders" subtitle={entries.length > 0 ? subtitle : undefined} />
+      <FlatList
+        data={listEntries}
+        keyExtractor={e => e.userId}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 90 }]}
+        style={{ backgroundColor: colors.background }}
+        extraData={{ expandedUserId, expandedLoading }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        ListHeaderComponent={
+          <View style={{ gap: spacing.md }}>
+            <LeaderboardFilters
+              groups={groups}
+              groupId={groupId}
+              setGroupId={setGroupId}
+              leagues={leagues}
+              selectedLeagues={selectedLeagues}
+              setSelectedLeagues={setSelectedLeagues}
+              leagueDropdownOpen={leagueDropdownOpen}
+              setLeagueDropdownOpen={setLeagueDropdownOpen}
+              period={period}
+              setPeriod={setPeriod}
+              weekLabel={weekLabel}
+              monthLabel={monthLabel}
+              setWeekOffset={setWeekOffset}
+              setMonthOffset={setMonthOffset}
+            />
+            {showPodium && (
+              <Podium entries={entries} myId={myId} />
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          <Muted style={{ textAlign: 'center', marginTop: spacing.xl }}>
+            No predictions yet
+          </Muted>
+        }
+        renderItem={renderItem}
+      />
+    </View>
   );
 }
 
-function makeStyles(c: Palette) {
-  return StyleSheet.create({
-    center: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: c.background,
-    },
-    list: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
-    heading: {
-      color: c.foreground,
-      fontSize: font.size.xl,
-      fontWeight: font.weight.bold,
-    },
-  });
-}
+const styles = StyleSheet.create({
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  list: { padding: spacing.lg, gap: spacing.xs, paddingTop: spacing.sm },
+});

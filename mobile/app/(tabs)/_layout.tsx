@@ -1,100 +1,43 @@
 import { Tabs } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { font, spacing } from '@/theme/colors';
+import { StyleSheet } from 'react-native';
+import { font } from '@/theme/colors';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme/theme';
 import { Ionicons } from '@expo/vector-icons';
 
-function HeaderRight() {
-  const { user, signOut } = useAuth();
-  const { colors, mode, toggle } = useTheme();
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        paddingRight: spacing.md,
-      }}
-    >
-      <Pressable
-        onPress={toggle}
-        hitSlop={10}
-        accessibilityLabel={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 4 })}
-      >
-        <Ionicons
-          name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'}
-          size={20}
-          color={colors.foreground}
-        />
-      </Pressable>
-      <View style={{ alignItems: 'flex-end' }}>
-        <Text
-          style={{
-            color: colors.foreground,
-            fontSize: font.size.xs,
-            fontWeight: font.weight.semibold,
-          }}
-        >
-          {user?.name ?? ''}
-        </Text>
-        <Text style={{ color: colors.mutedForeground, fontSize: font.size.xxs }}>
-          {user?.role === 'admin' ? 'Admin' : 'Player'}
-        </Text>
-      </View>
-      <Pressable
-        onPress={signOut}
-        hitSlop={10}
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 4 })}
-      >
-        <Ionicons name="log-out-outline" size={22} color={colors.foreground} />
-      </Pressable>
-    </View>
-  );
-}
-
-function HeaderTitle() {
-  const { colors } = useTheme();
-  return (
-    <Text
-      style={{
-        color: colors.foreground,
-        fontSize: font.size.lg,
-        fontWeight: font.weight.bold,
-      }}
-    >
-      ⚽ Predictions
-    </Text>
-  );
-}
-
 export default function TabsLayout() {
   const { user } = useAuth();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const isAdmin = user?.role === 'admin';
 
-  // Match the Android gesture-navigation-bar area to the tab bar colour so it
-  // doesn't look like the bar is floating above an empty strip at the bottom.
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync(colors.card);
-  }, [colors.card]);
+    SystemUI.setBackgroundColorAsync(colors.background);
+  }, [colors.background]);
 
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: colors.card, borderBottomColor: colors.border },
-        headerTintColor: colors.foreground,
-        headerTitle: HeaderTitle,
-        headerRight: HeaderRight,
+        headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.card,
+          position: 'absolute',
+          backgroundColor: mode === 'dark' ? 'rgba(10,12,18,0.86)' : 'rgba(244,246,250,0.90)',
           borderTopColor: colors.border,
           borderTopWidth: StyleSheet.hairlineWidth,
           elevation: 0,
+          height: 78,
+          paddingTop: 8,
+          paddingBottom: 28,
         },
+        tabBarBackground: () => (
+          <BlurView
+            intensity={24}
+            tint={mode === 'dark' ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         tabBarLabelStyle: { fontSize: font.size.xs, fontWeight: font.weight.medium },
@@ -103,7 +46,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="matches"
         options={{
-          title: 'Upcoming Matches',
+          title: 'Matches',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" color={color} size={size} />
           ),

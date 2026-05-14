@@ -65,7 +65,8 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "apiBaseUrl": "https://predictions-virid.vercel.app",

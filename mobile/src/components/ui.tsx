@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
+  Animated,
   ActivityIndicator,
   Pressable,
   PressableProps,
@@ -11,6 +12,7 @@ import {
   View,
   ViewProps,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 
@@ -19,7 +21,7 @@ function makeStyles(c: Palette) {
     card: {
       backgroundColor: c.card,
       borderRadius: radius.lg,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
       padding: spacing.lg,
     },
@@ -144,7 +146,55 @@ export const Input = React.forwardRef<TextInput, TextInputProps>(function Input(
   );
 });
 
-// ── Badge ────────────────────────────────────────────────────────────────────
+// ── Pill ─────────────────────────────────────────────────────────────────────
+type PillTone = 'brand' | 'live' | 'amber' | 'neutral' | 'ghost';
+
+interface PillProps {
+  tone?: PillTone;
+  children: React.ReactNode;
+  icon?: React.ReactNode;
+}
+
+export function Pill({ tone = 'neutral', children, icon }: PillProps) {
+  const { colors } = useTheme();
+  const toneStyle = {
+    brand:   { bg: colors.primarySoft,            fg: colors.primary,         border: colors.primarySoftBorder },
+    live:    { bg: 'rgba(255,77,109,0.14)',        fg: colors.live,            border: 'rgba(255,77,109,0.35)' },
+    amber:   { bg: 'rgba(242,181,68,0.14)',        fg: colors.warning,         border: 'rgba(242,181,68,0.35)' },
+    neutral: { bg: colors.cardElevated,            fg: colors.mutedForeground, border: colors.border },
+    ghost:   { bg: 'transparent',                  fg: colors.mutedForeground, border: colors.border },
+  }[tone];
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: radius.pill,
+        borderWidth: 1,
+        backgroundColor: toneStyle.bg,
+        borderColor: toneStyle.border,
+      }}
+    >
+      {icon}
+      <Text
+        style={{
+          fontSize: font.size.xs,
+          fontWeight: font.weight.bold,
+          color: toneStyle.fg,
+          letterSpacing: 0.5,
+        }}
+      >
+        {children}
+      </Text>
+    </View>
+  );
+}
+
+// keep Badge as alias for back-compat consumers
 interface BadgeProps {
   variant?: 'default' | 'outline' | 'destructive' | 'secondary';
   children: React.ReactNode;
@@ -155,21 +205,103 @@ export function Badge({ variant = 'default', children, icon }: BadgeProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const v = {
-    default: { bg: colors.primary, fg: colors.primaryForeground, border: colors.primary },
-    outline: { bg: 'transparent', fg: colors.foreground, border: colors.border },
-    secondary: { bg: colors.accent, fg: colors.foreground, border: colors.accent },
-    destructive: { bg: colors.destructive, fg: '#fff', border: colors.destructive },
+    default:     { bg: colors.primary,     fg: colors.primaryForeground, border: colors.primary },
+    outline:     { bg: 'transparent',      fg: colors.foreground,        border: colors.border },
+    secondary:   { bg: colors.accent,      fg: colors.foreground,        border: colors.accent },
+    destructive: { bg: colors.destructive, fg: '#fff',                   border: colors.destructive },
   }[variant];
   return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: v.bg, borderColor: v.border },
-      ]}
-    >
+    <View style={[styles.badge, { backgroundColor: v.bg, borderColor: v.border }]}>
       {icon}
       <Text style={[styles.badgeText, { color: v.fg }]}>{children}</Text>
     </View>
+  );
+}
+
+// ── LiveDot ──────────────────────────────────────────────────────────────────
+export function LiveDot() {
+  const { colors } = useTheme();
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0.6)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.6, duration: 800, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 800, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.6, duration: 800, useNativeDriver: true }),
+        ]),
+      ]),
+    ).start();
+  }, [scale, opacity]);
+
+  return (
+    <View style={{ width: 8, height: 8, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: colors.live,
+          transform: [{ scale }],
+          opacity,
+        }}
+      />
+      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: colors.live }} />
+    </View>
+  );
+}
+
+// ── IconBtn ───────────────────────────────────────────────────────────────────
+interface IconBtnProps extends Omit<PressableProps, 'children'> {
+  name: React.ComponentProps<typeof Ionicons>['name'];
+  size?: number;
+  color?: string;
+}
+
+export function IconBtn({ name, size = 20, color, style, ...rest }: IconBtnProps) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        {
+          width: 36,
+          height: 36,
+          borderRadius: radius.pill,
+          backgroundColor: colors.cardElevated,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: pressed ? 0.65 : 1,
+        },
+        typeof style === 'function' ? undefined : style,
+      ]}
+      {...rest}
+    >
+      <Ionicons name={name} size={size} color={color ?? colors.foreground} />
+    </Pressable>
+  );
+}
+
+// ── SectionTitle ─────────────────────────────────────────────────────────────
+export function SectionTitle({ style, children, ...rest }: TextProps) {
+  const { colors } = useTheme();
+  return (
+    <Text
+      style={[
+        { color: colors.foreground, fontSize: font.size.sm, fontWeight: font.weight.bold },
+        style,
+      ]}
+      {...rest}
+    >
+      {children}
+    </Text>
   );
 }
 

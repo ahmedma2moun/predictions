@@ -14,6 +14,12 @@ interface Props {
   setMonthOffset: React.Dispatch<React.SetStateAction<number>>;
 }
 
+const PERIODS: { value: Period; label: string }[] = [
+  { value: 'week',  label: 'Week' },
+  { value: 'month', label: 'Month' },
+  { value: 'all',   label: 'All Time' },
+];
+
 export function PeriodFilterBar({
   period, setPeriod,
   weekLabel, monthLabel,
@@ -24,21 +30,28 @@ export function PeriodFilterBar({
 
   return (
     <View style={{ gap: spacing.sm }}>
-      <View style={styles.segmented}>
-        {(['all', 'month', 'week'] as Period[]).map(p => {
-          const active = period === p;
+      {/* Segmented control shell */}
+      <View style={[styles.segShell, { backgroundColor: colors.cardElevated, borderColor: colors.border }]}>
+        {PERIODS.map(p => {
+          const active = period === p.value;
           return (
             <Pressable
-              key={p}
-              onPress={() => setPeriod(p)}
+              key={p.value}
+              onPress={() => setPeriod(p.value)}
               style={({ pressed }) => [
                 styles.segBtn,
-                active && styles.segBtnActive,
-                pressed && { opacity: 0.75 },
+                active && [styles.segBtnActive, { backgroundColor: colors.primary }],
+                pressed && !active && { opacity: 0.7 },
               ]}
             >
-              <Text style={[styles.segText, active && styles.segTextActive]}>
-                {p === 'all' ? 'All Time' : p === 'month' ? 'Month' : 'Week'}
+              <Text
+                style={[
+                  styles.segText,
+                  { color: active ? colors.primaryForeground : colors.mutedForeground },
+                  active && styles.segTextActive,
+                ]}
+              >
+                {p.label}
               </Text>
             </Pressable>
           );
@@ -74,12 +87,28 @@ function OffsetNav({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.nav}>
-      <Pressable onPress={onPrev} hitSlop={12} style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.6 }]}>
-        <Ionicons name="chevron-back" size={18} color={colors.foreground} />
+      <Pressable
+        onPress={onPrev}
+        hitSlop={12}
+        style={({ pressed }) => [
+          styles.navBtn,
+          { backgroundColor: colors.cardElevated, borderColor: colors.border },
+          pressed && { opacity: 0.6 },
+        ]}
+      >
+        <Ionicons name="chevron-back" size={16} color={colors.foreground} />
       </Pressable>
-      <Text style={styles.navLabel}>{label}</Text>
-      <Pressable onPress={onNext} hitSlop={12} style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.6 }]}>
-        <Ionicons name="chevron-forward" size={18} color={colors.foreground} />
+      <Text style={[styles.navLabel, { color: colors.foreground }]}>{label}</Text>
+      <Pressable
+        onPress={onNext}
+        hitSlop={12}
+        style={({ pressed }) => [
+          styles.navBtn,
+          { backgroundColor: colors.cardElevated, borderColor: colors.border },
+          pressed && { opacity: 0.6 },
+        ]}
+      >
+        <Ionicons name="chevron-forward" size={16} color={colors.foreground} />
       </Pressable>
     </View>
   );
@@ -87,10 +116,10 @@ function OffsetNav({
 
 function makeStyles(c: Palette) {
   return StyleSheet.create({
-    segmented: {
+    segShell: {
       flexDirection: 'row',
-      backgroundColor: c.cardElevated,
       borderRadius: radius.md,
+      borderWidth: StyleSheet.hairlineWidth,
       padding: 4,
       gap: 4,
     },
@@ -100,18 +129,23 @@ function makeStyles(c: Palette) {
       borderRadius: radius.sm,
       alignItems: 'center',
     },
-    segBtnActive: { backgroundColor: c.card },
-    segText: { color: c.mutedForeground, fontSize: font.size.sm, fontWeight: font.weight.medium },
-    segTextActive: { color: c.foreground, fontWeight: font.weight.semibold },
+    segBtnActive: { borderRadius: radius.sm },
+    segText: { fontSize: font.size.sm, fontWeight: font.weight.medium },
+    segTextActive: { fontWeight: font.weight.semibold },
     nav: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
     },
-    navBtn: { padding: 6, borderRadius: radius.sm },
+    navBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     navLabel: {
-      color: c.foreground,
       fontSize: font.size.sm,
       fontWeight: font.weight.semibold,
       fontVariant: ['tabular-nums'],

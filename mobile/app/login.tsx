@@ -8,9 +8,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Button, Card, Input } from '@/components/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, Input } from '@/components/ui';
 import { useAuth } from '@/auth/AuthContext';
-import { font, spacing, type Palette } from '@/theme/colors';
+import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import { ApiError } from '@/api/client';
 
@@ -18,6 +19,7 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,51 +42,72 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.root}
+      style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xxl },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.container}>
-          <Card style={styles.card}>
-            <View style={styles.header}>
-              <Text style={styles.emoji}>⚽</Text>
-              <Text style={styles.title}>Football Predictions</Text>
-              <Text style={styles.subtitle}>Sign in to your account</Text>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
-              <Input
-                placeholder="you@example.com"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                textContentType="emailAddress"
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Password</Text>
-              <Input
-                placeholder="••••••••"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete="password"
-                textContentType="password"
-              />
-            </View>
-
-            <Button fullWidth onPress={handleSubmit} loading={loading}>
-              Sign In
-            </Button>
-          </Card>
+        {/* Logo tile */}
+        <View style={[styles.logoTile, { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder }]}>
+          <Text style={{ fontSize: 28 }}>⚽</Text>
         </View>
+
+        {/* Hero copy */}
+        <Text style={[styles.heroTitle, { color: colors.foreground }]}>
+          {'Predict the\nbeautiful game.'}
+        </Text>
+        <Text style={[styles.heroSubtitle, { color: colors.mutedForeground }]}>
+          Score your picks against friends across the Premier League, UCL and more.
+        </Text>
+
+        <View style={styles.spacer} />
+
+        {/* Form */}
+        <View style={styles.form}>
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: colors.foreground }]}>Email</Text>
+            <Input
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={[styles.label, { color: colors.foreground }]}>Password</Text>
+            <Input
+              placeholder="••••••••"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="password"
+              textContentType="password"
+            />
+          </View>
+
+          <Button
+            fullWidth
+            onPress={handleSubmit}
+            loading={loading}
+            style={{ height: 54, borderRadius: radius.lg }}
+          >
+            Sign In
+          </Button>
+        </View>
+
+        {/* Footer microcopy */}
+        <Text style={[styles.footer, { color: colors.mutedForeground }]}>
+          By continuing, you agree to our Terms and Privacy Policy.
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -92,23 +115,43 @@ export default function LoginScreen() {
 
 function makeStyles(c: Palette) {
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: c.background },
-    scroll: { flexGrow: 1, justifyContent: 'center' },
-    container: { padding: spacing.lg },
-    card: { gap: spacing.md, maxWidth: 420, alignSelf: 'center', width: '100%' },
-    header: { alignItems: 'center', marginBottom: spacing.md, gap: 4 },
-    emoji: { fontSize: 40 },
-    title: {
-      color: c.foreground,
-      fontSize: font.size.xl,
-      fontWeight: font.weight.bold,
+    root: { flex: 1 },
+    scroll: {
+      flexGrow: 1,
+      paddingHorizontal: spacing.xl,
     },
-    subtitle: { color: c.mutedForeground, fontSize: font.size.sm },
+    logoTile: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.xl,
+    },
+    heroTitle: {
+      fontSize: font.size.display,
+      fontWeight: font.weight.bold,
+      letterSpacing: -1.2,
+      lineHeight: 42,
+      marginBottom: spacing.md,
+    },
+    heroSubtitle: {
+      fontSize: 14.5,
+      lineHeight: 22,
+    },
+    spacer: { flex: 1, minHeight: spacing.xxl },
+    form: { gap: spacing.md },
     field: { gap: spacing.xs },
     label: {
-      color: c.foreground,
       fontSize: font.size.sm,
       fontWeight: font.weight.medium,
+    },
+    footer: {
+      marginTop: spacing.xl,
+      fontSize: 11.5,
+      textAlign: 'center',
+      lineHeight: 18,
     },
   });
 }

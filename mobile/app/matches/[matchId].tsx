@@ -10,9 +10,10 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiRequest, ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { Badge, Button, Card, Muted } from '@/components/ui';
+import { Button, Card, Muted, Pill, SectionTitle } from '@/components/ui';
 import { H2HRow } from '@/components/H2HRow';
 import { StandingsRow } from '@/components/StandingsRow';
 import { TeamColumn } from '@/components/TeamColumn';
@@ -27,6 +28,7 @@ export default function MatchPredictionScreen() {
   const { token } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
 
   const [match, setMatch]         = useState<MatchDetail | null>(null);
   const [home, setHome]           = useState(0);
@@ -84,7 +86,7 @@ export default function MatchPredictionScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
@@ -92,7 +94,7 @@ export default function MatchPredictionScreen() {
 
   if (!match) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
         <Text style={{ color: colors.foreground }}>Match not found</Text>
       </View>
     );
@@ -103,6 +105,12 @@ export default function MatchPredictionScreen() {
   const canPredict = !match.isAdmin && !locked;
   const winnerLabel =
     home > away ? match.homeTeam.name : away > home ? match.awayTeam.name : 'Draw';
+
+  const matchdayTitle = knockout
+    ? `${formatStage(match.stage!)}${match.leg ? ` · Leg ${match.leg}` : ''}`.toUpperCase()
+    : match.matchday
+    ? `MD ${match.matchday}`.toUpperCase()
+    : formatMatchStatus(match.status).toUpperCase();
 
   async function handleSubmit() {
     if (!token || !match) return;
@@ -124,219 +132,314 @@ export default function MatchPredictionScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={styles.content}
-    >
-      <Card>
-        <View style={styles.cardHeader}>
-          <Text style={styles.title}>{match.isAdmin ? 'Match Details' : 'Predict Score'}</Text>
-          <Badge
-            variant={match.status === 'live' ? 'destructive' : locked ? 'secondary' : 'outline'}
-            icon={locked ? <Ionicons name="lock-closed" size={11} color={colors.foreground} /> : undefined}
-          >
-            {locked ? 'Locked' : formatMatchStatus(match.status)}
-          </Badge>
-        </View>
-        <Muted>{formatKickoff(match.kickoffTime)}</Muted>
-        {knockout ? (
-          <Muted style={{ fontSize: font.size.xs, marginTop: 2 }}>
-            {formatStage(match.stage!)}{match.leg ? ` · Leg ${match.leg}` : ''}
-          </Muted>
-        ) : match.matchday ? (
-          <Muted style={{ fontSize: font.size.xs, marginTop: 2 }}>Matchday {match.matchday}</Muted>
-        ) : null}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Custom header */}
+      <View
+        style={[
+          styles.customHeader,
+          {
+            paddingTop: insets.top + 8,
+            borderBottomColor: colors.border,
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [
+            styles.backBtn,
+            { backgroundColor: colors.cardElevated, borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+          ]}
+          hitSlop={8}
+        >
+          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {matchdayTitle}
+        </Text>
+        <View style={{ width: 36 }} />
+      </View>
 
-        <View style={styles.teamsRow}>
-          <TeamColumn
-            name={match.homeTeam.name}
-            logo={match.homeTeam.logo}
-            position={!knockout ? match.homeStanding?.position ?? null : null}
-            value={home}
-            onChange={setHome}
-            disabled={!canPredict}
-          />
-          <Text style={styles.dash}>–</Text>
-          <TeamColumn
-            name={match.awayTeam.name}
-            logo={match.awayTeam.logo}
-            position={!knockout ? match.awayStanding?.position ?? null : null}
-            value={away}
-            onChange={setAway}
-            disabled={!canPredict}
-          />
-        </View>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+      >
+        {/* Hero predict card */}
+        <Card style={styles.heroCard}>
+          {/* Radial tint from top-center */}
+          <View style={styles.heroTint} pointerEvents="none" />
 
-        {canPredict && (
-          <Text style={styles.outcome}>
-            Predicted outcome: <Text style={styles.outcomeStrong}>{winnerLabel}</Text>
-          </Text>
-        )}
-
-        {match.result && (
-          <View style={styles.resultBox}>
-            <Muted style={{ textAlign: 'center', fontSize: font.size.xs }}>Final Result</Muted>
-            <Text style={styles.resultScore}>
-              {match.result.homeScore} – {match.result.awayScore}
+          {/* Date + status row */}
+          <View style={styles.heroTopRow}>
+            <Text style={[styles.heroDate, { color: colors.mutedForeground }]}>
+              {formatKickoff(match.kickoffTime).toUpperCase()}
             </Text>
-            {match.result.penaltyHomeScore != null && (
-              <Muted style={{ textAlign: 'center', fontSize: font.size.xs }}>
-                Penalties: {match.result.penaltyHomeScore} – {match.result.penaltyAwayScore}
-              </Muted>
-            )}
-            {!match.isAdmin && !knockout && match.prediction && (
-              <Text style={styles.points}>+{match.prediction.pointsAwarded} pts</Text>
+            {match.status === 'live' ? (
+              <Pill tone="live">LIVE</Pill>
+            ) : locked ? (
+              <Pill tone="ghost">LOCKED</Pill>
+            ) : (
+              <Pill tone="amber" icon={<Ionicons name="time-outline" size={10} color={colors.warning} />}>
+                OPEN
+              </Pill>
             )}
           </View>
+
+          {/* Teams + steppers */}
+          <View style={styles.teamsRow}>
+            <TeamColumn
+              name={match.homeTeam.name}
+              logo={match.homeTeam.logo}
+              position={!knockout ? match.homeStanding?.position ?? null : null}
+              value={home}
+              onChange={setHome}
+              disabled={!canPredict}
+            />
+            <Text style={[styles.dash, { color: colors.mutedForeground, fontFamily: 'JetBrainsMono' }]}>–</Text>
+            <TeamColumn
+              name={match.awayTeam.name}
+              logo={match.awayTeam.logo}
+              position={!knockout ? match.awayStanding?.position ?? null : null}
+              value={away}
+              onChange={setAway}
+              disabled={!canPredict}
+            />
+          </View>
+
+          {/* Outcome label */}
+          {canPredict && (
+            <Text style={[styles.outcome, { color: colors.mutedForeground }]}>
+              Your call:{' '}
+              <Text style={{ color: colors.foreground, fontWeight: font.weight.semibold }}>
+                {winnerLabel}
+              </Text>
+            </Text>
+          )}
+
+          {/* Result box */}
+          {match.result && (
+            <View style={[styles.resultBox, { backgroundColor: colors.cardElevated, borderColor: colors.border }]}>
+              <Muted style={{ textAlign: 'center', fontSize: font.size.xs }}>Final Result</Muted>
+              <Text style={[styles.resultScore, { color: colors.foreground, fontFamily: 'JetBrainsMonoBold' }]}>
+                {match.result.homeScore} – {match.result.awayScore}
+              </Text>
+              {match.result.penaltyHomeScore != null && (
+                <Muted style={{ textAlign: 'center', fontSize: font.size.xs }}>
+                  Penalties: {match.result.penaltyHomeScore} – {match.result.penaltyAwayScore}
+                </Muted>
+              )}
+              {!match.isAdmin && !knockout && match.prediction && (
+                <Text style={[styles.points, { color: colors.warning }]}>
+                  +{match.prediction.pointsAwarded} pts
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Save button */}
+          {canPredict ? (
+            <Button
+              fullWidth
+              onPress={handleSubmit}
+              loading={saving}
+              style={{ height: 48, marginTop: spacing.sm, borderRadius: radius.md }}
+            >
+              {match.prediction ? 'Update Prediction' : 'Save Prediction'}
+            </Button>
+          ) : !match.isAdmin && locked && !match.result ? (
+            <Muted style={{ textAlign: 'center', marginTop: spacing.sm }}>
+              Predictions are locked for this match
+            </Muted>
+          ) : null}
+        </Card>
+
+        {/* H2H */}
+        {h2hLoading && (
+          <Card>
+            <SectionTitle style={{ marginBottom: spacing.sm }}>Head to Head</SectionTitle>
+            <ActivityIndicator color={colors.primary} />
+          </Card>
         )}
 
-        {canPredict ? (
-          <Button fullWidth onPress={handleSubmit} loading={saving}>
-            {match.prediction ? 'Update Prediction' : 'Save Prediction'}
-          </Button>
-        ) : !match.isAdmin && locked ? (
-          <Muted style={{ textAlign: 'center', marginTop: spacing.sm }}>
-            Predictions are locked for this match
-          </Muted>
-        ) : null}
-      </Card>
-
-      {h2hLoading && (
-        <Card>
-          <Text style={styles.sectionTitle}>Head to Head</Text>
-          <ActivityIndicator color={colors.primary} />
-        </Card>
-      )}
-
-      {!h2hLoading && h2h && h2h.length > 0 && (() => {
-        const summary = computeH2HSummary(h2h, match.homeTeam.name, match.awayTeam.name);
-        return (
-          <Card>
-            <Text style={styles.sectionTitle}>Head to Head</Text>
-            <Muted style={{ fontSize: font.size.xs, marginBottom: spacing.sm }}>
-              Last {h2h.length} meeting{h2h.length !== 1 ? 's' : ''}
-            </Muted>
-            {summary && (
-              <View style={styles.h2hSummary}>
-                <View style={styles.h2hSummaryCol}>
-                  <Text style={styles.h2hSummaryNum}>{summary.homeWins}</Text>
-                  <Muted style={styles.h2hSummaryLabel} numberOfLines={1}>{match.homeTeam.name}</Muted>
-                </View>
-                <View style={styles.h2hSummaryCol}>
-                  <Text style={styles.h2hSummaryNum}>{summary.draws}</Text>
-                  <Muted style={styles.h2hSummaryLabel}>Draw</Muted>
-                </View>
-                <View style={styles.h2hSummaryCol}>
-                  <Text style={styles.h2hSummaryNum}>{summary.awayWins}</Text>
-                  <Muted style={styles.h2hSummaryLabel} numberOfLines={1}>{match.awayTeam.name}</Muted>
-                </View>
+        {!h2hLoading && h2h && h2h.length > 0 && (() => {
+          const summary = computeH2HSummary(h2h, match.homeTeam.name, match.awayTeam.name);
+          const total = summary ? summary.homeWins + summary.draws + summary.awayWins : 0;
+          return (
+            <Card style={{ gap: spacing.md }}>
+              <SectionTitle>Head to Head</SectionTitle>
+              {summary && (
+                <>
+                  <View style={styles.h2hSummary}>
+                    <View style={styles.h2hSummaryCol}>
+                      <Text style={[styles.h2hSummaryNum, { color: colors.foreground, fontFamily: 'JetBrainsMonoBold' }]}>
+                        {summary.homeWins}
+                      </Text>
+                      <Muted style={styles.h2hSummaryLabel} numberOfLines={1}>{match.homeTeam.name}</Muted>
+                    </View>
+                    <View style={styles.h2hSummaryCol}>
+                      <Text style={[styles.h2hSummaryNum, { color: colors.mutedForeground, fontFamily: 'JetBrainsMonoBold' }]}>
+                        {summary.draws}
+                      </Text>
+                      <Muted style={styles.h2hSummaryLabel}>Draw</Muted>
+                    </View>
+                    <View style={styles.h2hSummaryCol}>
+                      <Text style={[styles.h2hSummaryNum, { color: colors.foreground, fontFamily: 'JetBrainsMonoBold' }]}>
+                        {summary.awayWins}
+                      </Text>
+                      <Muted style={styles.h2hSummaryLabel} numberOfLines={1}>{match.awayTeam.name}</Muted>
+                    </View>
+                  </View>
+                  {/* Stacked bar */}
+                  {total > 0 && (
+                    <View style={[styles.h2hBar, { backgroundColor: colors.cardElevated }]}>
+                      {summary.homeWins > 0 && (
+                        <View style={[styles.h2hBarFill, { flex: summary.homeWins, backgroundColor: colors.primary }]} />
+                      )}
+                      {summary.draws > 0 && (
+                        <View style={[styles.h2hBarFill, { flex: summary.draws, backgroundColor: colors.mutedForeground + '55' }]} />
+                      )}
+                      {summary.awayWins > 0 && (
+                        <View style={[styles.h2hBarFill, { flex: summary.awayWins, backgroundColor: '#5B8FC9' }]} />
+                      )}
+                    </View>
+                  )}
+                </>
+              )}
+              <View style={{ gap: 0 }}>
+                {h2h.map((m, i) => (
+                  <View
+                    key={`${m.date}:${m.homeTeamName}:${m.awayTeamName}`}
+                    style={i > 0 ? [styles.h2hDivider, { borderTopColor: colors.border }] : undefined}
+                  >
+                    <H2HRow m={m} />
+                  </View>
+                ))}
               </View>
-            )}
-            {summary && (
-              <View style={styles.h2hSummaryStats}>
-                <Muted style={{ fontSize: font.size.xs }}>Avg {summary.avgGoals} goals/game</Muted>
-                <Muted style={{ fontSize: font.size.xs }}>Last: {summary.last.homeScore} – {summary.last.awayScore}</Muted>
-              </View>
-            )}
-            {h2h.map(m => (
-              <H2HRow key={`${m.date}:${m.homeTeamName}:${m.awayTeamName}`} m={m} />
-            ))}
+            </Card>
+          );
+        })()}
+
+        {/* League standings */}
+        {!knockout && (match.homeStanding || match.awayStanding) && (
+          <Card style={{ gap: spacing.sm }}>
+            <SectionTitle>League Standings</SectionTitle>
+            <StandingsRow label={match.homeTeam.name} s={match.homeStanding} />
+            <StandingsRow label={match.awayTeam.name} s={match.awayStanding} />
           </Card>
-        );
-      })()}
+        )}
 
-      {!knockout && (match.homeStanding || match.awayStanding) && (
-        <Card>
-          <Text style={styles.sectionTitle}>League Standings</Text>
-          <StandingsRow label={match.homeTeam.name} s={match.homeStanding} />
-          <StandingsRow label={match.awayTeam.name} s={match.awayStanding} />
-        </Card>
-      )}
-
-      {(locked || match.isAdmin) && groups.length > 0 && (
-        <Card>
-          <Text style={styles.sectionTitle}>Group Comparison</Text>
-          {groups.length > 1 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: spacing.sm }}
-              contentContainerStyle={{ gap: spacing.xs }}
-            >
-              {groups.map(g => (
-                <Pressable
-                  key={g.id}
-                  onPress={() => setSelectedGroupId(g.id)}
-                  style={[
-                    styles.groupTab,
-                    selectedGroupId === g.id && styles.groupTabActive,
-                  ]}
+        {/* Group comparison */}
+        {(locked || match.isAdmin) && groups.length > 0 && (
+          <Card style={{ gap: spacing.sm }}>
+            <View style={styles.groupHeader}>
+              <SectionTitle>Group Comparison</SectionTitle>
+              {groups.length > 1 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: spacing.xs }}
                 >
-                  <Text
+                  {groups.map(g => (
+                    <Pressable
+                      key={g.id}
+                      onPress={() => setSelectedGroupId(g.id)}
+                      style={[
+                        styles.groupTab,
+                        { borderColor: colors.border },
+                        selectedGroupId === g.id && { backgroundColor: colors.primary, borderColor: colors.primary },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.groupTabText,
+                          { color: colors.mutedForeground },
+                          selectedGroupId === g.id && { color: colors.primaryForeground },
+                        ]}
+                      >
+                        {g.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+            {groupPredictionsLoading ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
+            ) : !groupPredictions || groupPredictions.length === 0 ? (
+              <Muted style={{ textAlign: 'center', paddingVertical: spacing.md }}>
+                No predictions in this group.
+              </Muted>
+            ) : (
+              <View>
+                {groupPredictions.map((p, i) => (
+                  <View
+                    key={p.userId}
                     style={[
-                      styles.groupTabText,
-                      selectedGroupId === g.id && styles.groupTabTextActive,
+                      styles.predRow,
+                      { borderTopColor: colors.border },
+                      i === 0 && { borderTopWidth: 0 },
                     ]}
                   >
-                    {g.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
-          {groupPredictionsLoading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
-          ) : !groupPredictions || groupPredictions.length === 0 ? (
-            <Muted style={{ textAlign: 'center', paddingVertical: spacing.md }}>
-              No predictions in this group.
-            </Muted>
-          ) : (
-            groupPredictions.map(p => (
-              <View key={p.userId} style={styles.predRow}>
-                <Text style={styles.predName}>{p.userName ?? 'Unknown'}</Text>
-                {p.predicted ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                    <Text style={styles.predScore}>{p.homeScore} – {p.awayScore}</Text>
-                    {!knockout && match.result && (
-                      <Text style={(p.pointsAwarded ?? 0) > 0 ? styles.points : styles.zeroPoints}>
-                        {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded} pts` : '0 pts'}
-                      </Text>
+                    <Text style={[styles.predName, { color: colors.foreground }]}>{p.userName ?? 'Unknown'}</Text>
+                    {p.predicted ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                        <Text style={[styles.predScore, { color: colors.foreground, fontFamily: 'JetBrainsMono' }]}>
+                          {p.homeScore} – {p.awayScore}
+                        </Text>
+                        {!knockout && match.result && (
+                          <Text style={{ color: (p.pointsAwarded ?? 0) > 0 ? colors.warning : colors.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
+                            {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded}` : '0'}
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <Muted style={{ fontSize: font.size.xs, fontStyle: 'italic' }}>No pick</Muted>
                     )}
                   </View>
-                ) : (
-                  <Muted style={{ fontSize: font.size.xs, fontStyle: 'italic' }}>No prediction</Muted>
-                )}
+                ))}
               </View>
-            ))
-          )}
-        </Card>
-      )}
+            )}
+          </Card>
+        )}
 
-      {(locked || match.isAdmin) && match.allPredictions && (
-        <Card>
-          <Text style={styles.sectionTitle}>All Predictions</Text>
-          {match.allPredictions.length === 0 ? (
-            <Muted style={{ textAlign: 'center', paddingVertical: spacing.md }}>
-              No predictions submitted.
-            </Muted>
-          ) : (
-            match.allPredictions.map(p => (
-              <View key={p.userId} style={styles.predRow}>
-                <Text style={styles.predName}>{p.userName}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                  <Text style={styles.predScore}>{p.homeScore} – {p.awayScore}</Text>
-                  {!knockout && match.result && (
-                    <Text style={p.pointsAwarded > 0 ? styles.points : styles.zeroPoints}>
-                      {p.pointsAwarded > 0 ? `+${p.pointsAwarded} pts` : '0 pts'}
-                    </Text>
-                  )}
-                </View>
+        {/* All predictions */}
+        {(locked || match.isAdmin) && match.allPredictions && (
+          <Card style={{ gap: spacing.sm }}>
+            <SectionTitle>All Predictions</SectionTitle>
+            {match.allPredictions.length === 0 ? (
+              <Muted style={{ textAlign: 'center', paddingVertical: spacing.md }}>
+                No predictions submitted.
+              </Muted>
+            ) : (
+              <View>
+                {match.allPredictions.map((p, i) => (
+                  <View
+                    key={p.userId}
+                    style={[
+                      styles.predRow,
+                      { borderTopColor: colors.border },
+                      i === 0 && { borderTopWidth: 0 },
+                    ]}
+                  >
+                    <Text style={[styles.predName, { color: colors.foreground }]}>{p.userName}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                      <Text style={[styles.predScore, { color: colors.foreground, fontFamily: 'JetBrainsMono' }]}>
+                        {p.homeScore} – {p.awayScore}
+                      </Text>
+                      {!knockout && match.result && (
+                        <Text style={{ color: p.pointsAwarded > 0 ? colors.warning : colors.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
+                          {p.pointsAwarded > 0 ? `+${p.pointsAwarded}` : '0'}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
               </View>
-            ))
-          )}
-        </Card>
-      )}
-    </ScrollView>
+            )}
+          </Card>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -368,87 +471,102 @@ function computeH2HSummary(h2h: import('@/types/api').H2HMatch[], homeTeamName: 
 
 function makeStyles(c: Palette) {
   return StyleSheet.create({
-    center: {
-      flex: 1,
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
+    customHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      gap: spacing.sm,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.pill,
+      borderWidth: StyleSheet.hairlineWidth,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: c.background,
     },
-    content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
-    cardHeader: {
+    headerTitle: {
+      flex: 1,
+      textAlign: 'center',
+      fontSize: 11.5,
+      fontWeight: font.weight.bold,
+      letterSpacing: 0.8,
+    },
+    content: { padding: spacing.lg, gap: spacing.md },
+    heroCard: { padding: 0, overflow: 'hidden' },
+    heroTint: {
+      position: 'absolute',
+      top: 0,
+      left: '10%',
+      right: '10%',
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: 'rgba(16,224,137,0.08)',
+    },
+    heroTopRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: spacing.xs,
+      padding: spacing.lg,
+      paddingBottom: spacing.md,
     },
-    title: { color: c.foreground, fontSize: font.size.lg, fontWeight: font.weight.bold },
-    teamsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg },
-    dash: { color: c.mutedForeground, fontSize: font.size.xl, fontWeight: font.weight.bold },
-    outcome: { textAlign: 'center', color: c.mutedForeground, fontSize: font.size.sm, marginTop: spacing.md },
-    outcomeStrong: { color: c.foreground, fontWeight: font.weight.medium },
+    heroDate: { fontSize: font.size.xs, fontWeight: font.weight.semibold, letterSpacing: 0.8 },
+    teamsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    dash: { fontSize: font.size.xl, fontWeight: font.weight.bold },
+    outcome: { textAlign: 'center', fontSize: font.size.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
     resultBox: {
-      marginTop: spacing.md,
-      backgroundColor: c.accent,
+      margin: spacing.lg,
+      marginTop: 0,
       borderRadius: radius.md,
+      borderWidth: 1,
       padding: spacing.md,
       alignItems: 'center',
       gap: 2,
     },
     resultScore: {
-      color: c.foreground,
       fontSize: font.size.xxl,
       fontWeight: font.weight.bold,
       fontVariant: ['tabular-nums'],
     },
-    points: { color: c.warning, fontWeight: font.weight.bold, fontSize: font.size.sm, marginTop: 4 },
-    zeroPoints: { color: c.mutedForeground, fontSize: font.size.sm },
-    sectionTitle: {
-      color: c.foreground,
-      fontSize: font.size.md,
-      fontWeight: font.weight.semibold,
-      marginBottom: spacing.sm,
+    points: { fontWeight: font.weight.bold, fontSize: font.size.sm, marginTop: 4 },
+    h2hSummary: { flexDirection: 'row' },
+    h2hSummaryCol: { flex: 1, alignItems: 'center', gap: 2 },
+    h2hSummaryNum: { fontSize: font.size.xl, fontWeight: font.weight.bold },
+    h2hSummaryLabel: { fontSize: font.size.xs, textAlign: 'center' },
+    h2hBar: {
+      flexDirection: 'row',
+      height: 6,
+      borderRadius: 3,
+      overflow: 'hidden',
     },
+    h2hBarFill: { height: 6 },
+    h2hDivider: { borderTopWidth: StyleSheet.hairlineWidth },
+    groupHeader: { gap: spacing.xs },
+    groupTab: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+    },
+    groupTabText: { fontSize: font.size.xs, fontWeight: font.weight.medium },
     predRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingVertical: spacing.sm,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: c.border,
     },
-    predName: { color: c.foreground, fontSize: font.size.sm, fontWeight: font.weight.medium },
-    predScore: { color: c.foreground, fontSize: font.size.sm, fontVariant: ['tabular-nums'] },
-    groupTab: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    groupTabActive: {
-      backgroundColor: c.primary,
-      borderColor: c.primary,
-    },
-    groupTabText: { color: c.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.medium },
-    groupTabTextActive: { color: c.primaryForeground },
-    h2hSummary: {
-      flexDirection: 'row',
-      marginBottom: spacing.xs,
-    },
-    h2hSummaryCol: { flex: 1, alignItems: 'center' },
-    h2hSummaryNum: {
-      color: c.foreground,
-      fontSize: font.size.lg,
-      fontWeight: font.weight.bold,
-    },
-    h2hSummaryLabel: { fontSize: font.size.xs, textAlign: 'center' },
-    h2hSummaryStats: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingTop: spacing.xs,
-      marginBottom: spacing.sm,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: c.border,
-    },
+    predName: { fontSize: font.size.sm, fontWeight: font.weight.medium },
+    predScore: { fontSize: font.size.sm, fontVariant: ['tabular-nums'] },
   });
 }
