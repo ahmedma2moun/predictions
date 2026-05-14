@@ -1,11 +1,10 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { KickoffTime } from "@/components/KickoffTime";
-import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ScoringBreakdown, type RuleBreakdown } from "@/components/ScoringBreakdown";
 import { computeWeekLabel, getWeekBounds } from "@/lib/period-filter";
+import { cn } from "@/lib/utils";
 
 export type SerializedPrediction = {
   _id: string;
@@ -32,14 +31,28 @@ type OtherPrediction = {
   scoringBreakdown: RuleBreakdown[] | null;
 };
 
-function PredictionCard({ pred }: { pred: SerializedPrediction }) {
+function ScoreTile({ pred }: { pred: SerializedPrediction }) {
   const match = pred.matchId;
-  const isFinished = match.status === "finished";
-  const isLocked = match.status !== "upcoming" && match.status !== "scheduled";
+  const isFinished = !!match.result;
 
   const [open, setOpen] = useState(false);
   const [others, setOthers] = useState<OtherPrediction[] | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const isExact =
+    isFinished &&
+    match.result!.homeScore === pred.homeScore &&
+    match.result!.awayScore === pred.awayScore;
+
+  const pts = pred.pointsAwarded || 0;
+
+  const chipClass = isExact
+    ? "bg-primary-soft border-primary-soft-border text-primary"
+    : pts > 0
+    ? "bg-card-elevated border-border text-warning"
+    : "bg-card-elevated border-border text-muted-foreground";
+
+  const chipCaption = isExact ? "EXACT" : pts > 0 ? "WIN" : "—";
 
   async function toggle() {
     if (!open && others === null) {
@@ -56,102 +69,82 @@ function PredictionCard({ pred }: { pred: SerializedPrediction }) {
   }
 
   return (
-    <Card className={isFinished && pred.pointsAwarded > 0 ? "border-green-500/30" : ""}>
-      <CardContent className="pt-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground"><KickoffTime date={match.kickoffTime} /></span>
-          <div className="flex items-center gap-2">
-            <Badge variant={isFinished ? "secondary" : "outline"} className="text-xs">
-              {match.status.toUpperCase()}
-            </Badge>
-            {isFinished && (
-              <Badge
-                variant={pred.pointsAwarded > 0 ? "default" : "secondary"}
-                className="text-xs"
-              >
-                +{pred.pointsAwarded} pts
-              </Badge>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <p className="text-xs text-muted-foreground">Home</p>
-            <p className="font-medium text-sm">{match.homeTeam?.name}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Your pick</p>
-            <div className="flex items-center justify-center gap-1">
-              <span className="font-bold text-lg">{pred.homeScore} – {pred.awayScore}</span>
-              {isFinished && pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
-                <ScoringBreakdown rules={pred.scoringBreakdown} />
-              )}
-            </div>
-            {isFinished && match.result && (
-              <p className="text-xs text-muted-foreground">
-                Result: {match.result.homeScore} – {match.result.awayScore}
-                {match.result.penaltyHomeScore != null && (
-                  <> ({match.result.penaltyHomeScore} – {match.result.penaltyAwayScore} pen)</>
+    <div className="rounded-[14px] border border-border bg-card overflow-hidden">
+      <div className="flex items-stretch">
+        {/* Left col */}
+        <div className="flex-1 min-w-0 p-3 space-y-1">
+          <p className="text-[10.5px] text-muted-foreground">
+            <KickoffTime date={match.kickoffTime} />
+          </p>
+          <p className="text-sm font-semibold truncate">
+            {match.homeTeam?.name} vs {match.awayTeam?.name}
+          </p>
+          {isFinished && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="inline-flex items-center gap-1">
+                <span className="text-[10.5px] font-bold uppercase text-muted-foreground">PICK</span>
+                <span className="font-mono-nums text-[12.5px]">
+                  {pred.homeScore}–{pred.awayScore}
+                </span>
+                {pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
+                  <ScoringBreakdown rules={pred.scoringBreakdown} />
                 )}
-              </p>
-            )}
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Away</p>
-            <p className="font-medium text-sm">{match.awayTeam?.name}</p>
-          </div>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="text-[10.5px] font-bold uppercase text-muted-foreground">FINAL</span>
+                <span className="font-mono-nums text-[12.5px]">
+                  {match.result!.homeScore}–{match.result!.awayScore}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
-        {isLocked && (
-          <button
-            onClick={toggle}
-            className="mt-3 pt-3 border-t w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {loading ? (
-              "Loading..."
-            ) : (
-              <>
-                {open ? "Hide" : "Show"} all predictions
-                {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              </>
-            )}
-          </button>
-        )}
-        {open && others && others.length > 0 && (
-          <div className="mt-2 space-y-1.5">
-            {others.map((o) => (
-              <div
-                key={o.userId}
-                className="text-xs px-2 py-1.5 rounded-md bg-muted/40 space-y-1"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium truncate max-w-[140px]">{o.userName}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-mono tabular-nums">
-                      {o.homeScore} – {o.awayScore}
-                    </span>
-                    {isFinished && o.scoringBreakdown && o.scoringBreakdown.length > 0 && (
-                      <ScoringBreakdown rules={o.scoringBreakdown} />
-                    )}
-                    {isFinished && (
-                      <span
-                        className={`font-medium ${
-                          (o.pointsAwarded ?? 0) > 0 ? "text-green-500" : "text-muted-foreground"
-                        }`}
-                      >
-                        +{o.pointsAwarded ?? 0} pts
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+
+        {/* Right chip */}
+        {isFinished && (
+          <div className={cn("w-[72px] shrink-0 border-l rounded-r-[14px] p-2 flex flex-col items-center justify-center gap-0.5", chipClass)}>
+            <span className="text-[22px] font-bold font-mono-nums leading-none">
+              {pts > 0 ? `+${pts}` : "0"}
+            </span>
+            <span className="text-[9.5px] font-bold uppercase">{chipCaption}</span>
           </div>
         )}
-        {open && others && others.length === 0 && (
-          <p className="mt-2 text-xs text-muted-foreground text-center">No other predictions.</p>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Show other predictions (locked matches) */}
+      {match.status !== "scheduled" && (
+        <button
+          onClick={toggle}
+          className="w-full border-t border-border py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {loading ? "Loading…" : open ? "Hide predictions" : "Show all predictions"}
+        </button>
+      )}
+
+      {open && others && others.length > 0 && (
+        <div className="border-t border-border divide-y divide-border">
+          {others.map((o) => (
+            <div key={o.userId} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
+              <span className="font-medium truncate max-w-[140px]">{o.userName}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-mono-nums">{o.homeScore}–{o.awayScore}</span>
+                {isFinished && o.scoringBreakdown && o.scoringBreakdown.length > 0 && (
+                  <ScoringBreakdown rules={o.scoringBreakdown} />
+                )}
+                {isFinished && (
+                  <span className={cn("font-medium font-mono-nums", (o.pointsAwarded ?? 0) > 0 ? "text-warning" : "text-muted-foreground")}>
+                    +{o.pointsAwarded ?? 0}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {open && others && others.length === 0 && (
+        <p className="py-2 text-xs text-muted-foreground text-center border-t border-border">No other predictions.</p>
+      )}
+    </div>
   );
 }
 
@@ -180,38 +173,41 @@ export function PredictionTabs({ allPreds }: { allPreds: SerializedPrediction[] 
     [filtered],
   );
 
-  const page    = filtered.slice(0, visible);
+  const page = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      {/* Week nav */}
+      <div className="flex items-center justify-between">
         <button
           onClick={() => setWeekOffset(o => o - 1)}
-          className="p-1.5 rounded-md hover:bg-accent transition-colors"
+          className="h-8 w-8 flex items-center justify-center rounded-full bg-card-elevated border border-border hover:border-border/80 transition-colors"
           aria-label="Previous week"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="text-sm font-medium tabular-nums">{weekLabel}</span>
+        <span className="text-sm font-semibold font-mono-nums">{weekLabel}</span>
         <button
           onClick={() => setWeekOffset(o => o + 1)}
-          className="p-1.5 rounded-md hover:bg-accent transition-colors"
+          className="h-8 w-8 flex items-center justify-center rounded-full bg-card-elevated border border-border hover:border-border/80 transition-colors"
           aria-label="Next week"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
+
       <p className="text-center text-sm text-muted-foreground">
-        Week score: <span className="font-semibold text-foreground">{weekPoints} pts</span>
+        Week score:{" "}
+        <span className="font-semibold font-mono-nums text-foreground">{weekPoints} pts</span>
       </p>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {filtered.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No score processed for this period.</p>
+          <p className="text-muted-foreground text-sm">No scored predictions for this week.</p>
         ) : (
           <>
-            {page.map((pred) => <PredictionCard key={pred._id} pred={pred} />)}
+            {page.map((pred) => <ScoreTile key={pred._id} pred={pred} />)}
             {hasMore && (
               <button
                 onClick={showMore}

@@ -1,6 +1,6 @@
 "use client";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Period } from "@/lib/period-filter";
 
 type Props = {
@@ -14,35 +14,52 @@ type Props = {
   monthLabel: string;
 };
 
+const PERIODS: { value: Period; label: string }[] = [
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+  { value: "all", label: "All Time" },
+];
+
 export function PeriodNav({
   period, setPeriod,
-  weekOffset, setWeekOffset,
-  monthOffset, setMonthOffset,
+  setWeekOffset,
+  setMonthOffset,
   weekLabel, monthLabel,
 }: Props) {
   return (
     <>
-      <Tabs value={period} onValueChange={v => setPeriod(v as Period)}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="all">All Time</TabsTrigger>
-          <TabsTrigger value="month">Month</TabsTrigger>
-          <TabsTrigger value="week">Week</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Segmented control */}
+      <div className="bg-card-elevated border border-border rounded-[14px] p-1 grid grid-cols-3">
+        {PERIODS.map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => setPeriod(value)}
+            className={cn(
+              "py-1.5 text-sm rounded-[10px] transition-colors",
+              period === value
+                ? "bg-primary text-primary-foreground font-semibold"
+                : "text-muted-foreground font-medium hover:text-foreground"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
+      {/* Week offset nav */}
       {period === "week" && (
         <div className="flex items-center justify-between gap-2">
           <button
             onClick={() => setWeekOffset(o => o - 1)}
-            className="p-1.5 rounded-md hover:bg-accent transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-full bg-card-elevated border border-border hover:border-border/80 transition-colors"
             aria-label="Previous week"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-medium tabular-nums">{weekLabel}</span>
+          <span className="text-sm font-semibold font-mono-nums">{weekLabel}</span>
           <button
             onClick={() => setWeekOffset(o => o + 1)}
-            className="p-1.5 rounded-md hover:bg-accent transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-full bg-card-elevated border border-border hover:border-border/80 transition-colors"
             aria-label="Next week"
           >
             <ChevronRight className="h-4 w-4" />
@@ -50,19 +67,20 @@ export function PeriodNav({
         </div>
       )}
 
+      {/* Month offset nav */}
       {period === "month" && (
         <div className="flex items-center justify-between gap-2">
           <button
             onClick={() => setMonthOffset(o => o - 1)}
-            className="p-1.5 rounded-md hover:bg-accent transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-full bg-card-elevated border border-border hover:border-border/80 transition-colors"
             aria-label="Previous month"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-medium">{monthLabel}</span>
+          <span className="text-sm font-semibold font-mono-nums">{monthLabel}</span>
           <button
             onClick={() => setMonthOffset(o => o + 1)}
-            className="p-1.5 rounded-md hover:bg-accent transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-full bg-card-elevated border border-border hover:border-border/80 transition-colors"
             aria-label="Next month"
           >
             <ChevronRight className="h-4 w-4" />

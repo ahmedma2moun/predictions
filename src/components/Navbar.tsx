@@ -21,7 +21,7 @@ export function Navbar() {
   return (
     <>
       {/* Top bar — desktop */}
-      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 bg-card border-b border-border items-center px-6 gap-6">
+      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 bg-card/85 backdrop-blur-md border-b border-border items-center px-6 gap-6">
         <Link href="/matches" className="font-bold text-lg flex items-center gap-2">
           ⚽ Predictions
         </Link>
@@ -68,7 +68,7 @@ export function Navbar() {
       </nav>
 
       {/* Top bar — mobile */}
-      <nav className="md:hidden fixed top-0 left-0 right-0 z-50 h-12 bg-card border-b border-border flex items-center justify-between px-4">
+      <nav className="md:hidden fixed top-0 left-0 right-0 z-50 h-12 bg-card/85 backdrop-blur-md border-b border-border flex items-center justify-between px-4">
         <Link href="/matches" className="font-bold text-sm flex items-center gap-1.5">
           ⚽ Predictions
         </Link>
@@ -89,7 +89,7 @@ export function Navbar() {
           iOS/Android safe-area inset below the home indicator.
           bg-card extends through that inset, eliminating the floating gap.
           The inner div is the fixed 64 px tap-target strip.        */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-[env(safe-area-inset-bottom,0px)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/85 backdrop-blur-md border-t border-border pb-[env(safe-area-inset-bottom,0px)]">
         <div className="h-16 flex items-center">
           {navItems.filter(item => !(isAdmin && item.adminHidden)).map(item => (
             <Link

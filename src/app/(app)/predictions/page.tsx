@@ -1,9 +1,17 @@
 import { auth } from "@/lib/auth";
-import { Badge } from "@/components/ui/badge";
 import { PredictionTabs, type SerializedPrediction } from "./PredictionTabs";
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { getAccuracyStats } from '@/lib/services/prediction-service';
 import { AccuracyStatsCard } from './AccuracyStatsCard';
+
+function getWeekStart(): Date {
+  const d = new Date();
+  const day = d.getDay(); // 0 = Sunday
+  const diff = day === 0 ? -6 : 1 - day; // Monday start
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 export default async function PredictionsPage() {
   const session = await auth();
@@ -59,19 +67,32 @@ export default async function PredictionsPage() {
 
   allPreds.sort((a, b) => new Date(b.matchId.kickoffTime).getTime() - new Date(a.matchId.kickoffTime).getTime());
 
-  const totalPoints = allPreds.reduce((sum, p) => sum + (p.pointsAwarded || 0), 0);
+  // Week points
+  const weekStart = getWeekStart();
+  const weekPoints = allPreds
+    .filter(p => {
+      if (!p.matchId.result) return false;
+      return new Date(p.matchId.kickoffTime).getTime() >= weekStart.getTime();
+    })
+    .reduce((sum, p) => sum + (p.pointsAwarded || 0), 0);
+
+  // Last 10 finished predictions for sparkline
+  const recentPoints = allPreds
+    .filter(p => !!p.matchId.result)
+    .slice(0, 10)
+    .reverse()
+    .map(p => p.pointsAwarded || 0);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Score</h1>
-        <Badge variant="outline" className="text-base px-3 py-1">
-          {totalPoints} pts total
-        </Badge>
-      </div>
+      <h1 className="text-2xl font-bold">My Score</h1>
 
       {accuracyStats.totalFinished > 0 && (
-        <AccuracyStatsCard stats={accuracyStats} />
+        <AccuracyStatsCard
+          stats={accuracyStats}
+          weekPoints={weekPoints}
+          recentPoints={recentPoints}
+        />
       )}
 
       {allPreds.length === 0 ? (

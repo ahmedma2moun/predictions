@@ -2,11 +2,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { isMatchLocked, formatStage, formatMatchStatus, isKnockoutStage, ordinal } from "@/lib/utils";
+import { isMatchLocked, formatStage, isKnockoutStage, ordinal } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
 import { ChevronLeft, Minus, Plus, Lock, Pencil, Check, X, Calculator } from "lucide-react";
@@ -20,28 +18,24 @@ import { GroupPredictions } from "./GroupPredictions";
 
 function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
   return (
-    <div className="flex items-center gap-3">
-      <Button
+    <div className="flex items-center bg-card-elevated border border-border rounded-md p-1 gap-1">
+      <button
         type="button"
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-full"
+        className="h-9 w-9 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
         onClick={() => onChange(Math.max(0, value - 1))}
         disabled={disabled || value <= 0}
       >
         <Minus className="h-4 w-4" />
-      </Button>
-      <span className="text-3xl font-bold tabular-nums w-12 text-center">{value}</span>
-      <Button
+      </button>
+      <span className="text-3xl font-bold font-mono-nums w-10 text-center leading-none">{value}</span>
+      <button
         type="button"
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 rounded-full"
+        className="h-9 w-9 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
         onClick={() => onChange(value + 1)}
         disabled={disabled}
       >
         <Plus className="h-4 w-4" />
-      </Button>
+      </button>
     </div>
   );
 }
@@ -86,7 +80,6 @@ export default function MatchPredictionPage() {
     });
   }, [matchId]);
 
-  // Auto-lock at kickoff if the page is left open — avoids a full re-fetch.
   useEffect(() => {
     if (!match || locked) return;
     const ms = new Date(match.kickoffTime).getTime() - Date.now();
@@ -101,6 +94,19 @@ export default function MatchPredictionPage() {
   const isAdmin = match.isAdmin as boolean;
   const isKnockout = isKnockoutStage(match.stage);
   const standings: { home: Standing; away: Standing } = match.standings ?? { home: null, away: null };
+
+  const winner = homeScore > awayScore
+    ? match.homeTeam.name
+    : awayScore > homeScore
+    ? match.awayTeam.name
+    : "Draw";
+
+  // Competition header label: "MD 35 · PREMIER LEAGUE" or stage
+  const compLabel = match.matchday
+    ? `MD ${match.matchday}${match.leagueName ? ` · ${match.leagueName.toUpperCase()}` : ''}`
+    : isKnockoutStage(match.stage)
+    ? `${formatStage(match.stage)}${match.leg ? ` · LEG ${match.leg}` : ''}`
+    : 'MATCH';
 
   async function handleSaveResult() {
     const h = parseInt(editHome, 10);
@@ -157,7 +163,6 @@ export default function MatchPredictionPage() {
       }
       const data = await res.json();
       toast.success(`Scores calculated — ${data.scored} prediction${data.scored !== 1 ? "s" : ""} scored`);
-      // Refresh predictions list
       const refreshed = await fetch(`/api/matches/${matchId}`).then(r => r.json());
       setAllPredictions(refreshed.allPredictions ?? null);
     } catch (e: any) {
@@ -186,189 +191,173 @@ export default function MatchPredictionPage() {
     }
   }
 
-  const winner = homeScore > awayScore ? match.homeTeam.name : awayScore > homeScore ? match.awayTeam.name : "Draw";
-
   return (
     <div className="max-w-md mx-auto px-4 py-6 space-y-4">
-      <Button variant="ghost" onClick={() => router.back()} className="gap-2 pl-0">
-        <ChevronLeft className="h-4 w-4" /> Back
-      </Button>
+      {/* Custom page header */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => router.back()}
+          className="h-9 w-9 flex items-center justify-center rounded-full bg-card-elevated border border-border shrink-0 hover:border-border/80 transition-colors"
+          aria-label="Back"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-muted-foreground truncate flex-1 text-center">
+          {compLabel}
+        </span>
+        <div className="h-9 w-9 shrink-0" />
+      </div>
 
-      <Card>
-        <CardHeader>
+      {/* Hero predict card */}
+      <div className="relative rounded-[20px] border border-border bg-card overflow-hidden p-0">
+        {/* Radial tint */}
+        <div className="pointer-events-none absolute inset-x-[10%] top-0 h-20 rounded-full bg-primary/[0.08] blur-xl" />
+
+        <div className="relative p-4 space-y-5">
+          {/* Date + status row */}
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">{isAdmin ? "Match Details" : "Predict Score"}</CardTitle>
-            <Badge variant={match.status === "live" ? "destructive" : locked ? "secondary" : "outline"}>
-              {locked ? <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Locked</span> : formatMatchStatus(match.status)}
-            </Badge>
+            <span className="text-[11.5px] text-muted-foreground uppercase font-semibold tracking-wide">
+              <KickoffTime date={match.kickoffTime} />
+            </span>
+            {match.status === "live" ? (
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[rgba(255,77,109,0.12)] border border-[rgba(255,77,109,0.30)] text-live text-[10px] font-bold uppercase">
+                <span className="animate-live inline-block h-1.5 w-1.5 rounded-full bg-live" />
+                LIVE
+              </span>
+            ) : locked ? (
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border text-muted-foreground text-[10px] font-bold uppercase">
+                <Lock className="h-2.5 w-2.5" />
+                LOCKED
+              </span>
+            ) : (
+              <span className="px-2.5 py-1 rounded-full border border-primary-soft-border bg-primary-soft text-primary text-[10px] font-bold uppercase">
+                OPEN
+              </span>
+            )}
           </div>
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground"><KickoffTime date={match.kickoffTime} /></p>
-            {isKnockoutStage(match.stage) ? (
-              <p className="text-xs text-muted-foreground">
-                {formatStage(match.stage)}{match.leg ? ` · Leg ${match.leg}` : ''}
-              </p>
-            ) : match.matchday ? (
-              <p className="text-xs text-muted-foreground">Matchday {match.matchday}</p>
-            ) : null}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 flex flex-col items-center gap-3">
-                {match.homeTeam.logo && <Image src={match.homeTeam.logo} alt={match.homeTeam.name} width={64} height={64} className="object-contain" />}
-                <p className="font-semibold text-center text-sm">{match.homeTeam.name}</p>
-                {!isCustom && !isKnockout && standings.home && (
-                  <p className="text-xs text-muted-foreground">{ordinal(standings.home.position)}</p>
-                )}
-                {!isAdmin && <ScoreInput value={homeScore} onChange={setHomeScore} disabled={locked} />}
-              </div>
-              <div className="text-muted-foreground font-bold text-xl">–</div>
-              <div className="flex-1 flex flex-col items-center gap-3">
-                {match.awayTeam.logo && <Image src={match.awayTeam.logo} alt={match.awayTeam.name} width={64} height={64} className="object-contain" />}
-                <p className="font-semibold text-center text-sm">{match.awayTeam.name}</p>
-                {!isCustom && !isKnockout && standings.away && (
-                  <p className="text-xs text-muted-foreground">{ordinal(standings.away.position)}</p>
-                )}
-                {!isAdmin && <ScoreInput value={awayScore} onChange={setAwayScore} disabled={locked} />}
-              </div>
+
+          {/* Teams + steppers */}
+          <div className="flex items-center justify-between gap-3">
+            {/* Home */}
+            <div className="flex-1 flex flex-col items-center gap-2">
+              {match.homeTeam.logo && (
+                <Image src={match.homeTeam.logo} alt={match.homeTeam.name} width={48} height={48} className="object-contain" />
+              )}
+              <p className="font-semibold text-center text-sm leading-tight">{match.homeTeam.name}</p>
+              {!isCustom && !isKnockout && standings.home && (
+                <p className="text-[10.5px] text-muted-foreground font-mono-nums">{ordinal(standings.home.position)}</p>
+              )}
+              {!isAdmin && <ScoreInput value={homeScore} onChange={setHomeScore} disabled={locked} />}
             </div>
 
-            {!isAdmin && !locked && (
-              <div className="text-center text-sm text-muted-foreground">
-                Predicted outcome: <span className="text-foreground font-medium">{winner}</span>
-              </div>
-            )}
+            <span className="text-muted-foreground font-bold text-xl shrink-0">–</span>
 
-            {/* Existing result display / edit */}
-            {match.result && (
-              <div className="bg-accent rounded-lg p-3 text-center relative">
-                {isAdmin && !editingResult && (
-                  <button
-                    onClick={() => { setEditHome(String(match.result.homeScore)); setEditAway(String(match.result.awayScore)); setEditingResult(true); }}
-                    className="absolute top-2 right-2 p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                    aria-label="Edit result"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <p className="text-xs text-muted-foreground mb-1">Final Result</p>
-                {editingResult ? (
-                  <div className="flex items-center justify-center gap-2 my-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      value={editHome}
-                      onChange={(e) => setEditHome(e.target.value)}
-                      className="w-16 h-9 text-center text-lg font-bold tabular-nums px-1"
-                    />
-                    <span className="text-xl font-bold text-muted-foreground">–</span>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={editAway}
-                      onChange={(e) => setEditAway(e.target.value)}
-                      className="w-16 h-9 text-center text-lg font-bold tabular-nums px-1"
-                    />
-                    <Button size="icon" variant="default" className="h-8 w-8" onClick={handleSaveResult} disabled={savingResult}>
-                      <Check className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingResult(false)} disabled={savingResult}>
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-2xl font-bold">{match.result.homeScore} – {match.result.awayScore}</p>
-                )}
-                {match.result.penaltyHomeScore != null && (
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Penalties: {match.result.penaltyHomeScore} – {match.result.penaltyAwayScore}
-                  </p>
-                )}
-                {!isAdmin && !isKnockout && match.prediction && (
-                  <p className="text-sm mt-1">
-                    <span className="text-yellow-500 font-bold">+{match.prediction.pointsAwarded} pts</span>
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Admin: add result when none exists yet */}
-            {isAdmin && !match.result && (
-              <div className="border border-dashed border-border rounded-lg p-3">
-                {!addingResult ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => { setEditHome("0"); setEditAway("0"); setAddingResult(true); }}
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Result
-                  </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground text-center">Enter Result</p>
-                    <div className="flex items-center justify-center gap-2">
-                      <Input
-                        type="number"
-                        min={0}
-                        value={editHome}
-                        onChange={(e) => setEditHome(e.target.value)}
-                        className="w-16 h-9 text-center text-lg font-bold tabular-nums px-1"
-                        placeholder="0"
-                      />
-                      <span className="text-xl font-bold text-muted-foreground">–</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={editAway}
-                        onChange={(e) => setEditAway(e.target.value)}
-                        className="w-16 h-9 text-center text-lg font-bold tabular-nums px-1"
-                        placeholder="0"
-                      />
-                      <Button size="icon" variant="default" className="h-8 w-8" onClick={handleSaveResult} disabled={savingResult}>
-                        <Check className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAddingResult(false)} disabled={savingResult}>
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Admin: calculate scores button (shown after result exists) */}
-            {isAdmin && match.result && !editingResult && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-                onClick={handleCalculateScores}
-                disabled={calculatingScores}
-              >
-                <Calculator className="h-3.5 w-3.5" />
-                {calculatingScores ? "Calculating..." : "Calculate Scores"}
-              </Button>
-            )}
-
-            {!isAdmin && (
-              !locked ? (
-                <form onSubmit={handleSubmit}>
-                  <Button type="submit" className="w-full" disabled={saving}>
-                    {saving ? "Saving..." : match.prediction ? "Update Prediction" : "Save Prediction"}
-                  </Button>
-                </form>
-              ) : (
-                <p className="text-center text-sm text-muted-foreground">Predictions are locked for this match</p>
-              )
-            )}
+            {/* Away */}
+            <div className="flex-1 flex flex-col items-center gap-2">
+              {match.awayTeam.logo && (
+                <Image src={match.awayTeam.logo} alt={match.awayTeam.name} width={48} height={48} className="object-contain" />
+              )}
+              <p className="font-semibold text-center text-sm leading-tight">{match.awayTeam.name}</p>
+              {!isCustom && !isKnockout && standings.away && (
+                <p className="text-[10.5px] text-muted-foreground font-mono-nums">{ordinal(standings.away.position)}</p>
+              )}
+              {!isAdmin && <ScoreInput value={awayScore} onChange={setAwayScore} disabled={locked} />}
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* H2H and standings are skipped for custom matches */}
+          {/* "Your call" summary */}
+          {!isAdmin && !locked && (
+            <p className="text-center text-sm text-muted-foreground">
+              Your call: <span className="text-foreground font-semibold">{winner}</span>
+            </p>
+          )}
+
+          {/* Existing result display / edit */}
+          {match.result && (
+            <div className="bg-card-elevated rounded-lg p-3 text-center relative">
+              {isAdmin && !editingResult && (
+                <button
+                  onClick={() => { setEditHome(String(match.result.homeScore)); setEditAway(String(match.result.awayScore)); setEditingResult(true); }}
+                  className="absolute top-2 right-2 p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  aria-label="Edit result"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <p className="text-xs text-muted-foreground mb-1">Final Result</p>
+              {editingResult ? (
+                <div className="flex items-center justify-center gap-2 my-1">
+                  <Input type="number" min={0} value={editHome} onChange={(e) => setEditHome(e.target.value)} className="w-16 h-9 text-center text-lg font-bold font-mono-nums px-1" />
+                  <span className="text-xl font-bold text-muted-foreground">–</span>
+                  <Input type="number" min={0} value={editAway} onChange={(e) => setEditAway(e.target.value)} className="w-16 h-9 text-center text-lg font-bold font-mono-nums px-1" />
+                  <Button size="icon" variant="default" className="h-8 w-8" onClick={handleSaveResult} disabled={savingResult}><Check className="h-3.5 w-3.5" /></Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingResult(false)} disabled={savingResult}><X className="h-3.5 w-3.5" /></Button>
+                </div>
+              ) : (
+                <p className="text-2xl font-bold font-mono-nums">{match.result.homeScore} – {match.result.awayScore}</p>
+              )}
+              {match.result.penaltyHomeScore != null && (
+                <p className="text-sm text-muted-foreground mt-0.5 font-mono-nums">
+                  Penalties: {match.result.penaltyHomeScore} – {match.result.penaltyAwayScore}
+                </p>
+              )}
+              {!isAdmin && !isKnockout && match.prediction && (
+                <p className="text-sm mt-1">
+                  <span className="text-warning font-bold font-mono-nums">+{match.prediction.pointsAwarded} pts</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Admin: add result */}
+          {isAdmin && !match.result && (
+            <div className="border border-dashed border-border rounded-lg p-3">
+              {!addingResult ? (
+                <Button variant="outline" size="sm" className="w-full" onClick={() => { setEditHome("0"); setEditAway("0"); setAddingResult(true); }}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Result
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground text-center">Enter Result</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <Input type="number" min={0} value={editHome} onChange={(e) => setEditHome(e.target.value)} className="w-16 h-9 text-center text-lg font-bold font-mono-nums px-1" placeholder="0" />
+                    <span className="text-xl font-bold text-muted-foreground">–</span>
+                    <Input type="number" min={0} value={editAway} onChange={(e) => setEditAway(e.target.value)} className="w-16 h-9 text-center text-lg font-bold font-mono-nums px-1" placeholder="0" />
+                    <Button size="icon" variant="default" className="h-8 w-8" onClick={handleSaveResult} disabled={savingResult}><Check className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAddingResult(false)} disabled={savingResult}><X className="h-3.5 w-3.5" /></Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Admin: calculate scores */}
+          {isAdmin && match.result && !editingResult && (
+            <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleCalculateScores} disabled={calculatingScores}>
+              <Calculator className="h-3.5 w-3.5" />
+              {calculatingScores ? "Calculating..." : "Calculate Scores"}
+            </Button>
+          )}
+
+          {/* Save prediction */}
+          {!isAdmin && (
+            !locked ? (
+              <form onSubmit={handleSubmit}>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="h-12 w-full rounded-md bg-primary text-primary-foreground font-semibold text-sm shadow-[0_0_20px_rgba(16,224,137,0.25)] hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : match.prediction ? "Update Prediction" : "Save Prediction"}
+                </button>
+              </form>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">Predictions are locked for this match</p>
+            )
+          )}
+        </div>
+      </div>
+
       {!isCustom && (
         <MatchH2H
           h2h={h2h}
