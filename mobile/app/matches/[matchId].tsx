@@ -17,7 +17,6 @@ import { Button, Card, Muted, Pill, SectionTitle } from '@/components/ui';
 import { H2HRow } from '@/components/H2HRow';
 import { StandingsRow } from '@/components/StandingsRow';
 import { TeamColumn } from '@/components/TeamColumn';
-import { LinearGradient } from 'expo-linear-gradient';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { GroupPredictionEntry, H2HMatch, LeaderboardGroup, MatchDetail } from '@/types/api';
@@ -74,6 +73,7 @@ export default function MatchPredictionScreen() {
           })
           .catch(() => null);
       }
+
     } catch (e: any) {
       Alert.alert('Failed to load match', e?.message ?? 'Unknown error');
     } finally {
@@ -83,6 +83,7 @@ export default function MatchPredictionScreen() {
   }, [token, matchId]);
 
   useEffect(() => { load(); }, [load]);
+
 
   useEffect(() => {
     if (!token || !matchId || !selectedGroupId || !match) return;
@@ -181,13 +182,6 @@ export default function MatchPredictionScreen() {
       >
         {/* Hero predict card */}
         <Card style={styles.heroCard}>
-          {/* Radial tint from top-center */}
-          <LinearGradient
-            colors={['rgba(16,224,137,0.18)', 'rgba(16,224,137,0.06)', 'transparent']}
-            locations={[0, 0.5, 1]}
-            style={styles.heroTint}
-            pointerEvents="none"
-          />
 
           {/* Date + status row */}
           <View style={styles.heroTopRow}>
@@ -531,13 +525,6 @@ function makeStyles(c: Palette) {
     },
     content: { padding: spacing.lg, gap: spacing.md },
     heroCard: { padding: 0, overflow: 'hidden' },
-    heroTint: {
-      position: 'absolute',
-      top: 0,
-      left: '5%',
-      right: '5%',
-      height: 120,
-    },
     heroTopRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',

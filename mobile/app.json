@@ -70,7 +70,7 @@
     ],
     "extra": {
       "apiBaseUrl": "https://predictions-virid.vercel.app",
-      "apiBaseUrlDev": "http://10.0.2.2:3000",
+      "apiBaseUrlDev": "https://predictions-virid.vercel.app",
       "router": {
         "origin": false
       },
