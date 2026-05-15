@@ -58,6 +58,7 @@ export default function MatchPredictionPage() {
   const [locked, setLocked] = useState(false);
   const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
   const [h2hLoading, setH2hLoading] = useState(false);
+  const [liveScore, setLiveScore] = useState<{ homeScore: number | null; awayScore: number | null } | null>(null);
 
   const isCustom = match?.externalId === null || match?.externalId === undefined && match?.externalLeagueId === 0;
 
@@ -87,6 +88,21 @@ export default function MatchPredictionPage() {
     const timer = setTimeout(() => setLocked(true), ms);
     return () => clearTimeout(timer);
   }, [match, locked]);
+
+  useEffect(() => {
+    if (!match || match.status !== "live" || !match.externalId) return;
+
+    async function fetchLive() {
+      const res = await fetch(`/api/matches/${matchId}/live`).catch(() => null);
+      if (!res?.ok) return;
+      const data = await res.json();
+      if (data.homeScore !== null && data.awayScore !== null) {
+        setLiveScore({ homeScore: data.homeScore, awayScore: data.awayScore });
+      }
+    }
+
+    fetchLive();
+  }, [match, matchId]);
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin text-4xl">⚽</div></div>;
   if (!match) return <div className="p-4">Match not found</div>;
@@ -270,6 +286,19 @@ export default function MatchPredictionPage() {
             <p className="text-center text-sm text-muted-foreground">
               Your call: <span className="text-foreground font-semibold">{winner}</span>
             </p>
+          )}
+
+          {/* Live score */}
+          {match.status === "live" && liveScore && (
+            <div className="bg-[rgba(255,77,109,0.08)] border border-[rgba(255,77,109,0.25)] rounded-lg p-3 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-live mb-1 flex items-center justify-center gap-1.5">
+                <span className="animate-live inline-block h-1.5 w-1.5 rounded-full bg-live" />
+                Live Score
+              </p>
+              <p className="text-2xl font-bold font-mono-nums">
+                {liveScore.homeScore} – {liveScore.awayScore}
+              </p>
+            </div>
           )}
 
           {/* Existing result display / edit */}
