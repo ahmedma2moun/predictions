@@ -31,6 +31,7 @@ export function serializeMatchForMobile(m: IMatch & { leagueName?: string | null
   const hasResult = m.resultHomeScore !== null && m.resultHomeScore !== undefined;
   return {
     _id: m.id.toString(),
+    externalId: m.externalId,
     kickoffTime: m.kickoffTime,
     status: m.status,
     leagueId: m.leagueId?.toString() ?? null,
