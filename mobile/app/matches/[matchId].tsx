@@ -17,6 +17,7 @@ import { Button, Card, Muted, Pill, SectionTitle } from '@/components/ui';
 import { H2HRow } from '@/components/H2HRow';
 import { StandingsRow } from '@/components/StandingsRow';
 import { TeamColumn } from '@/components/TeamColumn';
+import { LinearGradient } from 'expo-linear-gradient';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { GroupPredictionEntry, H2HMatch, LeaderboardGroup, MatchDetail } from '@/types/api';
@@ -41,6 +42,7 @@ export default function MatchPredictionScreen() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupPredictions, setGroupPredictions] = useState<GroupPredictionEntry[] | null>(null);
   const [groupPredictionsLoading, setGroupPredictionsLoading] = useState(false);
+  const [liveScore, setLiveScore] = useState<{ homeScore: number; awayScore: number } | null>(null);
 
   const load = useCallback(async () => {
     if (!token || !matchId) return;
@@ -59,6 +61,19 @@ export default function MatchPredictionScreen() {
       setH2h(h2hData);
       setGroups(groupsData ?? []);
       if (groupsData && groupsData.length > 0) setSelectedGroupId(groupsData[0].id);
+
+      if (data.externalId && isMatchLocked(data.kickoffTime)) {
+        apiRequest<{ homeScore: number | null; awayScore: number | null }>(
+          `/api/mobile/matches/${matchId}/live`,
+          { token },
+        )
+          .then(live => {
+            if (live.homeScore !== null && live.awayScore !== null) {
+              setLiveScore({ homeScore: live.homeScore, awayScore: live.awayScore });
+            }
+          })
+          .catch(() => null);
+      }
     } catch (e: any) {
       Alert.alert('Failed to load match', e?.message ?? 'Unknown error');
     } finally {
@@ -167,7 +182,12 @@ export default function MatchPredictionScreen() {
         {/* Hero predict card */}
         <Card style={styles.heroCard}>
           {/* Radial tint from top-center */}
-          <View style={styles.heroTint} pointerEvents="none" />
+          <LinearGradient
+            colors={['rgba(16,224,137,0.18)', 'rgba(16,224,137,0.06)', 'transparent']}
+            locations={[0, 0.5, 1]}
+            style={styles.heroTint}
+            pointerEvents="none"
+          />
 
           {/* Date + status row */}
           <View style={styles.heroTopRow}>
@@ -214,6 +234,19 @@ export default function MatchPredictionScreen() {
                 {winnerLabel}
               </Text>
             </Text>
+          )}
+
+          {/* Live score */}
+          {liveScore && (
+            <View style={[styles.liveBox, { borderColor: 'rgba(255,77,109,0.30)', backgroundColor: 'rgba(255,77,109,0.08)' }]}>
+              <View style={styles.liveLabel}>
+                <View style={styles.liveDot} />
+                <Text style={[styles.liveLabelText, { color: colors.live }]}>LIVE SCORE</Text>
+              </View>
+              <Text style={[styles.resultScore, { color: colors.foreground, fontFamily: 'JetBrainsMonoBold' }]}>
+                {liveScore.homeScore} – {liveScore.awayScore}
+              </Text>
+            </View>
           )}
 
           {/* Result box */}
@@ -501,11 +534,9 @@ function makeStyles(c: Palette) {
     heroTint: {
       position: 'absolute',
       top: 0,
-      left: '10%',
-      right: '10%',
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: 'rgba(16,224,137,0.08)',
+      left: '5%',
+      right: '5%',
+      height: 120,
     },
     heroTopRow: {
       flexDirection: 'row',
@@ -524,6 +555,18 @@ function makeStyles(c: Palette) {
     },
     dash: { fontSize: font.size.xl, fontWeight: font.weight.bold },
     outcome: { textAlign: 'center', fontSize: font.size.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+    liveBox: {
+      margin: spacing.lg,
+      marginTop: 0,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      padding: spacing.md,
+      alignItems: 'center',
+      gap: 4,
+    },
+    liveLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FF4D6D' },
+    liveLabelText: { fontSize: 10, fontWeight: font.weight.bold, letterSpacing: 1 },
     resultBox: {
       margin: spacing.lg,
       marginTop: 0,

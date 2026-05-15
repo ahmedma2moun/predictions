@@ -34,6 +34,7 @@ export interface Standing {
 
 export interface MatchListItem {
   _id: string;
+  externalId: number | null;
   kickoffTime: string;
   status: MatchStatus;
   leagueId: string | null;
