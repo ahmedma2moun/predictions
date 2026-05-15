@@ -245,7 +245,7 @@ export default function LeaderboardPage() {
                 const entry = leaderboard[entryIdx];
                 const rank = entryIdx + 1;
                 const medalColor = MEDAL_COLORS[entryIdx];
-                const towerHeight = colIdx === 1 ? TOWER_HEIGHTS[0] : colIdx === 0 ? TOWER_HEIGHTS[1] : TOWER_HEIGHTS[2];
+                const towerHeight = colIdx === 1 ? TOWER_HEIGHTS[0] : colIdx === 0 ? TOWER_HEIGHTS[2] : TOWER_HEIGHTS[1];
                 return (
                   <PodiumTower
                     key={entry.userId}
