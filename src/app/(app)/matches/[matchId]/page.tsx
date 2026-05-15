@@ -90,7 +90,7 @@ export default function MatchPredictionPage() {
   }, [match, locked]);
 
   useEffect(() => {
-    if (!match || match.status !== "live" || !match.externalId) return;
+    if (!match || !locked || !match.externalId) return;
 
     async function fetchLive() {
       const res = await fetch(`/api/matches/${matchId}/live`).catch(() => null);
@@ -102,7 +102,7 @@ export default function MatchPredictionPage() {
     }
 
     fetchLive();
-  }, [match, matchId]);
+  }, [match, matchId, locked]);
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin text-4xl">⚽</div></div>;
   if (!match) return <div className="p-4">Match not found</div>;
@@ -289,7 +289,7 @@ export default function MatchPredictionPage() {
           )}
 
           {/* Live score */}
-          {match.status === "live" && liveScore && (
+          {liveScore && (
             <div className="bg-[rgba(255,77,109,0.08)] border border-[rgba(255,77,109,0.25)] rounded-lg p-3 text-center">
               <p className="text-[10px] font-bold uppercase tracking-wider text-live mb-1 flex items-center justify-center gap-1.5">
                 <span className="animate-live inline-block h-1.5 w-1.5 rounded-full bg-live" />
