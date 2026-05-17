@@ -186,7 +186,7 @@ export default function LeaderboardPage() {
   } = useLeaderboard();
 
   const showPodium = isCurrentPeriod && !isLoading && leaderboard.length >= 3;
-  const compactEntries = showPodium ? leaderboard.slice(3) : leaderboard;
+  const compactEntries = leaderboard;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -260,9 +260,9 @@ export default function LeaderboardPage() {
             </div>
           )}
 
-          {/* Compact rows — rank 4+ (or all when no podium) */}
+          {/* Compact rows — all players; top 3 shown here too for expand/badges */}
           {compactEntries.map((entry, idx) => {
-            const rank = showPodium ? idx + 4 : idx + 1;
+            const rank = idx + 1;
             const isMe = entry.userId === myId;
             const isExpanded = expandedUserId === entry.userId;
             const isLoadingUser = loadingUserId === entry.userId;
@@ -279,7 +279,7 @@ export default function LeaderboardPage() {
                   )}
                 >
                   <span className="w-[26px] text-[13px] font-bold font-mono-nums text-muted-foreground shrink-0 text-center">
-                    {rank}
+                    {showPodium && rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : rank}
                   </span>
                   <div className="h-7 w-7 rounded-full bg-card-elevated border border-border flex items-center justify-center shrink-0">
                     <span className="text-[10px] font-bold">{entry.name.slice(0, 2).toUpperCase()}</span>
