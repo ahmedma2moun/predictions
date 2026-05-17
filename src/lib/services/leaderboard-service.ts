@@ -11,6 +11,7 @@ export interface LeaderboardFilters {
   groupId?: number;
   from?: string;
   to?: string;
+  seasonId?: number;
 }
 
 export interface LeaderboardEntry {
@@ -30,7 +31,7 @@ export interface LeaderboardEntry {
 }
 
 export async function getLeaderboard(filters: LeaderboardFilters): Promise<LeaderboardEntry[]> {
-  const { leagueIds = [], groupId, from, to } = filters;
+  const { leagueIds = [], groupId, from, to, seasonId } = filters;
 
   let userIdFilter: number[] | null = null;
   let groupKickoffGte: Date | null = null;
@@ -68,6 +69,7 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
   const effectiveFrom = groupKickoffGte ?? (from ? new Date(from) : null);
   if (effectiveFrom) conditions.push(Prisma.sql`m."kickoffTime" >= ${effectiveFrom}`);
   if (to)            conditions.push(Prisma.sql`m."kickoffTime" < ${new Date(to)}`);
+  if (seasonId != null) conditions.push(Prisma.sql`m."seasonId" = ${seasonId}`);
 
   if (userIdFilter !== null) {
     conditions.push(Prisma.sql`p."userId" = ANY(${userIdFilter})`);
@@ -101,6 +103,7 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
         WHERE m.status = 'finished'
           AND p."userId" = ANY(${allUserIds})
           AND p."scoringBreakdown" IS NOT NULL
+          ${seasonId != null ? Prisma.sql`AND m."seasonId" = ${seasonId}` : Prisma.empty}
           AND EXISTS (
             SELECT 1 FROM jsonb_array_elements((p."scoringBreakdown")::jsonb->'rules') r
             WHERE r->>'key' = 'exact_score' AND r->>'matched' = 'true'

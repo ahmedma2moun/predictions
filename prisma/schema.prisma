@@ -18,6 +18,15 @@ enum BadgeKey {
   on_a_roll
   perfect_week
   group_champion
+  season_champion
+  season_podium
+  group_season_champion
+}
+
+enum SeasonStatus {
+  DRAFT
+  ACTIVE
+  ENDED
 }
 
 enum MatchStatus {
@@ -50,6 +59,7 @@ model User {
   groupMembers      GroupMember[]
   deviceTokens      DeviceToken[]
   badges            UserBadge[]
+  seasonStandings   SeasonStanding[]
 }
 
 model UserBadge {
@@ -130,10 +140,13 @@ model Match {
   weekStart        DateTime
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+  seasonId         Int?
+  season           Season?      @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   predictions      Prediction[]
 
   @@index([status, kickoffTime])
   @@index([externalLeagueId, kickoffTime])
+  @@index([seasonId])
 }
 
 model Prediction {
@@ -173,7 +186,8 @@ model Group {
   isDefault Boolean       @default(false)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-  members   GroupMember[]
+  members         GroupMember[]
+  seasonStandings SeasonStanding[]
 }
 
 model GroupMember {
@@ -215,5 +229,37 @@ model DeviceToken {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId])
+}
+
+model Season {
+  id          Int              @id @default(autoincrement())
+  name        String
+  description String?
+  status      SeasonStatus     @default(DRAFT)
+  startDate   DateTime
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  matches     Match[]
+  standings   SeasonStanding[]
+}
+
+model SeasonStanding {
+  id               Int      @id @default(autoincrement())
+  seasonId         Int
+  season           Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  groupId          Int?
+  group            Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rank             Int
+  totalPoints      Int
+  totalPredictions Int
+  exactScores      Int
+  recordedAt       DateTime @default(now())
+
+  @@index([seasonId, groupId])
   @@index([userId])
 }
