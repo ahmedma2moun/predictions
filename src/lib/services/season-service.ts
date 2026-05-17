@@ -219,7 +219,7 @@ async function buildStandingsData(seasonId: number) {
 
   const overallSorted = [...statMap.values()].sort((a, b) => b.totalPoints - a.totalPoints);
 
-  const overall = overallSorted.slice(0, 3).map((s, idx) => ({
+  const overall = overallSorted.map((s, idx) => ({
     ...s,
     rank: idx + 1,
     groupId: null as number | null,
@@ -235,8 +235,7 @@ async function buildStandingsData(seasonId: number) {
     const memberIds = new Set(group.members.map(m => m.userId));
     const sorted = [...statMap.values()]
       .filter(s => memberIds.has(s.userId))
-      .sort((a, b) => b.totalPoints - a.totalPoints)
-      .slice(0, 3);
+      .sort((a, b) => b.totalPoints - a.totalPoints);
 
     return sorted.map((s, idx) => ({
       ...s,
@@ -289,8 +288,11 @@ async function awardSeasonBadges(
   perGroup: Array<{ userId: number; rank: number }>,
 ) {
   for (const entry of overall) {
-    const badge = entry.rank === 1 ? BadgeKey.season_champion : BadgeKey.season_podium;
-    await upsertBadge(entry.userId, badge);
+    if (entry.rank === 1) {
+      await upsertBadge(entry.userId, BadgeKey.season_champion);
+    } else if (entry.rank <= 3) {
+      await upsertBadge(entry.userId, BadgeKey.season_podium);
+    }
   }
   for (const entry of perGroup) {
     if (entry.rank === 1) {

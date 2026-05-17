@@ -163,6 +163,30 @@ export interface AccuracyStats {
   totalFinished: number;
 }
 
+export interface Season {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  startDate: string;
+  startedAt: string | null;
+  endedAt: string | null;
+}
+
+export interface SeasonStandingEntry {
+  id: string;
+  rank: number;
+  totalPoints: number;
+  groupId: number | null;
+  groupName: string | null;
+  userId: string;
+  userName: string | null;
+}
+
+export interface SeasonWithStandings extends Season {
+  standings: SeasonStandingEntry[];
+}
+
 export interface PredictionHistoryItem {
   id: string;
   userId: string;

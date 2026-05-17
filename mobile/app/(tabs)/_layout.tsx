@@ -56,7 +56,6 @@ export default function TabsLayout() {
         name="predictions"
         options={{
           title: 'My Score',
-          href: isAdmin ? null : undefined,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="trending-up-outline" color={color} size={size} />
           ),
@@ -68,6 +67,15 @@ export default function TabsLayout() {
           title: 'Leaders',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="trophy-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="seasons"
+        options={{
+          title: 'Seasons',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="star-outline" color={color} size={size} />
           ),
         }}
       />
