@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getLeaderboard } from '@/lib/services/leaderboard-service';
+import { SeasonService } from '@/lib/services/season-service';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -12,11 +13,16 @@ export async function GET(req: NextRequest) {
   const from      = searchParams.get('from') ?? undefined;
   const to        = searchParams.get('to') ?? undefined;
 
+  // Auto-scope to the active season when one exists
+  const activeSeason = await SeasonService.getActiveSeason();
+  const seasonId = activeSeason?.id;
+
   const entries = await getLeaderboard({
     leagueIds,
     groupId: groupId ? Number(groupId) : undefined,
     from,
     to,
+    seasonId,
   });
 
   return NextResponse.json(

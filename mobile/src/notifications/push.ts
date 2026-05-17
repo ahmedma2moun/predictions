@@ -1,10 +1,19 @@
-import messaging from '@react-native-firebase/messaging';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { apiRequest } from '@/api/client';
+
+// @react-native-firebase/messaging is a native module — not available in Expo Go.
+// Lazy-load it so the module-level import doesn't crash the app.
+let messaging: typeof import('@react-native-firebase/messaging').default | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  messaging = require('@react-native-firebase/messaging').default;
+} catch {
+  // silently unavailable in Expo Go
+}
 
 const LAST_REGISTERED_TOKEN = 'fp_last_fcm_token';
 
@@ -29,12 +38,14 @@ async function ensureAndroidChannel() {
 }
 
 async function requestPermissions(): Promise<boolean> {
-  if (Platform.OS === 'ios') {
+  if (Platform.OS === 'ios' && messaging) {
     const authStatus = await messaging().requestPermission();
     return (
       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
       authStatus === messaging.AuthorizationStatus.PROVISIONAL
     );
+  } else if (Platform.OS === 'ios') {
+    return false;
   }
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === 'granted') return true;
@@ -65,8 +76,10 @@ export async function registerForPushNotifications(jwt: string): Promise<string 
 
   let fcmToken: string;
   try {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === 'ios' && messaging) {
       fcmToken = await messaging().getToken();
+    } else if (Platform.OS === 'ios') {
+      return null;
     } else {
       const { data } = await Notifications.getDevicePushTokenAsync();
       fcmToken = data;

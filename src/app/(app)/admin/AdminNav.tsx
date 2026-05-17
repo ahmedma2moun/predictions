@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 const adminLinks = [
   { href: "/admin", label: "Dashboard", exact: true },
+  { href: "/admin/seasons", label: "Seasons" },
   { href: "/admin/leagues", label: "Leagues" },
   { href: "/admin/teams", label: "Teams" },
   { href: "/admin/matches", label: "Matches" },

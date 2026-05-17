@@ -2,15 +2,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Calendar, TrendingUp, Trophy, Settings, LogOut } from "lucide-react";
+import { Calendar, TrendingUp, Trophy, Settings, LogOut, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { href: "/matches", label: "Upcoming Matches", icon: Calendar },
-  { href: "/predictions", label: "My Score", icon: TrendingUp, adminHidden: true },
+  { href: "/predictions", label: "My Score", icon: TrendingUp },
   { href: "/leaderboard", label: "Leaders", icon: Trophy },
+  { href: "/seasons", label: "Seasons", icon: Star },
 ];
 
 export function Navbar() {
@@ -26,7 +27,7 @@ export function Navbar() {
           ⚽ Predictions
         </Link>
         <div className="flex items-center gap-1 flex-1">
-          {navItems.filter(item => !(isAdmin && item.adminHidden)).map(item => (
+          {navItems.map(item => (
             <Link
               key={item.href}
               href={item.href}
@@ -91,7 +92,7 @@ export function Navbar() {
           The inner div is the fixed 64 px tap-target strip.        */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/85 backdrop-blur-md border-t border-border pb-[env(safe-area-inset-bottom,0px)]">
         <div className="h-16 flex items-center">
-          {navItems.filter(item => !(isAdmin && item.adminHidden)).map(item => (
+          {navItems.map(item => (
             <Link
               key={item.href}
               href={item.href}

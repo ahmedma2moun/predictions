@@ -7,6 +7,7 @@ import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football
 import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
 import { sendPushToUsers } from './fcm';
 import { MatchRepository } from '@/lib/repositories/match-repository';
+import { SeasonService } from '@/lib/services/season-service';
 
 // Stages that are always single-leg (no leg numbers shown)
 const SINGLE_LEG_STAGES = new Set(['FINAL', 'THIRD_PLACE', 'THIRD_PLACE_PLAY_OFF']);
@@ -66,12 +67,14 @@ export async function fetchAndInsertMatches(params: {
 }): Promise<FetchMatchesSummary> {
   const { from, to, weekStart, leagueId, filterByTeams = false, logPrefix } = params;
 
-  const [leagues, activeTeamsByLeague] = await Promise.all([
+  const [leagues, activeTeamsByLeague, activeSeason] = await Promise.all([
     leagueId
       ? LeagueService.getById({ where: { id: leagueId } }).then(l => (l ? [l] : []))
       : LeagueService.getAll({ where: { isActive: true } }),
     filterByTeams ? getActiveTeamsByLeague() : Promise.resolve(new Map<number, Set<number>>()),
+    SeasonService.getActiveSeason(),
   ]);
+  const activeSeasonId = activeSeason?.id ?? null;
 
   let inserted = 0, skipped = 0, errors = 0;
   const debug: Record<string, unknown>[] = [];
@@ -124,6 +127,7 @@ export async function fetchAndInsertMatches(params: {
             venue: f.fixture.venue ?? null,
             scoresProcessed: false,
             weekStart,
+            seasonId: activeSeasonId,
           })),
         });
         inserted += toCreate.length;
