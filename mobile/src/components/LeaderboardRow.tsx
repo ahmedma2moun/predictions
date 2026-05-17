@@ -16,6 +16,8 @@ import { useTheme } from '@/theme/theme';
 import type { LeaderboardEntry, LeaderboardUserPrediction } from '@/types/api';
 import { formatKickoff } from '@/utils/format';
 
+const MEDALS = ['🥇', '🥈', '🥉'] as const;
+
 interface Props {
   item: LeaderboardEntry;
   index: number;
@@ -25,10 +27,11 @@ interface Props {
   expandedLoading: boolean;
   expandedData: LeaderboardUserPrediction[] | null;
   onToggle: (userId: string) => void;
+  showMedal?: boolean;
 }
 
 export const LeaderboardRow = memo(function LeaderboardRow({
-  item, index, myId, isCurrentPeriod, isExpanded, expandedLoading, expandedData, onToggle,
+  item, index, myId, isCurrentPeriod, isExpanded, expandedLoading, expandedData, onToggle, showMedal,
 }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -51,14 +54,18 @@ export const LeaderboardRow = memo(function LeaderboardRow({
       >
         {/* Rank */}
         <View style={styles.rankBox}>
-          <Text
-            style={[
-              styles.rank,
-              { color: isMe ? colors.primary : colors.mutedForeground, fontFamily: 'JetBrainsMono' },
-            ]}
-          >
-            {rank}
-          </Text>
+          {showMedal ? (
+            <Text style={styles.medal}>{MEDALS[index]}</Text>
+          ) : (
+            <Text
+              style={[
+                styles.rank,
+                { color: isMe ? colors.primary : colors.mutedForeground, fontFamily: 'JetBrainsMono' },
+              ]}
+            >
+              {rank}
+            </Text>
+          )}
         </View>
 
         {/* Avatar */}
@@ -382,6 +389,7 @@ function makeStyles(c: Palette) {
       fontWeight: font.weight.bold,
       fontVariant: ['tabular-nums'],
     },
+    medal: { fontSize: 16, lineHeight: 20 },
     nameRow: {
       flexDirection: 'row',
       alignItems: 'center',
