@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAndInsertMatches } from '@/lib/matches-processor';
 import { logger } from '@/lib/logger';
-import { sendCronRunEmail } from '@/lib/email';
+import { sendFetchMatchesCronEmail } from '@/lib/email';
 import { format, addDays } from 'date-fns';
 import { verifyCronRequest } from '@/lib/cron-auth';
 
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const from = format(weekStart, 'yyyy-MM-dd');
   const to   = format(addDays(weekStart, 7), 'yyyy-MM-dd');
 
-  const { inserted, skipped, errors } = await fetchAndInsertMatches({
+  const { inserted, skipped, errors, insertedMatches, skippedMatches } = await fetchAndInsertMatches({
     from,
     to,
     weekStart,
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   logger.info('[cron/fetch-matches] Done —', JSON.parse(JSON.stringify(summary)));
 
   try {
-    await sendCronRunEmail('fetch-matches', summary);
+    await sendFetchMatchesCronEmail({ inserted, skipped, errors, insertedMatches, skippedMatches });
   } catch (e) {
     logger.error('[cron/fetch-matches] Failed to send cron notification email:', { error: e instanceof Error ? e.message : String(e) });
   }

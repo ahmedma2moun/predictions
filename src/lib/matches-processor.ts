@@ -38,11 +38,20 @@ async function assignKnockoutLegs(externalLeagueId: number) {
   }
 }
 
+export interface MatchSummaryItem {
+  leagueName: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  kickoffTime: Date;
+}
+
 export interface FetchMatchesSummary {
   inserted: number;
   skipped: number;
   errors: number;
   debug: Record<string, unknown>[];
+  insertedMatches: MatchSummaryItem[];
+  skippedMatches: MatchSummaryItem[];
 }
 
 /**
@@ -78,6 +87,8 @@ export async function fetchAndInsertMatches(params: {
 
   let inserted = 0, skipped = 0, errors = 0;
   const debug: Record<string, unknown>[] = [];
+  const insertedMatches: MatchSummaryItem[] = [];
+  const skippedMatches: MatchSummaryItem[] = [];
 
   logger.info(`[${logPrefix}] Starting — ${leagues.length} league(s), window: ${from} → ${to}`);
 
@@ -106,7 +117,17 @@ export async function fetchAndInsertMatches(params: {
       );
 
       const toCreate = fixtures.filter((f: APIFixture) => !existing.has(f.fixture.id));
-      skipped += fixtures.length - toCreate.length;
+      const alreadyExisting = fixtures.filter((f: APIFixture) => existing.has(f.fixture.id));
+      skipped += alreadyExisting.length;
+
+      for (const f of alreadyExisting) {
+        skippedMatches.push({
+          leagueName: league.name,
+          homeTeamName: f.teams.home.name,
+          awayTeamName: f.teams.away.name,
+          kickoffTime: new Date(f.fixture.date),
+        });
+      }
 
       if (toCreate.length > 0) {
         await MatchRepository.createMany({
@@ -131,7 +152,15 @@ export async function fetchAndInsertMatches(params: {
           })),
         });
         inserted += toCreate.length;
-        logger.info(`[${logPrefix}] ${league.name}: inserted=${toCreate.length}, skipped=${fixtures.length - toCreate.length}`);
+        for (const f of toCreate) {
+          insertedMatches.push({
+            leagueName: league.name,
+            homeTeamName: f.teams.home.name,
+            awayTeamName: f.teams.away.name,
+            kickoffTime: new Date(f.fixture.date),
+          });
+        }
+        logger.info(`[${logPrefix}] ${league.name}: inserted=${toCreate.length}, skipped=${alreadyExisting.length}`);
 
         await assignKnockoutLegs(league.externalId);
       }
@@ -144,7 +173,7 @@ export async function fetchAndInsertMatches(params: {
 
   await sendNewMatchNotifications(weekStart, inserted, logPrefix);
 
-  return { inserted, skipped, errors, debug };
+  return { inserted, skipped, errors, debug, insertedMatches, skippedMatches };
 }
 
 export async function sendNewMatchNotifications(weekStart: Date, insertedCount: number, logPrefix: string) {
