@@ -42,7 +42,7 @@ export default function LeaderboardScreen() {
   } = useLeaderboard();
 
   const showPodium = entries.length >= 3 && isCurrentPeriod;
-  const listEntries = showPodium ? entries.slice(3) : entries;
+  const listEntries = entries;
 
   // subtitle: group name + player count
   const groupName = groups.find(g => g.id === groupId)?.name;
@@ -54,13 +54,14 @@ export default function LeaderboardScreen() {
     ({ item, index }: { item: LeaderboardEntry; index: number }) => (
       <LeaderboardRow
         item={item}
-        index={showPodium ? index + 3 : index}
+        index={index}
         myId={myId}
         isCurrentPeriod={isCurrentPeriod}
         isExpanded={expandedUserId === item.userId}
         expandedLoading={expandedLoading}
         expandedData={expandedUserId === item.userId ? expandedData : null}
         onToggle={toggleExpand}
+        showMedal={showPodium && index < 3}
       />
     ),
     [myId, isCurrentPeriod, expandedUserId, expandedLoading, expandedData, toggleExpand, showPodium],
