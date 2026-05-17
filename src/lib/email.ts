@@ -463,6 +463,95 @@ export async function sendSeasonEndEmail(to: string, seasonName: string): Promis
   });
 }
 
+// ─── Fetch-Matches Cron Email ─────────────────────────────────────────────────
+
+export interface CronMatchItem {
+  leagueName: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  kickoffTime: Date;
+}
+
+export async function sendFetchMatchesCronEmail(params: {
+  inserted: number;
+  skipped: number;
+  errors: number;
+  insertedMatches: CronMatchItem[];
+  skippedMatches: CronMatchItem[];
+}): Promise<void> {
+  const to = 'ahmed.m.maamoun94@gmail.com';
+  const { inserted, skipped, errors, insertedMatches, skippedMatches } = params;
+  const timestamp = new Date().toUTCString();
+
+  function matchRows(matches: CronMatchItem[]): string {
+    if (matches.length === 0) return '<tr><td colspan="3" style="padding:8px 12px;color:#888;font-size:13px;">None</td></tr>';
+    return matches
+      .sort((a, b) => a.kickoffTime.getTime() - b.kickoffTime.getTime())
+      .map(m => `
+        <tr>
+          <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#888;">${m.leagueName}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;font-weight:500;">${m.homeTeamName} <span style="color:#aaa;font-weight:400;">vs</span> ${m.awayTeamName}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#888;white-space:nowrap;">${formatShortDate(m.kickoffTime)}</td>
+        </tr>`)
+      .join('');
+  }
+
+  function matchTable(title: string, color: string, matches: CronMatchItem[], count: number): string {
+    return `
+      <div style="margin-top:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};"></span>
+          <span style="font-size:13px;font-weight:600;color:#333;">${title} (${count})</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f8f8f8;">
+              <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">League</th>
+              <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">Match</th>
+              <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">Kickoff (CLT)</th>
+            </tr>
+          </thead>
+          <tbody>${matchRows(matches)}</tbody>
+        </table>
+      </div>`;
+  }
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a;">
+      <div style="background:#6366f1;padding:16px 24px;border-radius:8px 8px 0 0;">
+        <h2 style="margin:0;color:#fff;font-size:18px;">Cron: fetch-matches</h2>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:12px;">${timestamp}</p>
+      </div>
+      <div style="padding:20px 24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tbody>
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;color:#555;font-size:13px;">Inserted</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;font-weight:700;font-size:13px;color:#16a34a;">${inserted}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;color:#555;font-size:13px;">Already in DB</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #f0f0f0;font-weight:700;font-size:13px;color:#888;">${skipped}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 12px;color:#555;font-size:13px;">Errors</td>
+              <td style="padding:6px 12px;font-weight:700;font-size:13px;color:${errors > 0 ? '#dc2626' : '#888'};">${errors}</td>
+            </tr>
+          </tbody>
+        </table>
+        ${matchTable('Inserted matches', '#16a34a', insertedMatches, inserted)}
+        ${skipped > 0 ? matchTable('Already in DB', '#9ca3af', skippedMatches, skipped) : ''}
+      </div>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `[Cron] fetch-matches — ${inserted} inserted, ${skipped} already in DB`,
+    html,
+  });
+}
+
 // ─── Cron Run Notification ────────────────────────────────────────────────────
 
 export async function sendCronRunEmail(
