@@ -27,6 +27,42 @@ jobs:
         env:
           EXPO_NO_TELEMETRY: 1
 
+      - name: Patch Podfile — disable code signing for Pod targets
+        run: |
+          python3 - <<'EOF'
+          import re, sys
+
+          path = 'mobile/ios/Podfile'
+          with open(path, 'r') as f:
+              content = f.read()
+
+          patch = """
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+                config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+              end
+            end
+          """
+
+          if 'CODE_SIGNING_ALLOWED' in content:
+              print('Podfile already patched, skipping.')
+              sys.exit(0)
+
+          if 'react_native_post_install(' not in content:
+              print('ERROR: expected anchor not found in Podfile', file=sys.stderr)
+              sys.exit(1)
+
+          content = content.replace(
+              'react_native_post_install(',
+              patch + '    react_native_post_install(',
+              1
+          )
+          with open(path, 'w') as f:
+              f.write(content)
+          print('Podfile patched successfully.')
+          EOF
+
       - name: Install CocoaPods
         working-directory: mobile/ios
         run: pod install
