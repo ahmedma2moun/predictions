@@ -1,46 +1,44 @@
-name: Android Auto-Publish
+name: Android — Debug APK → Firebase
 
 on:
   workflow_dispatch:
 
 jobs:
   build-and-distribute:
-    name: EAS Build → Firebase Distribution
+    name: Gradle Build → Firebase Distribution
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
-      - name: Install mobile dependencies
+      - name: Install JS dependencies
         working-directory: mobile
         run: npm install --legacy-peer-deps
 
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
-      - name: Build APK via EAS
+      - name: Expo prebuild (Android)
         working-directory: mobile
+        run: npx expo prebuild --platform android --no-install
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          BUILD_JSON=$(eas build \
-            --profile preview \
-            --platform android \
-            --non-interactive \
-            --json 2>/dev/null)
-          APK_URL=$(echo "$BUILD_JSON" | jq -r '.[0].artifacts.buildUrl')
-          echo "APK_URL=$APK_URL" >> $GITHUB_ENV
+          EXPO_NO_TELEMETRY: 1
 
-      - name: Download APK
-        run: curl -L "$APK_URL" -o app-preview.apk
+      - name: Write local.properties
+        working-directory: mobile/android
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
+      - name: Build debug APK
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Distribute via Firebase App Distribution
         uses: wzieba/Firebase-Distribution-Github-Action@v1
@@ -48,5 +46,5 @@ jobs:
           appId: "1:324923947200:android:9453983ba1902076c5d525"
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           groups: testers
-          file: app-preview.apk
-          releaseNotes: "Auto-build from commit ${{ github.sha }} — ${{ github.event.head_commit.message }}"
+          file: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          releaseNotes: "Build from ${{ github.sha }} — ${{ github.event.head_commit.message }}"
