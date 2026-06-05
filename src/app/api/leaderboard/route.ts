@@ -13,16 +13,26 @@ export async function GET(req: NextRequest) {
   const from      = searchParams.get('from') ?? undefined;
   const to        = searchParams.get('to') ?? undefined;
 
-  // Auto-scope to the active season when one exists
   const activeSeason = await SeasonService.getActiveSeason();
-  const seasonId = activeSeason?.id;
+
+  // No active season → leaderboard is cleared until a new season starts
+  if (!activeSeason) {
+    const allSeasons = await SeasonService.getPublicSeasons();
+    const lastEnded  = allSeasons.find(s => s.status === 'ENDED');
+    const headers: Record<string, string> = {
+      'Cache-Control':   's-maxage=30, stale-while-revalidate=60',
+      'X-Season-Status': 'off',
+    };
+    if (lastEnded) headers['X-Last-Season-Id'] = lastEnded.id.toString();
+    return NextResponse.json([], { headers });
+  }
 
   const entries = await getLeaderboard({
     leagueIds,
     groupId: groupId ? Number(groupId) : undefined,
     from,
     to,
-    seasonId,
+    seasonId: activeSeason.id,
   });
 
   return NextResponse.json(
@@ -31,6 +41,10 @@ export async function GET(req: NextRequest) {
       ...entry,
       userId: entry.userId.toString(),
     })),
-    { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' } },
+    { headers: {
+      'Cache-Control':   's-maxage=30, stale-while-revalidate=60',
+      'X-Season-Status': 'active',
+      'X-Season-Id':     activeSeason.id.toString(),
+    }},
   );
 }

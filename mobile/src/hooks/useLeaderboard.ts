@@ -6,6 +6,7 @@ import type {
   LeaderboardGroup,
   LeaderboardLeague,
   LeaderboardUserPrediction,
+  Season,
 } from '@/types/api';
 import { useRemoteData } from './useRemoteData';
 import { usePeriodFilter } from './usePeriodFilter';
@@ -66,6 +67,14 @@ export function useLeaderboard() {
     setExpandedUserId(null);
     setExpandedData(null);
   }, [dateRange, groupId, selectedLeagues]);
+
+  // Season status — determines whether we're between seasons
+  const { data: seasons } = useRemoteData<Season[]>(
+    (signal) => apiRequest<Season[]>('/api/mobile/seasons', { token: token!, signal }),
+    [token],
+    { enabled: !!token },
+  );
+  const offSeason = !!seasons && !seasons.some(s => s.status === 'ACTIVE');
 
   // Board entries via useRemoteData
   const { data: rawEntries, loading, refreshing, refresh: onRefresh } = useRemoteData<LeaderboardEntry[]>(
@@ -135,6 +144,7 @@ export function useLeaderboard() {
   return {
     myId: user?.id,
     isCurrentPeriod,
+    offSeason,
     period, setPeriod,
     weekOffset, setWeekOffset,
     monthOffset, setMonthOffset,

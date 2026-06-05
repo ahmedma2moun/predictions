@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { getLeaderboard } from '@/lib/services/leaderboard-service';
+import { SeasonService } from '@/lib/services/season-service';
 
 export async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
@@ -12,11 +13,20 @@ export async function GET(req: NextRequest) {
   const from      = searchParams.get('from') ?? undefined;
   const to        = searchParams.get('to') ?? undefined;
 
+  const activeSeason = await SeasonService.getActiveSeason();
+
+  if (!activeSeason) {
+    return NextResponse.json([], {
+      headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60', 'X-Season-Status': 'off' },
+    });
+  }
+
   const entries = await getLeaderboard({
     leagueIds,
     groupId: groupId ? Number(groupId) : undefined,
     from,
     to,
+    seasonId: activeSeason.id,
   });
 
   return NextResponse.json(
@@ -34,6 +44,10 @@ export async function GET(req: NextRequest) {
       exactScoreCount: entry.exactScoreCount,
       isGroupChampion: entry.isGroupChampion,
     })),
-    { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' } },
+    { headers: {
+      'Cache-Control':   's-maxage=30, stale-while-revalidate=60',
+      'X-Season-Status': 'active',
+      'X-Season-Id':     activeSeason.id.toString(),
+    }},
   );
 }

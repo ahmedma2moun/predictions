@@ -67,6 +67,8 @@ export function useLeaderboard() {
   const [leaderboard, setLeaderboard]   = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading]       = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [offSeason, setOffSeason]       = useState(false);
+  const [lastSeasonId, setLastSeasonId] = useState<string | null>(null);
 
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [loadingUserId, setLoadingUserId]   = useState<string | null>(null);
@@ -139,7 +141,13 @@ export function useLeaderboard() {
     for (const lid of selectedLeagues) url += `&leagueId=${lid}`;
 
     fetch(url)
-      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(r => {
+        if (!r.ok) throw new Error();
+        const status = r.headers.get('x-season-status');
+        setOffSeason(status === 'off');
+        setLastSeasonId(status === 'off' ? r.headers.get('x-last-season-id') : null);
+        return r.json();
+      })
       .then((data: LeaderboardEntry[]) => {
         lbCache.current[cacheKey] = { data, ts: Date.now() };
         setLeaderboard(data);
@@ -206,5 +214,7 @@ export function useLeaderboard() {
     monthLabel,
     myId,
     isCurrentPeriod,
+    offSeason,
+    lastSeasonId,
   };
 }

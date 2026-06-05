@@ -24,6 +24,7 @@ export default function LeaderboardScreen() {
   const {
     myId,
     isCurrentPeriod,
+    offSeason,
     period, setPeriod,
     weekOffset, setWeekOffset,
     monthOffset, setMonthOffset,
@@ -111,9 +112,21 @@ export default function LeaderboardScreen() {
           </View>
         }
         ListEmptyComponent={
-          <Muted style={{ textAlign: 'center', marginTop: spacing.xl }}>
-            No predictions yet
-          </Muted>
+          offSeason ? (
+            <View style={{ alignItems: 'center', gap: spacing.sm, marginTop: spacing.xxl }}>
+              <Text style={{ fontSize: 36 }}>🏆</Text>
+              <Text style={[{ fontSize: 15, fontWeight: '600', color: colors.foreground }]}>
+                Season has ended
+              </Text>
+              <Muted style={{ textAlign: 'center', paddingHorizontal: spacing.xl }}>
+                The leaderboard is cleared. Check the Seasons tab to see final standings.
+              </Muted>
+            </View>
+          ) : (
+            <Muted style={{ textAlign: 'center', marginTop: spacing.xl }}>
+              No predictions yet
+            </Muted>
+          )
         }
         renderItem={renderItem}
       />

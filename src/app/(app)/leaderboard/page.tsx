@@ -88,6 +88,7 @@ import type { UserPrediction } from "./useLeaderboard";
 import { LeaderboardFilters } from "./LeaderboardFilters";
 import { PeriodNav } from "./PeriodNav";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 const MEDAL_COLORS = ["#F2C744", "#C5CDD9", "#CB8C5C"] as const;
 const TOWER_HEIGHTS = ["h-[86px]", "h-12", "h-[62px]"] as const;
@@ -183,6 +184,8 @@ export default function LeaderboardPage() {
     weekLabel, monthLabel,
     myId,
     isCurrentPeriod,
+    offSeason,
+    lastSeasonId,
   } = useLeaderboard();
 
   const showPodium = isCurrentPeriod && !isLoading && leaderboard.length >= 3;
@@ -233,6 +236,18 @@ export default function LeaderboardPage() {
               <Skeleton className="h-6 w-12 rounded" />
             </div>
           ))}
+        </div>
+      ) : offSeason ? (
+        <div className="rounded-[14px] border border-border bg-card px-6 py-10 text-center space-y-3">
+          <p className="text-3xl">🏆</p>
+          <p className="font-semibold text-base">Season has ended</p>
+          <p className="text-sm text-muted-foreground">The leaderboard is cleared. A new season will start soon.</p>
+          <Link
+            href={lastSeasonId ? `/seasons` : `/seasons`}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+          >
+            View season standings →
+          </Link>
         </div>
       ) : leaderboard.length === 0 ? (
         <p className="text-muted-foreground text-center py-4">No predictions yet</p>
