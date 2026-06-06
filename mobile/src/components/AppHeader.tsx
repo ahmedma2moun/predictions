@@ -6,6 +6,8 @@ import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme/theme';
 import { font, radius, spacing } from '@/theme/colors';
 
+const wcTrophy = require('../../assets/wc-trophy.png');
+
 interface Props {
   title: string;
   subtitle?: string;
@@ -35,16 +37,23 @@ export function AppHeader({ title, subtitle }: Props) {
       ]}
     >
       <View style={styles.titleBlock}>
-        <Text
-          style={{
-            color: colors.foreground,
-            fontSize: 26,
-            fontWeight: font.weight.bold,
-            letterSpacing: -0.6,
-          }}
-        >
-          {title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Image
+            source={wcTrophy}
+            style={{ width: 32, height: 32 }}
+            contentFit="contain"
+          />
+          <Text
+            style={{
+              color: colors.foreground,
+              fontSize: 26,
+              fontWeight: font.weight.bold,
+              letterSpacing: -0.6,
+            }}
+          >
+            {title}
+          </Text>
+        </View>
         {subtitle ? (
           <Text style={{ color: colors.mutedForeground, fontSize: font.size.sm, marginTop: 1 }}>
             {subtitle}
@@ -90,6 +99,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   titleBlock: { flex: 1, minWidth: 0 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 0 },
   iconBtn: {
     width: 34,

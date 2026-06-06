@@ -1,9 +1,8 @@
-// Theme palettes mirror football-predictions/src/app/globals.css.
-// `dark` = FotMob navy + emerald. `light` = clean off-white + emerald.
-// Components must pull the active palette via `useTheme()` from `@/theme/theme`
-// so the app can hot-switch at runtime. The `colors` export below is the dark
-// palette kept for static contexts that can't use the hook (e.g. StatusBar
-// defaults during first paint).
+// Theme palettes — World Cup 2026 seasonal edition.
+// `dark` = trophy gold on midnight navy. `light` = trophy gold on warm parchment.
+// To restore the original Pitch Premium palettes after the World Cup, uncomment
+// the "Original Pitch Premium" blocks below and remove the seasonal ones.
+// Components pull the active palette via `useTheme()` from `@/theme/theme`.
 
 export type Palette = {
   background: string;
@@ -16,7 +15,7 @@ export type Palette = {
   input: string;
   primary: string;
   primaryForeground: string;
-  primarySoft: string;   // tinted surface — e.g. "(you)" row on leaderboard
+  primarySoft: string;
   primarySoftBorder: string;
   destructive: string;
   accent: string;
@@ -30,6 +29,54 @@ export type Palette = {
 export type ThemeMode = 'light' | 'dark';
 
 export const palettes: Record<ThemeMode, Palette> = {
+  // ── Dark — World Cup 2026 (trophy gold + midnight navy) ──────────────────
+  dark: {
+    background: '#07090E',
+    backgroundElevated: '#0C1220',
+    card: '#101828',
+    cardElevated: '#182035',
+    foreground: '#F2F5FA',
+    mutedForeground: '#8A95A8',
+    border: 'rgba(255,255,255,0.06)',
+    input: 'rgba(255,255,255,0.10)',
+    primary: '#F2A900',
+    primaryForeground: '#1A0E00',
+    primarySoft: 'rgba(242,169,0,0.12)',
+    primarySoftBorder: 'rgba(242,169,0,0.30)',
+    destructive: '#FF4D6D',
+    accent: '#182035',
+    accentHover: '#1F2B45',
+    success: '#22c55e',
+    warning: '#F2B544',
+    live: '#FF4D6D',
+    gold: '#F2C744',
+  },
+  // ── Light — World Cup 2026 (trophy gold + warm parchment) ────────────────
+  light: {
+    background: '#F5F0E8',
+    backgroundElevated: '#FFFFFF',
+    card: '#FFFFFF',
+    cardElevated: '#FBF7EF',
+    foreground: '#17202E',
+    mutedForeground: '#5D6B7E',
+    border: 'rgba(0,0,0,0.08)',
+    input: 'rgba(0,0,0,0.08)',
+    primary: '#C8820A',
+    primaryForeground: '#FFFFFF',
+    primarySoft: 'rgba(200,130,10,0.10)',
+    primarySoftBorder: 'rgba(200,130,10,0.30)',
+    destructive: '#E11D48',
+    accent: '#EDE8DF',
+    accentHover: '#E0D9CE',
+    success: '#16a34a',
+    warning: '#CA8A04',
+    live: '#E11D48',
+    gold: '#B45309',
+  },
+};
+
+/*
+── Original Pitch Premium dark (restore after World Cup) ──────────────────────
   dark: {
     background: '#07090E',
     backgroundElevated: '#0E121B',
@@ -51,6 +98,8 @@ export const palettes: Record<ThemeMode, Palette> = {
     live: '#FF4D6D',
     gold: '#F2C744',
   },
+
+── Original Pitch Premium light (restore after World Cup) ─────────────────────
   light: {
     background: '#F4F6FA',
     backgroundElevated: '#FFFFFF',
@@ -72,7 +121,7 @@ export const palettes: Record<ThemeMode, Palette> = {
     live: '#E11D48',
     gold: '#D97706',
   },
-};
+*/
 
 // Back-compat export: the dark palette is the default for consumers that still
 // import `colors` directly (e.g. splash pre-theme-provider).

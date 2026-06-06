@@ -20,7 +20,8 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
-  const theme = cookieStore.get("theme")?.value === "light" ? "light" : "dark";
+  const rawTheme = cookieStore.get("theme")?.value;
+  const theme = rawTheme === "light" ? "light" : rawTheme === "worldcup" ? "worldcup" : "dark";
 
   return (
     <html lang="en" className={`${theme} ${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>

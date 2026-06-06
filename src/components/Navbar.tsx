@@ -24,7 +24,9 @@ export function Navbar() {
       {/* Top bar — desktop */}
       <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 bg-card/85 backdrop-blur-md border-b border-border items-center px-6 gap-6">
         <Link href="/matches" className="font-bold text-lg flex items-center gap-2">
-          ⚽ Predictions
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/wc-trophy.png" alt="FIFA World Cup 2026" className="h-8 w-8 object-contain" />
+          Predictions
         </Link>
         <div className="flex items-center gap-1 flex-1">
           {navItems.map(item => (
@@ -71,7 +73,9 @@ export function Navbar() {
       {/* Top bar — mobile */}
       <nav className="md:hidden fixed top-0 left-0 right-0 z-50 h-12 bg-card/85 backdrop-blur-md border-b border-border flex items-center justify-between px-4">
         <Link href="/matches" className="font-bold text-sm flex items-center gap-1.5">
-          ⚽ Predictions
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/wc-trophy.png" alt="FIFA World Cup 2026" className="h-6 w-6 object-contain" />
+          Predictions
         </Link>
         <div className="flex items-center gap-1.5">
           <div className="text-right">

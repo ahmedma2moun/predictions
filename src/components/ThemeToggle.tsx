@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 
 type Theme = "dark" | "light";
 
-// Bump this key whenever you want to re-show the hint after a new deployment
 const HINT_KEY = "theme_hint_v1";
 
 function getCookieTheme(): Theme {
@@ -21,18 +20,15 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme | null>(null);
   const [showHint, setShowHint] = useState(false);
 
-  // On mount: read cookie, sync theme, check if hint should show
   useEffect(() => {
     setTheme(getCookieTheme());
 
     if (!localStorage.getItem(HINT_KEY)) {
-      // Delay slightly so the page settles before the tooltip pops
       const show = setTimeout(() => setShowHint(true), 1200);
       return () => clearTimeout(show);
     }
   }, []);
 
-  // Auto-dismiss the hint after 5 s and mark it as seen
   useEffect(() => {
     if (!showHint) return;
     localStorage.setItem(HINT_KEY, "1");
@@ -40,7 +36,6 @@ export function ThemeToggle() {
     return () => clearTimeout(hide);
   }, [showHint]);
 
-  // Whenever theme changes, swap the class on <html>
   useEffect(() => {
     if (theme === null) return;
     const html = document.documentElement;
@@ -92,7 +87,6 @@ export function ThemeToggle() {
             "animate-in fade-in slide-in-from-top-1 duration-200"
           )}
         >
-          {/* Arrow */}
           <span className="absolute -top-1.5 right-2.5 h-3 w-3 rotate-45 rounded-sm bg-primary" />
           Try the light mode ☀️
         </div>

@@ -59,7 +59,54 @@
   --radius-full: 9999px;
 }
 
-/* ── Dark palette — Pitch Premium ──────────────────────────────────────────── */
+/* ── Dark — World Cup 2026 seasonal (trophy gold + midnight navy) ───────────
+   To restore the original Pitch Premium dark palette after the World Cup,
+   replace the values below with the commented-out block that follows.
+────────────────────────────────────────────────────────────────────────────── */
+:root,
+.dark {
+  --background: #07090E;
+  --background-elevated: #0C1220;
+  --card: #101828;
+  --card-elevated: #182035;
+  --card-foreground: #F2F5FA;
+  --foreground: #F2F5FA;
+  --popover: #101828;
+  --popover-foreground: #F2F5FA;
+  --primary: #F2A900;
+  --primary-foreground: #1A0E00;
+  --primary-soft: rgba(242, 169, 0, 0.12);
+  --primary-soft-border: rgba(242, 169, 0, 0.30);
+  --secondary: #182035;
+  --secondary-foreground: #F2F5FA;
+  --muted: #182035;
+  --muted-foreground: #8A95A8;
+  --accent: #182035;
+  --accent-foreground: #F2F5FA;
+  --destructive: #FF4D6D;
+  --live: #FF4D6D;
+  --warning: #F2B544;
+  --gold: #F2C744;
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.09);
+  --ring: #F2A900;
+  --sidebar: #0C1220;
+  --sidebar-foreground: #F2F5FA;
+  --sidebar-primary: #F2A900;
+  --sidebar-primary-foreground: #1A0E00;
+  --sidebar-accent: #182035;
+  --sidebar-accent-foreground: #F2F5FA;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #F2A900;
+  --chart-1: #F2A900;
+  --chart-2: #D4920A;
+  --chart-3: #B67B0A;
+  --chart-4: #F2B544;
+  --chart-5: #F2C744;
+}
+
+/*
+── Original Pitch Premium dark (restore after World Cup) ──────────────────────
 :root,
 .dark {
   --background: #07090E;
@@ -101,10 +148,56 @@
   --chart-4: #F2B544;
   --chart-5: #F2C744;
 }
+*/
 
-/* ── Light palette — Pitch Premium ─────────────────────────────────────────
+/* ── Light — World Cup 2026 seasonal (trophy gold + warm parchment) ─────────
    html.light has specificity 0-1-1, beats .dark (0-1-0) regardless of order.
+   To restore the original Pitch Premium light palette after the World Cup,
+   replace the values below with the commented-out block that follows.
 ────────────────────────────────────────────────────────────────────────────── */
+html.light {
+  --background: #F5F0E8;
+  --background-elevated: #FFFFFF;
+  --card: #FFFFFF;
+  --card-elevated: #FBF7EF;
+  --card-foreground: #17202E;
+  --foreground: #17202E;
+  --popover: #FFFFFF;
+  --popover-foreground: #17202E;
+  --primary: #C8820A;
+  --primary-foreground: #FFFFFF;
+  --primary-soft: rgba(200, 130, 10, 0.10);
+  --primary-soft-border: rgba(200, 130, 10, 0.30);
+  --secondary: #F5F0E8;
+  --secondary-foreground: #17202E;
+  --muted: #F5F0E8;
+  --muted-foreground: #5D6B7E;
+  --accent: #EDE8DF;
+  --accent-foreground: #17202E;
+  --destructive: #E11D48;
+  --live: #E11D48;
+  --warning: #CA8A04;
+  --gold: #B45309;
+  --border: rgba(0, 0, 0, 0.08);
+  --input: rgba(0, 0, 0, 0.07);
+  --ring: #C8820A;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #17202E;
+  --sidebar-primary: #C8820A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F5F0E8;
+  --sidebar-accent-foreground: #17202E;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-ring: #C8820A;
+  --chart-1: #C8820A;
+  --chart-2: #A86D08;
+  --chart-3: #8A5806;
+  --chart-4: #CA8A04;
+  --chart-5: #B45309;
+}
+
+/*
+── Original Pitch Premium light (restore after World Cup) ─────────────────────
 html.light {
   --background: #F4F6FA;
   --background-elevated: #FFFFFF;
@@ -145,6 +238,7 @@ html.light {
   --chart-4: #CA8A04;
   --chart-5: #D97706;
 }
+*/
 
 /* ── Animations ────────────────────────────────────────────────────────────── */
 @keyframes live-pulse {

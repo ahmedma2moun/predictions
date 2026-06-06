@@ -23,7 +23,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor: mode === 'dark' ? 'rgba(10,12,18,0.86)' : 'rgba(244,246,250,0.90)',
+          backgroundColor: mode === 'light' ? 'rgba(244,246,250,0.90)' : 'rgba(10,12,18,0.86)',
           borderTopColor: colors.border,
           borderTopWidth: StyleSheet.hairlineWidth,
           elevation: 0,
@@ -34,7 +34,7 @@ export default function TabsLayout() {
         tabBarBackground: () => (
           <BlurView
             intensity={24}
-            tint={mode === 'dark' ? 'dark' : 'light'}
+            tint={mode === 'light' ? 'light' : 'dark'}
             style={StyleSheet.absoluteFill}
           />
         ),
