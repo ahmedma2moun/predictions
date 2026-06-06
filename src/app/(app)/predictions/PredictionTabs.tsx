@@ -64,8 +64,7 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
         const res = await fetch(`/api/matches/${match._id}`);
         const data = await res.json();
         setOthers(data.allPredictions ?? []);
-        // Attach live odds to match if not already set
-        if (data.odds && !match.odds) {
+        if (data.odds?.locked && !match.odds) {
           pred.matchId.odds = data.odds;
         }
       } finally {
@@ -109,7 +108,7 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
               </span>
             </div>
           )}
-          {isFinished && matchOdds && (
+          {isFinished && matchOdds?.locked && (
             <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mt-0.5">
               <span className={cn("font-mono-nums", predictedOutcome === 'homeWin' && "text-foreground font-bold")}>
                 H {matchOdds.homeWin.toFixed(2)}

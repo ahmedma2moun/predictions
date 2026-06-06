@@ -151,7 +151,9 @@ export async function getMatchById(
     isCustom
       ? Promise.resolve(new Map<string, unknown>())
       : getStandingsMap([{ externalLeagueId: match.externalLeagueId, season: 0 }]),
-    getLiveMatchOdds(matchId, oddsConfig),
+    isMatchLocked(match.kickoffTime)
+      ? getLiveMatchOdds(matchId, oddsConfig)
+      : Promise.resolve(null),
   ]);
 
   let allPredictions: MatchPredictionRow[] | null = null;

@@ -89,7 +89,7 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
               <ScoreCell label="YOUR PICK" score={`${pred.homeScore}–${pred.awayScore}`} dim colors={colors} />
             </View>
           )}
-          {isFinished && matchOdds && (
+          {isFinished && matchOdds?.locked && (
             <View style={[styles.picksRow, { marginTop: 2 }]}>
               {(['homeWin', 'draw', 'awayWin'] as const).map(outcome => (
                 <Text
