@@ -16,6 +16,9 @@ export default async function AdminSeasonsPage() {
         endedAt: s.endedAt?.toISOString() ?? null,
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),
+        oddsEnabled: s.oddsEnabled,
+        oddsMin: Number(s.oddsMin),
+        oddsMax: Number(s.oddsMax),
       }))}
     />
   );

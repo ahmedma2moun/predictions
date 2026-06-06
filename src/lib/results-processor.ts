@@ -7,6 +7,7 @@ import { fetchFixtures, mapFixtureStatus } from '@/lib/football/service';
 import { sendPushToUsers } from './fcm';
 import { getStandingsMap } from '@/lib/standings';
 import { calculateScore } from '@/lib/scoring-engine';
+import { lockMatchOdds, deriveOutcome, calcFinalScore, type OddsConfig } from '@/lib/odds';
 import { sendResultsEmail, sendResultCorrectionEmail, type ResultMatchForEmail } from '@/lib/email';
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format } from 'date-fns';
@@ -14,6 +15,7 @@ import { type ScoringRule, type Prediction } from '@prisma/client';
 import { NotFoundError } from '@/lib/errors';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { prisma } from '@/lib/prisma';
 
 type CorrectedPrediction = {
   id: string;
@@ -39,7 +41,10 @@ export async function correctMatchResult(
 ): Promise<{ emailsSent: number; predictions: CorrectedPrediction[] }> {
   const match = await MatchRepository.findUnique({
     where: { id: matchId },
-    include: { league: { select: { name: true } } },
+    include: {
+      league: { select: { name: true } },
+      season: { select: { oddsEnabled: true, oddsMin: true, oddsMax: true } },
+    },
   });
   if (!match) throw new NotFoundError(`Match ${matchId} not found`);
 
@@ -80,29 +85,58 @@ export async function correctMatchResult(
   let updated = preds;
 
   if (preds.length > 0) {
+    const s = (match as any).season;
+    const oddsConfig: OddsConfig = {
+      oddsEnabled: s?.oddsEnabled ?? false,
+      oddsMin: s ? Number(s.oddsMin) : 1.1,
+      oddsMax: s ? Number(s.oddsMax) : 5.0,
+    };
+
+    let lockedOdds = { homeWin: 1.0, draw: 1.0, awayWin: 1.0 };
+    try {
+      lockedOdds = await lockMatchOdds(matchId, oddsConfig);
+    } catch (e) {
+      logger.warn('[result-correction] lockMatchOdds failed, using odds=1.0:', { error: e instanceof Error ? e.message : String(e) });
+    }
+
     const scoredPreds = preds.map(pred => {
       const { totalPoints, breakdown } = calculateScore(
         { homeScore: pred.homeScore, awayScore: pred.awayScore },
         { homeScore, awayScore, winner: scoringWinner },
         rules,
       );
-      return { pred, totalPoints, breakdown };
+      const outcome = deriveOutcome(pred.homeScore, pred.awayScore);
+      const odd = lockedOdds[outcome];
+      const finalScore = calcFinalScore(totalPoints, odd);
+      return { pred, totalPoints, finalScore, odd, breakdown };
     });
 
     await PredictionRepository.transaction(
-      scoredPreds.map(({ pred, totalPoints, breakdown }) =>
+      scoredPreds.map(({ pred, totalPoints, finalScore, odd, breakdown }) =>
         PredictionRepository.update({
           where: { id: pred.id },
-          data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
+          data: {
+            baseScore: totalPoints,
+            outcomeOdds: odd,
+            finalScore,
+            pointsAwarded: finalScore,
+            scoringBreakdown: {
+              rules: breakdown,
+              ...(oddsConfig.oddsEnabled ? { odds: { outcomeOdds: odd, baseScore: totalPoints, finalScore } } : {}),
+            },
+          },
         })
       )
     );
 
     updated = scoredPreds
-      .map(({ pred, totalPoints, breakdown }) => ({
+      .map(({ pred, finalScore, totalPoints, odd, breakdown }) => ({
         ...pred,
-        pointsAwarded: totalPoints,
-        scoringBreakdown: { rules: breakdown },
+        pointsAwarded: finalScore,
+        scoringBreakdown: {
+          rules: breakdown,
+          ...(oddsConfig.oddsEnabled ? { odds: { outcomeOdds: odd, baseScore: totalPoints, finalScore } } : {}),
+        },
       }))
       .sort((a, b) => (b.pointsAwarded ?? 0) - (a.pointsAwarded ?? 0));
   }
@@ -368,6 +402,25 @@ export async function batchScorePredictions(
   let scoredCount = 0;
   let errorsCount = 0;
 
+  // Load season odds config for this match
+  const matchWithSeason = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { season: { select: { oddsEnabled: true, oddsMin: true, oddsMax: true } } },
+  });
+  const s = matchWithSeason?.season;
+  const oddsConfig: OddsConfig = {
+    oddsEnabled: s?.oddsEnabled ?? false,
+    oddsMin: s ? Number(s.oddsMin) : 1.1,
+    oddsMax: s ? Number(s.oddsMax) : 5.0,
+  };
+
+  let lockedOdds = { homeWin: 1.0, draw: 1.0, awayWin: 1.0 };
+  try {
+    lockedOdds = await lockMatchOdds(matchId, oddsConfig);
+  } catch (e) {
+    logger.warn(`[${logPrefix}] lockMatchOdds failed for match ${matchId}, using odds=1.0:`, { error: e instanceof Error ? e.message : String(e) });
+  }
+
   for (const pred of preds) {
     try {
       const { totalPoints, breakdown } = calculateScore(
@@ -375,16 +428,29 @@ export async function batchScorePredictions(
         result,
         rules
       );
+      const outcome = deriveOutcome(pred.homeScore, pred.awayScore);
+      const odd = lockedOdds[outcome];
+      const finalScore = calcFinalScore(totalPoints, odd);
+
       await PredictionRepository.update({
         where: { id: pred.id },
-        data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
+        data: {
+          baseScore: totalPoints,
+          outcomeOdds: odd,
+          finalScore,
+          pointsAwarded: finalScore,
+          scoringBreakdown: {
+            rules: breakdown,
+            ...(oddsConfig.oddsEnabled ? { odds: { outcomeOdds: odd, baseScore: totalPoints, finalScore } } : {}),
+          },
+        },
       });
       scoredCount++;
       scoredDetails.push({
         userId: pred.userId,
         predictionHomeScore: pred.homeScore,
         predictionAwayScore: pred.awayScore,
-        pointsAwarded: totalPoints,
+        pointsAwarded: finalScore,
         scoringBreakdown: breakdown.map(r => ({ key: r.key, ruleName: r.ruleName, pointsAwarded: r.pointsAwarded, matched: r.matched })),
       });
     } catch (e) {

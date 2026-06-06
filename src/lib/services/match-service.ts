@@ -4,6 +4,7 @@ import { getStandingsMap, standingKey } from '@/lib/standings';
 import { Prisma, MatchStatus, Match } from '@prisma/client';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { getLiveMatchOdds, type OddsConfig } from '@/lib/odds';
 
 export interface MatchFilters {
   leagueId?: number;
@@ -47,12 +48,20 @@ export interface MatchListItem {
   awayStanding: StandingData | null;
 }
 
+export interface MatchOddsData {
+  homeWin: number;
+  draw: number;
+  awayWin: number;
+  locked: boolean;
+}
+
 export interface MatchDetailData {
   match: MatchWithLeague;
   prediction: PredictionData | null;
   allPredictions: MatchPredictionRow[] | null;
   homeStanding: StandingData | null;
   awayStanding: StandingData | null;
+  odds: MatchOddsData | null;
 }
 
 export async function getMatches(
@@ -117,13 +126,22 @@ export async function getMatchById(
 ): Promise<MatchDetailData | null> {
   const match = await MatchRepository.findUnique({
     where: { id: matchId },
-    include: { league: { select: { name: true } } },
+    include: {
+      league: { select: { name: true } },
+      season: { select: { oddsEnabled: true, oddsMin: true, oddsMax: true } },
+    },
   });
   if (!match) return null;
 
   const isCustom = match.externalLeagueId === 0;
+  const s = (match as any).season;
+  const oddsConfig: OddsConfig = {
+    oddsEnabled: s?.oddsEnabled ?? false,
+    oddsMin: s ? Number(s.oddsMin) : 1.1,
+    oddsMax: s ? Number(s.oddsMax) : 5.0,
+  };
 
-  const [prediction, standingMap] = await Promise.all([
+  const [prediction, standingMap, odds] = await Promise.all([
     opts.isAdmin
       ? Promise.resolve(null)
       : PredictionRepository.findFirst({
@@ -133,6 +151,7 @@ export async function getMatchById(
     isCustom
       ? Promise.resolve(new Map<string, unknown>())
       : getStandingsMap([{ externalLeagueId: match.externalLeagueId, season: 0 }]),
+    getLiveMatchOdds(matchId, oddsConfig),
   ]);
 
   let allPredictions: MatchPredictionRow[] | null = null;
@@ -163,6 +182,7 @@ export async function getMatchById(
     allPredictions,
     homeStanding: homeStanding ? toStandingData(homeStanding) : null,
     awayStanding: awayStanding ? toStandingData(awayStanding) : null,
+    odds,
   };
 }
 

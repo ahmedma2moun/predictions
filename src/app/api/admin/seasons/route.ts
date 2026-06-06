@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, description, startDate } = body;
+  const { name, description, startDate, oddsEnabled, oddsMin, oddsMax } = body;
 
   if (!name || !startDate) {
     return NextResponse.json({ error: 'name and startDate are required' }, { status: 400 });
@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
     name: String(name),
     description: description ? String(description) : undefined,
     startDate: new Date(startDate),
+    oddsEnabled: Boolean(oddsEnabled ?? false),
+    oddsMin: oddsMin != null ? Number(oddsMin) : 1.1,
+    oddsMax: oddsMax != null ? Number(oddsMax) : 5.0,
   });
 
   return NextResponse.json({ ...season, id: season.id.toString() }, { status: 201 });

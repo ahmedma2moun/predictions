@@ -73,6 +73,7 @@ src/
 │   │       ├── football-data.ts  # football-data.org v4 implementation (default)
 │   │       └── api-football.ts   # API-Football (RapidAPI) alternative — activate via FOOTBALL_PROVIDER=api-football
 │   ├── scoring-engine.ts   # calculateScore() — only place scoring logic lives
+│   ├── odds.ts             # calcMatchOdds(), calcFinalScore(), lockMatchOdds(), getLiveMatchOdds()
 │   ├── utils.ts            # formatKickoff(), isMatchLocked(), getWinner()
 │   ├── leaderboard.ts      # Leaderboard aggregation logic
 │   ├── matches-processor.ts  # Fixture upsert (fetch-matches cron)

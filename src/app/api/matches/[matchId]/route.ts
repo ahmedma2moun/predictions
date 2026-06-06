@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
   const data = await getMatchById(Number(matchId), { userId, isAdmin });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { match, prediction, allPredictions, homeStanding, awayStanding } = data;
+  const { match, prediction, allPredictions, homeStanding, awayStanding, odds } = data;
 
   const formattedAllPredictions = allPredictions?.map(p => ({
     userId:    p.userId,
@@ -31,5 +31,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     standings: { home: homeStanding, away: awayStanding },
     prediction,
     allPredictions: formattedAllPredictions,
+    odds,
   });
 }

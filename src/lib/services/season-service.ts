@@ -11,6 +11,9 @@ export interface CreateSeasonInput {
   name: string;
   description?: string;
   startDate: Date;
+  oddsEnabled?: boolean;
+  oddsMin?: number;
+  oddsMax?: number;
 }
 
 export interface SeasonWithStandings {
@@ -90,6 +93,9 @@ export const SeasonService = {
         description: input.description ?? null,
         startDate: input.startDate,
         status: 'DRAFT',
+        oddsEnabled: input.oddsEnabled ?? false,
+        oddsMin: input.oddsMin ?? 1.1,
+        oddsMax: input.oddsMax ?? 5.0,
       },
     });
   },

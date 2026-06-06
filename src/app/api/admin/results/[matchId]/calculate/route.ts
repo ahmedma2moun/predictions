@@ -4,7 +4,9 @@ import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
 import { calculateScore } from '@/lib/scoring-engine';
+import { lockMatchOdds, deriveOutcome, calcFinalScore, type OddsConfig } from '@/lib/odds';
 import { updateUserStreaks } from '@/lib/services/streak-badge-service';
+import { logger } from '@/lib/logger';
 
 export async function POST(
   _req: NextRequest,
@@ -16,7 +18,10 @@ export async function POST(
   }
 
   const { matchId } = await params;
-  const match = await MatchRepository.findUnique({ where: { id: Number(matchId) } });
+  const match = await MatchRepository.findUnique({
+    where: { id: Number(matchId) },
+    include: { season: { select: { oddsEnabled: true, oddsMin: true, oddsMax: true } } },
+  });
   if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
 
   if (match.resultHomeScore === null || match.resultAwayScore === null) {
@@ -27,6 +32,20 @@ export async function POST(
   const awayScore = match.resultAwayScore;
   const scoringWinner: 'home' | 'away' | 'draw' =
     homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
+
+  const s = (match as any).season;
+  const oddsConfig: OddsConfig = {
+    oddsEnabled: s?.oddsEnabled ?? false,
+    oddsMin: s ? Number(s.oddsMin) : 1.1,
+    oddsMax: s ? Number(s.oddsMax) : 5.0,
+  };
+
+  let lockedOdds = { homeWin: 1.0, draw: 1.0, awayWin: 1.0 };
+  try {
+    lockedOdds = await lockMatchOdds(Number(matchId), oddsConfig);
+  } catch (e) {
+    logger.warn('[admin-calculate] lockMatchOdds failed, using odds=1.0:', { error: e instanceof Error ? e.message : String(e) });
+  }
 
   const [rules, preds] = await Promise.all([
     ScoringRuleService.getAll({ where: { isActive: true } }),
@@ -48,11 +67,24 @@ export async function POST(
       { homeScore, awayScore, winner: scoringWinner },
       rules,
     );
+    const outcome = deriveOutcome(pred.homeScore, pred.awayScore);
+    const odd = lockedOdds[outcome];
+    const finalScore = calcFinalScore(totalPoints, odd);
+
     await PredictionRepository.update({
       where: { id: pred.id },
-      data: { pointsAwarded: totalPoints, scoringBreakdown: { rules: breakdown } },
+      data: {
+        baseScore: totalPoints,
+        outcomeOdds: odd,
+        finalScore,
+        pointsAwarded: finalScore,
+        scoringBreakdown: {
+          rules: breakdown,
+          ...(oddsConfig.oddsEnabled ? { odds: { outcomeOdds: odd, baseScore: totalPoints, finalScore } } : {}),
+        },
+      },
     });
-    scored.push({ userId: pred.userId.toString(), userName: pred.user.name, pointsAwarded: totalPoints });
+    scored.push({ userId: pred.userId.toString(), userName: pred.user.name, pointsAwarded: finalScore });
   }
 
   await MatchRepository.update({ where: { id: Number(matchId) }, data: { scoresProcessed: true } });
