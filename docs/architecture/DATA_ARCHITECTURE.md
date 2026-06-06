@@ -13,6 +13,7 @@ PostgreSQL database
 ├── Team            — teams (shared across leagues)
 ├── TeamLeague      — many-to-many Team ↔ League with activation flag
 ├── Match           — fixtures (fetched from API, inserted by externalId)
+├── MatchOdds       — per-match prediction vote counts + locked odds snapshot
 ├── Prediction      — user predictions (unique: userId+matchId)
 ├── ScoringRule     — configurable scoring rules
 ├── Group           — user groups for sub-leaderboards
@@ -115,9 +116,25 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 | homeScore | Int | ≥ 0 | |
 | awayScore | Int | ≥ 0 | |
 | predictedWinner | Winner enum | | computed from scores at save time |
-| pointsAwarded | Int | default 0 | updated after result scored |
-| scoringBreakdown | Json? | | `{rules: [{ruleId, ruleName, pointsAwarded, matched}]}` |
+| pointsAwarded | Int | default 0 | `finalScore` — used by leaderboard SUM |
+| baseScore | Int | default 0 | raw score before odds multiplier |
+| finalScore | Int | default 0 | `round(baseScore × outcomeOdds)` — same as pointsAwarded |
+| outcomeOdds | Decimal(4,2) | default 1.0 | locked odds snapshot for this prediction's outcome |
+| scoringBreakdown | Json? | | `{rules: [...], odds?: {outcomeOdds, baseScore, finalScore}}` |
 | | | **@@unique([userId, matchId])** | prevents duplicate predictions |
+
+### `MatchOdds`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| matchId | Int | unique FK → Match (cascade) | one row per match |
+| homeWinVotes | Int | default 0 | prediction count at lock time |
+| drawVotes | Int | default 0 | |
+| awayWinVotes | Int | default 0 | |
+| homeWinOdds | Decimal(4,2) | default 1.10 | normalised to [Season.oddsMin, Season.oddsMax] |
+| drawOdds | Decimal(4,2) | default 3.05 | |
+| awayWinOdds | Decimal(4,2) | default 5.00 | |
+| lockedAt | DateTime? | | set when odds are frozen at scoring time (idempotent) |
 
 ### `ScoringRule`
 | Field | Type | Constraint | Notes |

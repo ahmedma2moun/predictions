@@ -29,12 +29,15 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
   const [others, setOthers]               = useState<OtherPrediction[] | null>(null);
   const [loadingOthers, setLoadingOthers] = useState(false);
 
+  const [matchOdds, setMatchOdds] = useState<import('@/types/api').MatchOdds | null>(null);
+
   const toggle = useCallback(async () => {
     if (!open && others === null && token) {
       setLoadingOthers(true);
       try {
         const data = await apiRequest<MatchDetail>(`/api/mobile/matches/${match._id}`, { token });
         setOthers(data.allPredictions ?? []);
+        if (data.odds) setMatchOdds(data.odds);
       } catch {
         setOthers([]);
       } finally {
@@ -45,6 +48,8 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
   }, [open, others, token, match._id]);
 
   const pts = pred.pointsAwarded ?? 0;
+  const predictedOutcome = pred.homeScore > pred.awayScore ? 'homeWin'
+    : pred.awayScore > pred.homeScore ? 'awayWin' : 'draw';
   const chipBg = isExact ? colors.primarySoft : pts > 0 ? colors.cardElevated : colors.cardElevated;
   const chipBorder = isExact ? colors.primarySoftBorder : colors.border;
   const chipValueColor = isExact ? colors.primary : pts > 0 ? colors.warning : colors.mutedForeground;
@@ -84,6 +89,25 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
               <ScoreCell label="YOUR PICK" score={`${pred.homeScore}–${pred.awayScore}`} dim colors={colors} />
             </View>
           )}
+          {isFinished && matchOdds?.locked && (
+            <View style={[styles.picksRow, { marginTop: 2 }]}>
+              {(['homeWin', 'draw', 'awayWin'] as const).map(outcome => (
+                <Text
+                  key={outcome}
+                  style={{
+                    color: predictedOutcome === outcome ? colors.foreground : colors.mutedForeground,
+                    fontFamily: 'JetBrainsMono',
+                    fontVariant: ['tabular-nums'] as any,
+                    fontSize: 10.5,
+                    fontWeight: predictedOutcome === outcome ? '700' : '400',
+                  }}
+                >
+                  {outcome === 'homeWin' ? 'H' : outcome === 'draw' ? 'D' : 'A'}{' '}
+                  {matchOdds[outcome].toFixed(2)}
+                </Text>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Right points chip */}
@@ -97,6 +121,11 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
             </Text>
             {pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
               <ScoringBreakdown rules={pred.scoringBreakdown} />
+            )}
+            {pred.outcomeOdds !== 1 && pts > 0 && (
+              <Text style={{ color: colors.mutedForeground, fontSize: 8, fontFamily: 'JetBrainsMono' }}>
+                ×{pred.outcomeOdds.toFixed(2)}
+              </Text>
             )}
           </View>
         )}

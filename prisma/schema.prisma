@@ -143,6 +143,7 @@ model Match {
   seasonId         Int?
   season           Season?      @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   predictions      Prediction[]
+  matchOdds        MatchOdds?
 
   @@index([status, kickoffTime])
   @@index([externalLeagueId, kickoffTime])
@@ -159,6 +160,9 @@ model Prediction {
   awayScore        Int
   predictedWinner  Winner
   pointsAwarded    Int      @default(0)
+  baseScore        Int      @default(0)
+  finalScore       Int      @default(0)
+  outcomeOdds      Decimal  @default(1.0) @db.Decimal(4, 2)
   scoringBreakdown Json?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -240,10 +244,28 @@ model Season {
   startDate   DateTime
   startedAt   DateTime?
   endedAt     DateTime?
+  oddsEnabled Boolean          @default(false)
+  oddsMin     Decimal          @default(1.1) @db.Decimal(4, 2)
+  oddsMax     Decimal          @default(5.0) @db.Decimal(4, 2)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   matches     Match[]
   standings   SeasonStanding[]
+}
+
+model MatchOdds {
+  id             Int       @id @default(autoincrement())
+  matchId        Int       @unique
+  match          Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  homeWinVotes   Int       @default(0)
+  drawVotes      Int       @default(0)
+  awayWinVotes   Int       @default(0)
+  homeWinOdds    Decimal   @default(1.10) @db.Decimal(4, 2)
+  drawOdds       Decimal   @default(3.05) @db.Decimal(4, 2)
+  awayWinOdds    Decimal   @default(5.00) @db.Decimal(4, 2)
+  lockedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 model SeasonStanding {

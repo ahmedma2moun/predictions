@@ -21,7 +21,7 @@ export async function GET(
   const data = await getMatchById(Number(matchId), { userId, isAdmin });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { match, prediction, allPredictions, homeStanding, awayStanding } = data;
+  const { match, prediction, allPredictions, homeStanding, awayStanding, odds } = data;
 
   const formattedAllPredictions = allPredictions?.map(p => ({
     userId:    p.userId.toString(),
@@ -44,6 +44,7 @@ export async function GET(
     awayStanding,
     prediction,
     allPredictions: formattedAllPredictions,
+    odds,
   });
 }
 

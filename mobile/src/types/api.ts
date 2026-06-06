@@ -58,6 +58,7 @@ export interface MatchDetail extends MatchListItem {
   awayStanding: Standing | null;
   resultPenaltyHomeScore: number | null;
   resultPenaltyAwayScore: number | null;
+  odds: MatchOdds | null;
   allPredictions: Array<{
     userId: string;
     userName: string;
@@ -187,6 +188,13 @@ export interface SeasonWithStandings extends Season {
   standings: SeasonStandingEntry[];
 }
 
+export interface MatchOdds {
+  homeWin: number;
+  draw: number;
+  awayWin: number;
+  locked: boolean;
+}
+
 export interface PredictionHistoryItem {
   id: string;
   userId: string;
@@ -195,6 +203,8 @@ export interface PredictionHistoryItem {
   awayScore: number;
   predictedWinner: 'home' | 'away' | 'draw' | null;
   pointsAwarded: number;
+  baseScore: number;
+  outcomeOdds: number;
   createdAt: string;
   updatedAt: string;
   scoringBreakdown: ScoringRuleBreakdown[] | null;
@@ -211,5 +221,6 @@ export interface PredictionHistoryItem {
     homeTeam: Team;
     awayTeam: Team;
     result: MatchResult | null;
+    odds?: MatchOdds | null;
   };
 }

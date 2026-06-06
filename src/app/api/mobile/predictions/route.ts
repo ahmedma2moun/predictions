@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
     id: p.id.toString(),
     userId: p.userId.toString(),
     matchId: p.matchId.toString(),
+    baseScore: p.baseScore,
+    outcomeOdds: Number(p.outcomeOdds),
     scoringBreakdown: serializeBreakdown(p.scoringBreakdown),
     match: serializeMatchForMobile({ ...p.match, leagueName: p.match.league?.name ?? null }),
   })));

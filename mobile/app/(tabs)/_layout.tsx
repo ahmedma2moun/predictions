@@ -7,6 +7,7 @@ import { font } from '@/theme/colors';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { OddsExplainerModal } from '@/components/OddsExplainerModal';
 
 export default function TabsLayout() {
   const { user } = useAuth();
@@ -18,6 +19,8 @@ export default function TabsLayout() {
   }, [colors.background]);
 
   return (
+    <>
+    <OddsExplainerModal />
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -80,5 +83,6 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </>
   );
 }

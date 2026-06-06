@@ -46,6 +46,8 @@ export default async function PredictionsPage() {
     homeScore: p.homeScore,
     awayScore: p.awayScore,
     pointsAwarded: p.pointsAwarded,
+    baseScore: p.baseScore,
+    outcomeOdds: Number(p.outcomeOdds),
     scoringBreakdown: (p.scoringBreakdown as { rules: SerializedPrediction["scoringBreakdown"] } | null)?.rules ?? null,
     matchId: {
       _id: p.match.id.toString(),

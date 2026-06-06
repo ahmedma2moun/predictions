@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { SessionProvider } from "@/components/SessionProvider";
+import { OddsExplainerModal } from "@/components/OddsExplainerModal";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -14,6 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="pt-12 md:pt-16 md:pb-0 pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
           {children}
         </main>
+        <OddsExplainerModal />
       </div>
     </SessionProvider>
   );
