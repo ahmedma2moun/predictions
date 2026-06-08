@@ -1,6 +1,7 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,6 +14,8 @@ import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { ROUTES } from '@/constants/routes';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 import { registerForPushNotifications } from '@/notifications/push';
+
+SplashScreen.preventAutoHideAsync();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -90,6 +93,12 @@ export default function RootLayout() {
     JetBrainsMono: JetBrainsMono_400Regular,
     JetBrainsMonoBold: JetBrainsMono_700Bold,
   });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
 
   if (!fontsLoaded) return null;
 
