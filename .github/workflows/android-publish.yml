@@ -36,9 +36,20 @@ jobs:
         working-directory: mobile/android
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
+      - name: Bundle JS for Android
+        working-directory: mobile
+        run: |
+          mkdir -p android/app/src/main/assets
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file node_modules/expo-router/entry.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
+
       - name: Build debug APK
         working-directory: mobile/android
-        run: ./gradlew assembleDebug -PbundleInDebug=true --no-daemon
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Distribute via Firebase App Distribution
         uses: wzieba/Firebase-Distribution-Github-Action@v1
