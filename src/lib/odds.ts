@@ -114,18 +114,10 @@ export async function lockMatchOdds(matchId: number, config: OddsConfig): Promis
 export async function getLiveMatchOdds(
   matchId: number,
   config: OddsConfig,
-): Promise<(MatchOddsResult & { locked: boolean }) | null> {
+): Promise<(MatchOddsResult & { locked: boolean; homeWinVotes: number; drawVotes: number; awayWinVotes: number; totalVotes: number }) | null> {
   if (!config.oddsEnabled) return null;
 
   const existing = await prisma.matchOdds.findUnique({ where: { matchId } });
-  if (existing?.lockedAt) {
-    return {
-      homeWin: Number(existing.homeWinOdds),
-      draw:    Number(existing.drawOdds),
-      awayWin: Number(existing.awayWinOdds),
-      locked: true,
-    };
-  }
 
   const predictions = await prisma.prediction.findMany({
     where: { matchId },
@@ -136,7 +128,28 @@ export async function getLiveMatchOdds(
   for (const p of predictions) {
     pool[deriveOutcome(p.homeScore, p.awayScore)]++;
   }
+  const totalVotes = pool.homeWin + pool.draw + pool.awayWin;
+
+  if (existing?.lockedAt) {
+    return {
+      homeWin: Number(existing.homeWinOdds),
+      draw:    Number(existing.drawOdds),
+      awayWin: Number(existing.awayWinOdds),
+      locked: true,
+      homeWinVotes: pool.homeWin,
+      drawVotes:    pool.draw,
+      awayWinVotes: pool.awayWin,
+      totalVotes,
+    };
+  }
 
   const odds = calcMatchOdds(pool, config);
-  return { ...odds, locked: false };
+  return {
+    ...odds,
+    locked: false,
+    homeWinVotes: pool.homeWin,
+    drawVotes:    pool.draw,
+    awayWinVotes: pool.awayWin,
+    totalVotes,
+  };
 }

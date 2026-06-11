@@ -53,6 +53,10 @@ export interface MatchOddsData {
   draw: number;
   awayWin: number;
   locked: boolean;
+  homeWinVotes: number;
+  drawVotes: number;
+  awayWinVotes: number;
+  totalVotes: number;
 }
 
 export interface MatchDetailData {
@@ -141,6 +145,8 @@ export async function getMatchById(
     oddsMax: s ? Number(s.oddsMax) : 5.0,
   };
 
+  const adminOddsConfig: OddsConfig = { ...oddsConfig, oddsEnabled: true };
+
   const [prediction, standingMap, odds] = await Promise.all([
     opts.isAdmin
       ? Promise.resolve(null)
@@ -151,8 +157,8 @@ export async function getMatchById(
     isCustom
       ? Promise.resolve(new Map<string, unknown>())
       : getStandingsMap([{ externalLeagueId: match.externalLeagueId, season: 0 }]),
-    isMatchLocked(match.kickoffTime)
-      ? getLiveMatchOdds(matchId, oddsConfig)
+    (opts.isAdmin || isMatchLocked(match.kickoffTime))
+      ? getLiveMatchOdds(matchId, opts.isAdmin ? adminOddsConfig : oddsConfig)
       : Promise.resolve(null),
   ]);
 

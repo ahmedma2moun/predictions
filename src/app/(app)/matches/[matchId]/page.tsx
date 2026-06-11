@@ -368,6 +368,41 @@ export default function MatchPredictionPage() {
             </Button>
           )}
 
+          {/* Admin: live odds */}
+          {isAdmin && match.odds && (
+            <div className="bg-card-elevated rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Prediction Odds
+                </p>
+                <div className="flex items-center gap-1.5">
+                  {match.odds.locked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  <span className="text-[10.5px] text-muted-foreground">
+                    {match.odds.totalVotes} vote{match.odds.totalVotes !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {([
+                  { label: match.homeTeam.name, odds: match.odds.homeWin, votes: match.odds.homeWinVotes },
+                  { label: "Draw",               odds: match.odds.draw,    votes: match.odds.drawVotes },
+                  { label: match.awayTeam.name, odds: match.odds.awayWin, votes: match.odds.awayWinVotes },
+                ] as const).map(({ label, odds, votes }) => {
+                  const pct = match.odds!.totalVotes > 0 ? Math.round((votes / match.odds!.totalVotes) * 100) : null;
+                  return (
+                    <div key={label} className="bg-background rounded-md p-2 space-y-0.5">
+                      <p className="text-[10px] text-muted-foreground truncate">{label}</p>
+                      <p className="text-base font-bold font-mono-nums">{odds.toFixed(2)}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {pct !== null ? `${pct}%` : "—"} · {votes}v
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Save prediction */}
           {!isAdmin && (
             !locked ? (
