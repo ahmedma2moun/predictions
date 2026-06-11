@@ -22,14 +22,15 @@ export function calcMatchOdds(pool: PredictionPool, config: OddsConfig): MatchOd
   const total = pool.homeWin + pool.draw + pool.awayWin;
   const mid = Math.round(((oddsMin + oddsMax) / 2) * 100) / 100;
 
-  if (total === 0 || (pool.homeWin === pool.draw && pool.draw === pool.awayWin)) {
-    return { homeWin: mid, draw: mid, awayWin: mid };
-  }
+  if (total === 0) return { homeWin: mid, draw: mid, awayWin: mid };
 
+  // Sentinel for 0-vote outcomes: total²+1 is always > total/1 (the max voted raw),
+  // so a 0-vote outcome always normalizes to oddsMax rather than colliding with voted ones.
+  const sentinel = total * total + 1;
   const raw = {
-    homeWin: pool.homeWin === 0 ? total : total / pool.homeWin,
-    draw:    pool.draw    === 0 ? total : total / pool.draw,
-    awayWin: pool.awayWin === 0 ? total : total / pool.awayWin,
+    homeWin: pool.homeWin > 0 ? total / pool.homeWin : sentinel,
+    draw:    pool.draw    > 0 ? total / pool.draw    : sentinel,
+    awayWin: pool.awayWin > 0 ? total / pool.awayWin : sentinel,
   };
 
   const rawMin = Math.min(raw.homeWin, raw.draw, raw.awayWin);
