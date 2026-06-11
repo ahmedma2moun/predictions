@@ -34,12 +34,12 @@ type AdminMatch = {
 };
 
 function OddsCell({ label, votes, odds, total }: { label: string; votes: number; odds: number; total: number }) {
-  const pct = total > 0 ? Math.round((votes / total) * 100) : 0;
+  const pct = total > 0 ? `${Math.round((votes / total) * 100)}%` : "—";
   return (
     <span className="flex items-center gap-1 text-muted-foreground">
       <span className="font-semibold text-foreground/70">{label}</span>
       <span>{odds.toFixed(2)}</span>
-      <span className="text-muted-foreground/60">({pct}%)</span>
+      <span className="text-muted-foreground/60">({pct})</span>
     </span>
   );
 }
@@ -298,7 +298,7 @@ export default function AdminMatchesPage() {
                     {match.result && (
                       <p className="text-xs text-muted-foreground">Result: {match.result.homeScore}–{match.result.awayScore}</p>
                     )}
-                    {match.odds && match.odds.totalVotes > 0 && (
+                    {match.odds && (
                       <div className="mt-1.5 flex items-center gap-3 text-xs">
                         {match.odds.locked && (
                           <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -306,10 +306,8 @@ export default function AdminMatchesPage() {
                         <OddsCell label="H" votes={match.odds.homeWinVotes} odds={match.odds.homeWinOdds} total={match.odds.totalVotes} />
                         <OddsCell label="D" votes={match.odds.drawVotes} odds={match.odds.drawOdds} total={match.odds.totalVotes} />
                         <OddsCell label="A" votes={match.odds.awayWinVotes} odds={match.odds.awayWinOdds} total={match.odds.totalVotes} />
+                        <span className="text-muted-foreground/50">· {match.odds.totalVotes} vote{match.odds.totalVotes !== 1 ? "s" : ""}</span>
                       </div>
-                    )}
-                    {match.odds && match.odds.totalVotes === 0 && (
-                      <p className="mt-1 text-xs text-muted-foreground/60">No predictions yet</p>
                     )}
                   </div>
                   <Badge variant={statusColors[match.status] ?? "outline"}>{match.status}</Badge>
