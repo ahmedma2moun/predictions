@@ -11,6 +11,8 @@ import { DeviceTokenRepository } from '@/lib/repositories/device-repository';
 import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
 import { sendPushToUsers } from '@/lib/fcm';
 import { logger } from '@/lib/logger';
+import { prisma } from '@/lib/prisma';
+import { calcMatchOdds, deriveOutcome, ODDS_MIN_DEFAULT, ODDS_MAX_DEFAULT } from '@/lib/odds';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -21,11 +23,58 @@ export async function GET(req: NextRequest) {
   const limit = 50;
 
   const [matches, total] = await Promise.all([
-    MatchRepository.findMany({ orderBy: { kickoffTime: 'desc' }, skip: (page - 1) * limit, take: limit }),
+    MatchRepository.findMany({
+      orderBy: { kickoffTime: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+      include: {
+        season: { select: { oddsEnabled: true, oddsMin: true, oddsMax: true } },
+        matchOdds: true,
+      },
+    }),
     MatchRepository.count(),
   ]);
 
-  return NextResponse.json({ matches: matches.map(serializeMatch), total, page });
+  const matchIds = matches.map((m: any) => m.id);
+  const allPredictions = matchIds.length > 0
+    ? await prisma.prediction.findMany({
+        where: { matchId: { in: matchIds } },
+        select: { matchId: true, homeScore: true, awayScore: true },
+      })
+    : [];
+
+  const poolByMatch = new Map<number, { homeWin: number; draw: number; awayWin: number }>();
+  for (const p of allPredictions) {
+    const pool = poolByMatch.get(p.matchId) ?? { homeWin: 0, draw: 0, awayWin: 0 };
+    pool[deriveOutcome(p.homeScore, p.awayScore)]++;
+    poolByMatch.set(p.matchId, pool);
+  }
+
+  const serialized = matches.map((m: any) => {
+    const pool = poolByMatch.get(m.id) ?? { homeWin: 0, draw: 0, awayWin: 0 };
+    const oddsMin = m.season ? Number(m.season.oddsMin) : ODDS_MIN_DEFAULT;
+    const oddsMax = m.season ? Number(m.season.oddsMax) : ODDS_MAX_DEFAULT;
+    const locked = !!m.matchOdds?.lockedAt;
+    const odds = locked
+      ? { homeWin: Number(m.matchOdds.homeWinOdds), draw: Number(m.matchOdds.drawOdds), awayWin: Number(m.matchOdds.awayWinOdds) }
+      : calcMatchOdds(pool, { oddsEnabled: true, oddsMin, oddsMax });
+
+    return {
+      ...serializeMatch(m),
+      odds: {
+        homeWinVotes: pool.homeWin,
+        drawVotes: pool.draw,
+        awayWinVotes: pool.awayWin,
+        totalVotes: pool.homeWin + pool.draw + pool.awayWin,
+        homeWinOdds: odds.homeWin,
+        drawOdds: odds.draw,
+        awayWinOdds: odds.awayWin,
+        locked,
+      },
+    };
+  });
+
+  return NextResponse.json({ matches: serialized, total, page });
 }
 
 export async function POST(req: NextRequest) {

@@ -9,7 +9,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/client-api";
 import { KickoffTime } from "@/components/KickoffTime";
-import { Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp, Lock } from "lucide-react";
+
+type MatchOddsData = {
+  homeWinVotes: number;
+  drawVotes: number;
+  awayWinVotes: number;
+  totalVotes: number;
+  homeWinOdds: number;
+  drawOdds: number;
+  awayWinOdds: number;
+  locked: boolean;
+};
 
 type AdminMatch = {
   _id: string;
@@ -19,7 +30,19 @@ type AdminMatch = {
   status: string;
   externalId: number | null;
   result?: { homeScore: number; awayScore: number };
+  odds?: MatchOddsData;
 };
+
+function OddsCell({ label, votes, odds, total }: { label: string; votes: number; odds: number; total: number }) {
+  const pct = total > 0 ? Math.round((votes / total) * 100) : 0;
+  return (
+    <span className="flex items-center gap-1 text-muted-foreground">
+      <span className="font-semibold text-foreground/70">{label}</span>
+      <span>{odds.toFixed(2)}</span>
+      <span className="text-muted-foreground/60">({pct}%)</span>
+    </span>
+  );
+}
 
 export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<AdminMatch[]>([]);
@@ -274,6 +297,19 @@ export default function AdminMatchesPage() {
                     <p className="text-xs text-muted-foreground"><KickoffTime date={match.kickoffTime} /></p>
                     {match.result && (
                       <p className="text-xs text-muted-foreground">Result: {match.result.homeScore}–{match.result.awayScore}</p>
+                    )}
+                    {match.odds && match.odds.totalVotes > 0 && (
+                      <div className="mt-1.5 flex items-center gap-3 text-xs">
+                        {match.odds.locked && (
+                          <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+                        )}
+                        <OddsCell label="H" votes={match.odds.homeWinVotes} odds={match.odds.homeWinOdds} total={match.odds.totalVotes} />
+                        <OddsCell label="D" votes={match.odds.drawVotes} odds={match.odds.drawOdds} total={match.odds.totalVotes} />
+                        <OddsCell label="A" votes={match.odds.awayWinVotes} odds={match.odds.awayWinOdds} total={match.odds.totalVotes} />
+                      </div>
+                    )}
+                    {match.odds && match.odds.totalVotes === 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground/60">No predictions yet</p>
                     )}
                   </div>
                   <Badge variant={statusColors[match.status] ?? "outline"}>{match.status}</Badge>
