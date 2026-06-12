@@ -64,19 +64,12 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
         const res = await fetch(`/api/matches/${match._id}`);
         const data = await res.json();
         setOthers(data.allPredictions ?? []);
-        if (data.odds?.locked && !match.odds) {
-          pred.matchId.odds = data.odds;
-        }
       } finally {
         setLoading(false);
       }
     }
     setOpen((v) => !v);
   }
-
-  const predictedOutcome = pred.homeScore > pred.awayScore ? 'homeWin'
-    : pred.awayScore > pred.homeScore ? 'awayWin' : 'draw';
-  const matchOdds = match.odds;
 
   return (
     <div className="rounded-[14px] border border-border bg-card overflow-hidden">
@@ -108,25 +101,6 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
               </span>
             </div>
           )}
-          {isFinished && matchOdds?.locked && (
-            <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mt-0.5">
-              {matchOdds.votes.homeWin > 0 && (
-                <span className={cn("font-mono-nums", predictedOutcome === 'homeWin' && "text-foreground font-bold")}>
-                  H {matchOdds.homeWin.toFixed(2)}
-                </span>
-              )}
-              {matchOdds.votes.draw > 0 && (
-                <span className={cn("font-mono-nums", predictedOutcome === 'draw' && "text-foreground font-bold")}>
-                  D {matchOdds.draw.toFixed(2)}
-                </span>
-              )}
-              {matchOdds.votes.awayWin > 0 && (
-                <span className={cn("font-mono-nums", predictedOutcome === 'awayWin' && "text-foreground font-bold")}>
-                  A {matchOdds.awayWin.toFixed(2)}
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Right chip */}
@@ -136,9 +110,6 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
               {pts > 0 ? `+${pts}` : "0"}
             </span>
             <span className="text-[9.5px] font-bold uppercase">{chipCaption}</span>
-            {pred.outcomeOdds !== 1 && pts > 0 && (
-              <span className="text-[8px] text-muted-foreground font-mono-nums">×{pred.outcomeOdds.toFixed(2)}</span>
-            )}
           </div>
         )}
       </div>
