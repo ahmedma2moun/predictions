@@ -83,11 +83,12 @@ const MatchCard = memo(function MatchCard({ match, onPress }: { match: MatchList
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
   const knockout = isKnockoutStage(match.stage);
+  const leagueSuffix = match.leagueName ? ` · ${match.leagueName.toUpperCase()}` : '';
   const competitionLabel = knockout
-    ? `${formatStage(match.stage!)}${match.leg ? ` · Leg ${match.leg}` : ''}`
+    ? `${formatStage(match.stage!)}${match.leg ? ` · Leg ${match.leg}` : ''}${leagueSuffix}`
     : match.matchday
-    ? `Matchday ${match.matchday}`
-    : '–';
+    ? `Matchday ${match.matchday}${leagueSuffix}`
+    : match.leagueName ?? '–';
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>

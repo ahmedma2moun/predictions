@@ -86,11 +86,11 @@ export function GroupPredictions({
       <CardContent className="p-0">
         {loading ? (
           <p className="text-sm text-muted-foreground text-center py-4">Loading…</p>
-        ) : !predictions || predictions.length === 0 ? (
+        ) : !predictions || predictions.filter(p => p.predicted).length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No predictions in this group.</p>
         ) : (
           <div className="divide-y">
-            {predictions.map(p => (
+            {predictions.filter(p => p.predicted).map(p => (
               <div key={p.userId} className="px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm">{p.userName ?? 'Unknown'}</span>

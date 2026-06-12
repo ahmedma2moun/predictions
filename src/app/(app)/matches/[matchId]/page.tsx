@@ -12,8 +12,6 @@ import { MatchH2H } from "./MatchH2H";
 import type { H2HMatch } from "./MatchH2H";
 import { MatchStandings } from "./MatchStandings";
 import type { Standing } from "./MatchStandings";
-import { AllPredictionsList } from "./AllPredictionsList";
-import type { PredictionRow } from "./AllPredictionsList";
 import { GroupPredictions } from "./GroupPredictions";
 
 function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
@@ -44,7 +42,6 @@ export default function MatchPredictionPage() {
   const { matchId } = useParams();
   const router = useRouter();
   const [match, setMatch] = useState<any>(null);
-  const [allPredictions, setAllPredictions] = useState<PredictionRow[] | null>(null);
   const [homeScore, setHomeScore] = useState(0);
   const [awayScore, setAwayScore] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -69,7 +66,6 @@ export default function MatchPredictionPage() {
       fetch(`/api/matches/${matchId}/h2h`).then(r => r.ok ? r.json() : { matches: null }).catch(() => ({ matches: null })),
     ]).then(([matchData, h2hData]) => {
       setMatch(matchData);
-      setAllPredictions(matchData.allPredictions ?? null);
       if (matchData.prediction) {
         setHomeScore(matchData.prediction.homeScore);
         setAwayScore(matchData.prediction.awayScore);
@@ -149,16 +145,6 @@ export default function MatchPredictionPage() {
         resultHomeScore: h,
         resultAwayScore: a,
       }));
-      setAllPredictions(
-        data.predictions.map((p: any) => ({
-          userId: p.userId,
-          userName: p.userName,
-          homeScore: p.homeScore,
-          awayScore: p.awayScore,
-          pointsAwarded: p.pointsAwarded,
-          scoringBreakdown: p.scoringBreakdown,
-        }))
-      );
       toast.success(`Result saved — ${data.emailsSent} correction email${data.emailsSent !== 1 ? "s" : ""} sent`);
       setEditingResult(false);
       setAddingResult(false);
@@ -179,8 +165,6 @@ export default function MatchPredictionPage() {
       }
       const data = await res.json();
       toast.success(`Scores calculated — ${data.scored} prediction${data.scored !== 1 ? "s" : ""} scored`);
-      const refreshed = await fetch(`/api/matches/${matchId}`).then(r => r.json());
-      setAllPredictions(refreshed.allPredictions ?? null);
     } catch (e: any) {
       toast.error(e.message ?? "Failed to calculate scores");
     } finally {
@@ -447,13 +431,6 @@ export default function MatchPredictionPage() {
         />
       )}
 
-      {(locked || isAdmin) && allPredictions && (
-        <AllPredictionsList
-          predictions={allPredictions}
-          hasResult={!!match.result}
-          isKnockout={isKnockout}
-        />
-      )}
     </div>
   );
 }

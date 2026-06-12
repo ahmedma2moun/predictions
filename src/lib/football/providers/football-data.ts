@@ -184,10 +184,10 @@ export class FootballDataProvider implements IFootballProvider {
   async fetchStandings(leagueId: number): Promise<{ season: number; standings: APIStandingEntry[] }> {
     const data = await this.get<FDStandingsResponse>(`/competitions/${leagueId}/standings`);
     const season = new Date(data.season.startDate).getFullYear();
-    const table =
-      data.standings.find(s => s.type === 'TOTAL')?.table ??
-      data.standings[0]?.table ??
-      [];
+    // For group-stage tournaments (e.g. World Cup) there is no TOTAL table —
+    // each entry is a separate group. Merge all tables so every team is stored.
+    const totalTable = data.standings.find(s => s.type === 'TOTAL')?.table;
+    const table = totalTable ?? data.standings.flatMap(s => s.table);
     return {
       season,
       standings: table.map(e => ({

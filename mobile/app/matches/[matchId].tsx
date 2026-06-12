@@ -122,11 +122,12 @@ export default function MatchPredictionScreen() {
   const winnerLabel =
     home > away ? match.homeTeam.name : away > home ? match.awayTeam.name : 'Draw';
 
+  const leagueSuffix = match.leagueName ? ` · ${match.leagueName.toUpperCase()}` : '';
   const matchdayTitle = knockout
-    ? `${formatStage(match.stage!)}${match.leg ? ` · Leg ${match.leg}` : ''}`.toUpperCase()
+    ? `${formatStage(match.stage!)}${match.leg ? ` · Leg ${match.leg}` : ''}${leagueSuffix}`
     : match.matchday
-    ? `MD ${match.matchday}`.toUpperCase()
-    : formatMatchStatus(match.status).toUpperCase();
+    ? `MD ${match.matchday}${leagueSuffix}`
+    : (match.leagueName?.toUpperCase() ?? formatMatchStatus(match.status).toUpperCase());
 
   async function handleSubmit() {
     if (!token || !match) return;
@@ -392,13 +393,13 @@ export default function MatchPredictionScreen() {
             </View>
             {groupPredictionsLoading ? (
               <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
-            ) : !groupPredictions || groupPredictions.length === 0 ? (
+            ) : !groupPredictions || groupPredictions.filter(p => p.predicted).length === 0 ? (
               <Muted style={{ textAlign: 'center', paddingVertical: spacing.md }}>
                 No predictions in this group.
               </Muted>
             ) : (
               <View>
-                {groupPredictions.map((p, i) => (
+                {groupPredictions.filter(p => p.predicted).map((p, i) => (
                   <View
                     key={p.userId}
                     style={[
@@ -408,54 +409,13 @@ export default function MatchPredictionScreen() {
                     ]}
                   >
                     <Text style={[styles.predName, { color: colors.foreground }]}>{p.userName ?? 'Unknown'}</Text>
-                    {p.predicted ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                        <Text style={[styles.predScore, { color: colors.foreground, fontFamily: 'JetBrainsMono' }]}>
-                          {p.homeScore} – {p.awayScore}
-                        </Text>
-                        {!knockout && match.result && (
-                          <Text style={{ color: (p.pointsAwarded ?? 0) > 0 ? colors.warning : colors.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
-                            {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded}` : '0'}
-                          </Text>
-                        )}
-                      </View>
-                    ) : (
-                      <Muted style={{ fontSize: font.size.xs, fontStyle: 'italic' }}>No pick</Muted>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
-          </Card>
-        )}
-
-        {/* All predictions */}
-        {(locked || match.isAdmin) && match.allPredictions && (
-          <Card style={{ gap: spacing.sm }}>
-            <SectionTitle>All Predictions</SectionTitle>
-            {match.allPredictions.length === 0 ? (
-              <Muted style={{ textAlign: 'center', paddingVertical: spacing.md }}>
-                No predictions submitted.
-              </Muted>
-            ) : (
-              <View>
-                {match.allPredictions.map((p, i) => (
-                  <View
-                    key={p.userId}
-                    style={[
-                      styles.predRow,
-                      { borderTopColor: colors.border },
-                      i === 0 && { borderTopWidth: 0 },
-                    ]}
-                  >
-                    <Text style={[styles.predName, { color: colors.foreground }]}>{p.userName}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                       <Text style={[styles.predScore, { color: colors.foreground, fontFamily: 'JetBrainsMono' }]}>
                         {p.homeScore} – {p.awayScore}
                       </Text>
                       {!knockout && match.result && (
-                        <Text style={{ color: p.pointsAwarded > 0 ? colors.warning : colors.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
-                          {p.pointsAwarded > 0 ? `+${p.pointsAwarded}` : '0'}
+                        <Text style={{ color: (p.pointsAwarded ?? 0) > 0 ? colors.warning : colors.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
+                          {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded}` : '0'}
                         </Text>
                       )}
                     </View>
@@ -465,6 +425,7 @@ export default function MatchPredictionScreen() {
             )}
           </Card>
         )}
+
       </ScrollView>
     </View>
   );
