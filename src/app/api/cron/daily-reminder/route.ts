@@ -14,26 +14,19 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
+  const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-  // End of today in CLT (UTC+2): today at 22:00 UTC
-  const endOfTodayCLT = new Date(now);
-  endOfTodayCLT.setUTCHours(22, 0, 0, 0);
-  // If already past 22:00 UTC, advance to next day (shouldn't happen at 09:00 UTC, but be safe)
-  if (now >= endOfTodayCLT) {
-    endOfTodayCLT.setUTCDate(endOfTodayCLT.getUTCDate() + 1);
-  }
-
-  // Scheduled matches that haven't kicked off yet today (CLT)
+  // Scheduled matches kicking off in the next 24 hours
   const todayMatches = await MatchRepository.findMany({
     where: {
       status:      'scheduled',
-      kickoffTime: { gte: now, lte: endOfTodayCLT },
+      kickoffTime: { gte: now, lte: in24Hours },
     },
     include: { league: { select: { name: true } } },
     orderBy: { kickoffTime: 'asc' },
   });
 
-  logger.info(`[cron/daily-reminder] ${todayMatches.length} matches remaining today (CLT)`);
+  logger.info(`[cron/daily-reminder] ${todayMatches.length} matches in the next 24 hours`);
 
   if (todayMatches.length === 0) {
     const summary = { remindedUsers: 0, skippedUsers: 0, todayMatches: 0, timestamp: now.toISOString() };
