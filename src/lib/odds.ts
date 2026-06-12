@@ -33,7 +33,7 @@ export function calcMatchOdds(pool: PredictionPool, config: OddsConfig): MatchOd
   const activeTotal = outcomes.reduce((s, o) => s + pool[o], 0);
 
   if (outcomes.length === 0) {
-    return { homeWin: mid, draw: mid, awayWin: mid, votes };
+    return { homeWin: 0, draw: 0, awayWin: 0, votes };
   }
 
   // raw[o] = activeTotal / votes[o] — more popular → lower raw → closer to oddsMin
@@ -50,9 +50,9 @@ export function calcMatchOdds(pool: PredictionPool, config: OddsConfig): MatchOd
 
   // Outcomes with 0 votes get oddsMax as a placeholder (no one to score them anyway)
   return {
-    homeWin: pool.homeWin > 0 ? normalize(raw.homeWin) : oddsMax,
-    draw:    pool.draw    > 0 ? normalize(raw.draw)    : oddsMax,
-    awayWin: pool.awayWin > 0 ? normalize(raw.awayWin) : oddsMax,
+    homeWin: pool.homeWin > 0 ? normalize(raw.homeWin) : 0,
+    draw:    pool.draw    > 0 ? normalize(raw.draw)    : 0,
+    awayWin: pool.awayWin > 0 ? normalize(raw.awayWin) : 0,
     votes,
   };
 }
