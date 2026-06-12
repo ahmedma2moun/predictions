@@ -21,7 +21,7 @@ export type SerializedPrediction = {
     homeTeam: { name: string };
     awayTeam: { name: string };
     result?: { homeScore: number; awayScore: number; penaltyHomeScore?: number | null; penaltyAwayScore?: number | null };
-    odds?: { homeWin: number; draw: number; awayWin: number; locked: boolean } | null;
+    odds?: { homeWin: number; draw: number; awayWin: number; locked: boolean; votes: { homeWin: number; draw: number; awayWin: number } } | null;
   };
 };
 
@@ -110,15 +110,21 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
           )}
           {isFinished && matchOdds?.locked && (
             <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mt-0.5">
-              <span className={cn("font-mono-nums", predictedOutcome === 'homeWin' && "text-foreground font-bold")}>
-                H {matchOdds.homeWin.toFixed(2)}
-              </span>
-              <span className={cn("font-mono-nums", predictedOutcome === 'draw' && "text-foreground font-bold")}>
-                D {matchOdds.draw.toFixed(2)}
-              </span>
-              <span className={cn("font-mono-nums", predictedOutcome === 'awayWin' && "text-foreground font-bold")}>
-                A {matchOdds.awayWin.toFixed(2)}
-              </span>
+              {matchOdds.votes.homeWin > 0 && (
+                <span className={cn("font-mono-nums", predictedOutcome === 'homeWin' && "text-foreground font-bold")}>
+                  H {matchOdds.homeWin.toFixed(2)}
+                </span>
+              )}
+              {matchOdds.votes.draw > 0 && (
+                <span className={cn("font-mono-nums", predictedOutcome === 'draw' && "text-foreground font-bold")}>
+                  D {matchOdds.draw.toFixed(2)}
+                </span>
+              )}
+              {matchOdds.votes.awayWin > 0 && (
+                <span className={cn("font-mono-nums", predictedOutcome === 'awayWin' && "text-foreground font-bold")}>
+                  A {matchOdds.awayWin.toFixed(2)}
+                </span>
+              )}
             </div>
           )}
         </div>

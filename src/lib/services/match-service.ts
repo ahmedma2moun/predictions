@@ -53,10 +53,7 @@ export interface MatchOddsData {
   draw: number;
   awayWin: number;
   locked: boolean;
-  homeWinVotes: number;
-  drawVotes: number;
-  awayWinVotes: number;
-  totalVotes: number;
+  votes: { homeWin: number; draw: number; awayWin: number };
 }
 
 export interface MatchDetailData {

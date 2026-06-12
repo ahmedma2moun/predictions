@@ -91,21 +91,23 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
           )}
           {isFinished && matchOdds?.locked && (
             <View style={[styles.picksRow, { marginTop: 2 }]}>
-              {(['homeWin', 'draw', 'awayWin'] as const).map(outcome => (
-                <Text
-                  key={outcome}
-                  style={{
-                    color: predictedOutcome === outcome ? colors.foreground : colors.mutedForeground,
-                    fontFamily: 'JetBrainsMono',
-                    fontVariant: ['tabular-nums'] as any,
-                    fontSize: 10.5,
-                    fontWeight: predictedOutcome === outcome ? '700' : '400',
-                  }}
-                >
-                  {outcome === 'homeWin' ? 'H' : outcome === 'draw' ? 'D' : 'A'}{' '}
-                  {matchOdds[outcome].toFixed(2)}
-                </Text>
-              ))}
+              {(['homeWin', 'draw', 'awayWin'] as const)
+                .filter(outcome => matchOdds.votes[outcome] > 0)
+                .map(outcome => (
+                  <Text
+                    key={outcome}
+                    style={{
+                      color: predictedOutcome === outcome ? colors.foreground : colors.mutedForeground,
+                      fontFamily: 'JetBrainsMono',
+                      fontVariant: ['tabular-nums'] as any,
+                      fontSize: 10.5,
+                      fontWeight: predictedOutcome === outcome ? '700' : '400',
+                    }}
+                  >
+                    {outcome === 'homeWin' ? 'H' : outcome === 'draw' ? 'D' : 'A'}{' '}
+                    {matchOdds[outcome].toFixed(2)}
+                  </Text>
+                ))}
             </View>
           )}
         </View>

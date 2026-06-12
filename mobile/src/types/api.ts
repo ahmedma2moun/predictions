@@ -193,6 +193,7 @@ export interface MatchOdds {
   draw: number;
   awayWin: number;
   locked: boolean;
+  votes: { homeWin: number; draw: number; awayWin: number };
 }
 
 export interface PredictionHistoryItem {
