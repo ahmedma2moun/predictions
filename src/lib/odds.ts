@@ -25,41 +25,24 @@ export function calcMatchOdds(pool: PredictionPool, config: OddsConfig): MatchOd
 
   if (!config.oddsEnabled) return { homeWin: 1.0, draw: 1.0, awayWin: 1.0, votes };
 
-  const { oddsMin, oddsMax } = config;
-  const mid = Math.round(((oddsMin + oddsMax) / 2) * 100) / 100;
+  const total = pool.homeWin + pool.draw + pool.awayWin;
 
-  // Only consider outcomes that have at least one prediction
-  const outcomes = (['homeWin', 'draw', 'awayWin'] as const).filter(o => pool[o] > 0);
-  const activeTotal = outcomes.reduce((s, o) => s + pool[o], 0);
-
-  if (outcomes.length === 0) {
+  if (total === 0) {
     return { homeWin: 0, draw: 0, awayWin: 0, votes };
   }
 
-  // raw[o] = activeTotal / votes[o] — more popular → lower raw → closer to oddsMin
-  const raw = Object.fromEntries(outcomes.map(o => [o, activeTotal / pool[o]])) as Record<string, number>;
+  const bonus = (v: number) => v === 0 ? 0 : Math.round((total / v) * 100) / 100;
 
-  const rawValues = Object.values(raw);
-  const rawMin = Math.min(...rawValues);
-  const rawMax = Math.max(...rawValues);
-
-  const normalize = (v: number): number => {
-    if (rawMax === rawMin) return oddsMin;
-    return Math.round((oddsMin + ((v - rawMin) / (rawMax - rawMin)) * (oddsMax - oddsMin)) * 100) / 100;
-  };
-
-  // Outcomes with 0 votes get oddsMax as a placeholder (no one to score them anyway)
   return {
-    homeWin: pool.homeWin > 0 ? normalize(raw.homeWin) : 0,
-    draw:    pool.draw    > 0 ? normalize(raw.draw)    : 0,
-    awayWin: pool.awayWin > 0 ? normalize(raw.awayWin) : 0,
+    homeWin: bonus(pool.homeWin),
+    draw:    bonus(pool.draw),
+    awayWin: bonus(pool.awayWin),
     votes,
   };
 }
 
-export function calcFinalScore(baseScore: number, odds: number): number {
-  if (baseScore === 0) return 0;
-  return Math.round(baseScore * odds);
+export function calcFinalScore(winnerPoints: number, otherPoints: number, bonus: number): number {
+  return Math.round(winnerPoints * bonus) + otherPoints;
 }
 
 /**

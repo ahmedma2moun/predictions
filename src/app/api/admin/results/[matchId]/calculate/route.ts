@@ -69,7 +69,9 @@ export async function POST(
     );
     const outcome = deriveOutcome(pred.homeScore, pred.awayScore);
     const odd = lockedOdds[outcome];
-    const finalScore = calcFinalScore(totalPoints, odd);
+    const winnerPoints = breakdown.find(r => r.key === 'correct_winner')?.pointsAwarded ?? 0;
+    const otherPoints = totalPoints - winnerPoints;
+    const finalScore = calcFinalScore(winnerPoints, otherPoints, odd);
 
     await PredictionRepository.update({
       where: { id: pred.id },
