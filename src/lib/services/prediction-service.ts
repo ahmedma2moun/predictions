@@ -1,6 +1,6 @@
 
 import { getWinner } from '@/lib/utils';
-import { Prisma, Match, Prediction } from '@prisma/client';
+import { Prisma, Match, MatchOdds, Prediction } from '@prisma/client';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { GroupRepository } from '@/lib/repositories/group-repository';
@@ -8,7 +8,7 @@ import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
 import { getMaxPointsPerMatch } from '@/lib/scoring-engine';
 
 export type PredictionWithMatch = Prediction & {
-  match: Match & { league: { name: string } | null };
+  match: Match & { league: { name: string } | null; matchOdds: MatchOdds | null };
 };
 
 export interface UpsertPredictionResult {
@@ -25,7 +25,7 @@ export interface UpsertPredictionError {
 export async function getUserPredictions(userId: number): Promise<PredictionWithMatch[]> {
   return PredictionRepository.findMany({
     where: { userId },
-    include: { match: { include: { league: { select: { name: true } } } } },
+    include: { match: { include: { league: { select: { name: true } }, matchOdds: true } } },
     orderBy: { createdAt: 'desc' },
     take: 100,
   });
@@ -59,6 +59,7 @@ export interface UserPredictionHistoryFilters {
   leagueIds?: number[];
   from?: string;
   to?: string;
+  seasonId?: number;
 }
 
 export interface UserPredictionHistoryItem {
@@ -70,6 +71,9 @@ export interface UserPredictionHistoryItem {
   awayScore: number;
   result: { homeScore: number; awayScore: number };
   pointsAwarded: number | null;
+  baseScore: number;
+  outcomeOdds: number;
+  matchOdds: { homeWin: number; draw: number; awayWin: number } | null;
   rawBreakdown: unknown;
 }
 
@@ -79,6 +83,7 @@ export async function getUserPredictionHistory(
   const matchWhere: Prisma.MatchWhereInput = { status: 'finished' };
   if (filters.leagueIds && filters.leagueIds.length === 1) matchWhere.externalLeagueId = filters.leagueIds[0];
   else if (filters.leagueIds && filters.leagueIds.length > 1) matchWhere.externalLeagueId = { in: filters.leagueIds };
+  if (filters.seasonId != null) matchWhere.seasonId = filters.seasonId;
   if (filters.from || filters.to) {
     const timeFilter: Prisma.DateTimeFilter = {};
     if (filters.from) timeFilter.gte = new Date(filters.from);
@@ -97,6 +102,7 @@ export async function getUserPredictionHistory(
           awayTeamName: true,
           resultHomeScore: true,
           resultAwayScore: true,
+          matchOdds: { select: { homeWinOdds: true, drawOdds: true, awayWinOdds: true } },
         },
       },
     },
@@ -117,6 +123,15 @@ export async function getUserPredictionHistory(
         awayScore: p.match.resultAwayScore!,
       },
       pointsAwarded: p.pointsAwarded,
+      baseScore:     p.baseScore,
+      outcomeOdds:   Number(p.outcomeOdds),
+      matchOdds: p.match.matchOdds
+        ? {
+            homeWin: Number(p.match.matchOdds.homeWinOdds),
+            draw:    Number(p.match.matchOdds.drawOdds),
+            awayWin: Number(p.match.matchOdds.awayWinOdds),
+          }
+        : null,
       rawBreakdown:  p.scoringBreakdown,
     }));
 }

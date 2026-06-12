@@ -5,6 +5,7 @@ import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Card, Muted } from '@/components/ui';
 import { ScoringBreakdown } from '@/components/ScoringBreakdown';
+import { OddsFactors, getPredictedOutcome } from '@/components/OddsFactors';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { MatchDetail, PredictionHistoryItem } from '@/types/api';
@@ -77,6 +78,13 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
                 dim={false}
                 colors={colors}
               />
+              {match.odds && (
+                <OddsFactors
+                  odds={match.odds}
+                  picked={getPredictedOutcome(pred.homeScore, pred.awayScore)}
+                  style={{ alignSelf: 'flex-end', paddingBottom: 1 }}
+                />
+              )}
             </View>
           )}
           {!isFinished && (
@@ -96,7 +104,7 @@ export const PredictionCard = memo(function PredictionCard({ pred }: { pred: Pre
               {isExact ? 'EXACT' : 'pts'}
             </Text>
             {pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
-              <ScoringBreakdown rules={pred.scoringBreakdown} />
+              <ScoringBreakdown rules={pred.scoringBreakdown} bonus={pred.oddsBonus} />
             )}
           </View>
         )}

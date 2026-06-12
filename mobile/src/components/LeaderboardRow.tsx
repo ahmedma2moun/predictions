@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Muted } from '@/components/ui';
 import { ScoringBreakdown } from '@/components/ScoringBreakdown';
+import { OddsFactors, getPredictedOutcome } from '@/components/OddsFactors';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { LeaderboardEntry, LeaderboardUserPrediction } from '@/types/api';
@@ -351,7 +352,7 @@ const UserPredRow = memo(function UserPredRow({ p }: { p: LeaderboardUserPredict
             +{p.pointsAwarded} pts
           </Text>
           {p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
-            <ScoringBreakdown rules={p.scoringBreakdown} />
+            <ScoringBreakdown rules={p.scoringBreakdown} bonus={p.oddsBonus} />
           )}
         </View>
       </View>
@@ -363,6 +364,9 @@ const UserPredRow = memo(function UserPredRow({ p }: { p: LeaderboardUserPredict
         <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
           Result: <Text style={{ color: colors.foreground, fontFamily: 'JetBrainsMono', fontVariant: ['tabular-nums'] }}>{p.result.homeScore}–{p.result.awayScore}</Text>
         </Text>
+        {p.matchOdds && (
+          <OddsFactors odds={p.matchOdds} picked={getPredictedOutcome(p.homeScore, p.awayScore)} />
+        )}
       </View>
     </View>
   );

@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { KickoffTime } from "@/components/KickoffTime";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { ScoringBreakdown, type RuleBreakdown } from "@/components/ScoringBreakdown";
+import { ScoringBreakdown, type OddsBonus, type RuleBreakdown } from "@/components/ScoringBreakdown";
+import { OddsFactors, getPredictedOutcome } from "@/components/OddsFactors";
 import { computeWeekLabel, getWeekBounds } from "@/lib/period-filter";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ export type SerializedPrediction = {
   baseScore: number;
   outcomeOdds: number;
   scoringBreakdown: RuleBreakdown[] | null;
+  oddsBonus: OddsBonus | null;
   matchId: {
     _id: string;
     kickoffTime: string;
@@ -90,7 +92,7 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
                   {pred.homeScore}–{pred.awayScore}
                 </span>
                 {pred.scoringBreakdown && pred.scoringBreakdown.length > 0 && (
-                  <ScoringBreakdown rules={pred.scoringBreakdown} />
+                  <ScoringBreakdown rules={pred.scoringBreakdown} bonus={pred.oddsBonus} />
                 )}
               </span>
               <span className="inline-flex items-center gap-1">
@@ -99,6 +101,9 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
                   {match.result!.homeScore}–{match.result!.awayScore}
                 </span>
               </span>
+              {match.odds && (
+                <OddsFactors odds={match.odds} picked={getPredictedOutcome(pred.homeScore, pred.awayScore)} />
+              )}
             </div>
           )}
         </div>

@@ -4,11 +4,12 @@ import { createPortal } from "react-dom";
 import { Info } from "lucide-react";
 
 export type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
+export type OddsBonus = { outcomeOdds: number; baseScore: number; finalScore: number };
 
 type AnchorPos = { x: number; top?: number; bottom?: number };
 
 /** Icon-only trigger — click opens a popup above the trigger listing only matched scoring rules. */
-export function ScoringBreakdown({ rules }: { rules: RuleBreakdown[] }) {
+export function ScoringBreakdown({ rules, bonus }: { rules: RuleBreakdown[]; bonus?: OddsBonus | null }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<AnchorPos | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -56,6 +57,14 @@ export function ScoringBreakdown({ rules }: { rules: RuleBreakdown[] }) {
                   <span className="text-xs text-green-500 font-medium">+{r.pointsAwarded}</span>
                 </div>
               ))}
+              {bonus && (
+                <div className="flex items-center justify-between gap-4 border-t border-border mt-1.5 pt-1.5">
+                  <span className="text-xs text-warning font-medium">Bonus ×{bonus.outcomeOdds.toFixed(2)}</span>
+                  <span className="text-xs text-warning font-medium font-mono-nums">
+                    {bonus.baseScore} → {bonus.finalScore}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </>,

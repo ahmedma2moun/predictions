@@ -32,6 +32,17 @@ export default async function PredictionsPage() {
             resultAwayScore: true,
             resultPenaltyHomeScore: true,
             resultPenaltyAwayScore: true,
+            matchOdds: {
+              select: {
+                homeWinOdds: true,
+                drawOdds: true,
+                awayWinOdds: true,
+                homeWinVotes: true,
+                drawVotes: true,
+                awayWinVotes: true,
+                lockedAt: true,
+              },
+            },
           },
         },
       },
@@ -49,6 +60,7 @@ export default async function PredictionsPage() {
     baseScore: p.baseScore,
     outcomeOdds: Number(p.outcomeOdds),
     scoringBreakdown: (p.scoringBreakdown as { rules: SerializedPrediction["scoringBreakdown"] } | null)?.rules ?? null,
+    oddsBonus: (p.scoringBreakdown as { odds?: SerializedPrediction["oddsBonus"] } | null)?.odds ?? null,
     matchId: {
       _id: p.match.id.toString(),
       kickoffTime: p.match.kickoffTime.toISOString(),
@@ -64,6 +76,19 @@ export default async function PredictionsPage() {
               penaltyAwayScore: p.match.resultPenaltyAwayScore ?? null,
             }
           : undefined,
+      odds: p.match.matchOdds
+        ? {
+            homeWin: Number(p.match.matchOdds.homeWinOdds),
+            draw: Number(p.match.matchOdds.drawOdds),
+            awayWin: Number(p.match.matchOdds.awayWinOdds),
+            locked: !!p.match.matchOdds.lockedAt,
+            votes: {
+              homeWin: p.match.matchOdds.homeWinVotes,
+              draw: p.match.matchOdds.drawVotes,
+              awayWin: p.match.matchOdds.awayWinVotes,
+            },
+          }
+        : null,
     },
   }));
 

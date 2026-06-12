@@ -83,6 +83,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KickoffTime } from "@/components/KickoffTime";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ScoringBreakdown } from "@/components/ScoringBreakdown";
+import { OddsFactors, getPredictedOutcome } from "@/components/OddsFactors";
 import { useLeaderboard } from "./useLeaderboard";
 import type { UserPrediction } from "./useLeaderboard";
 import { LeaderboardFilters } from "./LeaderboardFilters";
@@ -152,17 +153,20 @@ function UserPredictionList({ predictions }: { predictions: UserPrediction[] }) 
               +{p.pointsAwarded} pts
             </Badge>
           </div>
-          <div className="flex items-center gap-3 text-muted-foreground">
+          <div className="flex items-center gap-3 text-muted-foreground flex-wrap">
             <KickoffTime date={p.kickoffTime} />
             <span className="flex items-center gap-1">
               Pick: <span className="font-mono-nums text-foreground">{p.homeScore}–{p.awayScore}</span>
               {p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
-                <ScoringBreakdown rules={p.scoringBreakdown} />
+                <ScoringBreakdown rules={p.scoringBreakdown} bonus={p.oddsBonus} />
               )}
             </span>
             <span>
               Result: <span className="font-mono-nums text-foreground">{p.result.homeScore}–{p.result.awayScore}</span>
             </span>
+            {p.matchOdds && (
+              <OddsFactors odds={p.matchOdds} picked={getPredictedOutcome(p.homeScore, p.awayScore)} />
+            )}
           </div>
         </div>
       ))}

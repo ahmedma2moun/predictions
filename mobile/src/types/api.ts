@@ -102,6 +102,18 @@ export interface ScoringRuleBreakdown {
   awarded: boolean;
 }
 
+export interface OddsBonus {
+  outcomeOdds: number;
+  baseScore: number;
+  finalScore: number;
+}
+
+export interface MatchOddsFactors {
+  homeWin: number;
+  draw: number;
+  awayWin: number;
+}
+
 export interface LeaderboardEntry {
   rank: number;
   userId: string;
@@ -141,6 +153,8 @@ export interface LeaderboardUserPrediction {
   result: { homeScore: number; awayScore: number };
   pointsAwarded: number;
   scoringBreakdown: ScoringRuleBreakdown[] | null;
+  oddsBonus: OddsBonus | null;
+  matchOdds: MatchOddsFactors | null;
 }
 
 export interface GroupPredictionEntry {
@@ -209,6 +223,7 @@ export interface PredictionHistoryItem {
   createdAt: string;
   updatedAt: string;
   scoringBreakdown: ScoringRuleBreakdown[] | null;
+  oddsBonus: OddsBonus | null;
   match: {
     _id: string;
     kickoffTime: string;

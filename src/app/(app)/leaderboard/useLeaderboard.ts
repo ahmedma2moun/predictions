@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import type { RuleBreakdown } from "@/components/ScoringBreakdown";
+import type { OddsBonus, RuleBreakdown } from "@/components/ScoringBreakdown";
+import type { MatchOddsFactors } from "@/components/OddsFactors";
 import { usePeriodFilter } from "@/hooks/usePeriodFilter";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -34,6 +35,8 @@ export type UserPrediction = {
   result: { homeScore: number; awayScore: number };
   pointsAwarded: number;
   scoringBreakdown: RuleBreakdown[] | null;
+  oddsBonus: OddsBonus | null;
+  matchOdds: MatchOddsFactors | null;
 };
 
 // ── Cache ─────────────────────────────────────────────────────────────────────

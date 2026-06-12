@@ -20,7 +20,23 @@ export async function GET(req: NextRequest) {
     baseScore: p.baseScore,
     outcomeOdds: Number(p.outcomeOdds),
     scoringBreakdown: serializeBreakdown(p.scoringBreakdown),
-    match: serializeMatchForMobile({ ...p.match, leagueName: p.match.league?.name ?? null }),
+    oddsBonus: (p.scoringBreakdown as { odds?: { outcomeOdds: number; baseScore: number; finalScore: number } } | null)?.odds ?? null,
+    match: {
+      ...serializeMatchForMobile({ ...p.match, leagueName: p.match.league?.name ?? null }),
+      odds: p.match.matchOdds
+        ? {
+            homeWin: Number(p.match.matchOdds.homeWinOdds),
+            draw:    Number(p.match.matchOdds.drawOdds),
+            awayWin: Number(p.match.matchOdds.awayWinOdds),
+            locked:  !!p.match.matchOdds.lockedAt,
+            votes: {
+              homeWin: p.match.matchOdds.homeWinVotes,
+              draw:    p.match.matchOdds.drawVotes,
+              awayWin: p.match.matchOdds.awayWinVotes,
+            },
+          }
+        : null,
+    },
   })));
 }
 

@@ -281,6 +281,51 @@ export default function MatchPredictionScreen() {
           ) : null}
         </Card>
 
+        {/* Prediction odds — visible to everyone once the match is locked (admins always) */}
+        {(locked || match.isAdmin) && match.odds && (() => {
+          const votes = match.odds.votes ?? { homeWin: 0, draw: 0, awayWin: 0 };
+          const totalVotes = votes.homeWin + votes.draw + votes.awayWin;
+          const cells = [
+            { label: match.homeTeam.name, odds: match.odds.homeWin, count: votes.homeWin },
+            { label: 'Draw',              odds: match.odds.draw,    count: votes.draw },
+            { label: match.awayTeam.name, odds: match.odds.awayWin, count: votes.awayWin },
+          ];
+          return (
+            <Card style={{ gap: spacing.sm }}>
+              <View style={styles.oddsHeader}>
+                <SectionTitle>Prediction Odds</SectionTitle>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {match.odds.locked && (
+                    <Ionicons name="lock-closed" size={11} color={colors.mutedForeground} />
+                  )}
+                  <Muted style={{ fontSize: font.size.xs }}>
+                    {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+                  </Muted>
+                </View>
+              </View>
+              <View style={styles.oddsRow}>
+                {cells.map(({ label, odds, count }) => {
+                  const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : null;
+                  return (
+                    <View
+                      key={label}
+                      style={[styles.oddsCell, { backgroundColor: colors.cardElevated, borderColor: colors.border }]}
+                    >
+                      <Muted style={styles.oddsCellLabel} numberOfLines={1}>{label}</Muted>
+                      <Text style={[styles.oddsCellValue, { color: colors.foreground, fontFamily: 'JetBrainsMonoBold' }]}>
+                        {odds.toFixed(2)}
+                      </Text>
+                      <Muted style={styles.oddsCellLabel}>
+                        {pct !== null ? `${pct}%` : '—'} · {count}v
+                      </Muted>
+                    </View>
+                  );
+                })}
+              </View>
+            </Card>
+          );
+        })()}
+
         {/* H2H */}
         {h2hLoading && (
           <Card>
@@ -530,6 +575,28 @@ function makeStyles(c: Palette) {
       fontVariant: ['tabular-nums'],
     },
     points: { fontWeight: font.weight.bold, fontSize: font.size.sm, marginTop: 4 },
+    oddsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    oddsRow: { flexDirection: 'row', gap: spacing.sm },
+    oddsCell: {
+      flex: 1,
+      borderRadius: radius.sm,
+      borderWidth: StyleSheet.hairlineWidth,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.xs,
+      alignItems: 'center',
+      gap: 2,
+    },
+    oddsCellLabel: { fontSize: 10, textAlign: 'center' },
+    oddsCellValue: {
+      fontSize: font.size.md,
+      fontWeight: font.weight.bold,
+      fontVariant: ['tabular-nums'],
+    },
     h2hSummary: { flexDirection: 'row' },
     h2hSummaryCol: { flex: 1, alignItems: 'center', gap: 2 },
     h2hSummaryNum: { fontSize: font.size.xl, fontWeight: font.weight.bold },

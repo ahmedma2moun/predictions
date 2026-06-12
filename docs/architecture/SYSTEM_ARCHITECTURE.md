@@ -29,7 +29,7 @@ src/
 │   │   ├── matches/        # GET list + GET single match
 │   │   ├── predictions/    # GET history, POST submit
 │   │   ├── leaderboard/    # GET ranked aggregation
-│   │   │   └── user-predictions/ # GET other users' predictions for a match
+│   │   │   └── user-predictions/ # GET a user's scored history (active season only, with odds)
 │   │   ├── admin/
 │   │   │   ├── groups/     # CRUD groups + membership
 │   │   │   ├── leagues/    # Fetch + activate leagues
@@ -53,7 +53,7 @@ src/
 │   │   │   ├── auth/login/   # POST credential login → signed JWT
 │   │   │   ├── matches/      # GET list; [matchId]/ GET detail, group-predictions, h2h, predictions
 │   │   │   ├── predictions/  # GET history, POST submit; stats/ GET stats
-│   │   │   ├── leaderboard/  # GET ranked; user-predictions/ GET other users' picks
+│   │   │   ├── leaderboard/  # GET ranked; user-predictions/ GET a user's scored history (active season only)
 │   │   │   ├── groups/       # GET user's groups
 │   │   │   ├── leagues/      # GET active leagues
 │   │   │   ├── devices/      # POST/DELETE FCM token registration
@@ -149,7 +149,7 @@ All DB query logic lives in `src/lib/services/`. Route handlers (both `/api/*` a
 | Service | Key Methods | Used by |
 |---|---|---|
 | `match-service.ts` | `getMatches()`, `getMatchById()` | `/api/matches`, `/api/mobile/matches` |
-| `prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` | `/api/predictions`, `/api/mobile/predictions`, leaderboard routes |
+| `prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` (supports `seasonId` filter; returns `baseScore`, `outcomeOdds`, locked `matchOdds`) | `/api/predictions`, `/api/mobile/predictions`, leaderboard routes |
 | `leaderboard-service.ts` | `getLeaderboard()` | `/api/leaderboard`, `/api/mobile/leaderboard` |
 | `group-service.ts` | `getUserGroups()` | `/api/groups`, `/api/mobile/groups` |
 | `league-service.ts` | `getActiveLeagues()` | `/api/leagues`, `/api/mobile/leagues` |

@@ -3,14 +3,14 @@ import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
-import type { ScoringRuleBreakdown } from '@/types/api';
+import type { OddsBonus, ScoringRuleBreakdown } from '@/types/api';
 
 /**
  * Icon-only trigger — tap opens a centered popup listing only matched rules.
  * Mirrors the web `ScoringBreakdown` component (which uses a hover popover).
  * Renders nothing when no rules matched.
  */
-export function ScoringBreakdown({ rules }: { rules: ScoringRuleBreakdown[] }) {
+export function ScoringBreakdown({ rules, bonus }: { rules: ScoringRuleBreakdown[]; bonus?: OddsBonus | null }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [open, setOpen] = useState(false);
@@ -49,6 +49,14 @@ export function ScoringBreakdown({ rules }: { rules: ScoringRuleBreakdown[] }) {
                   <Text style={styles.rulePoints}>+{r.points}</Text>
                 </View>
               ))}
+              {bonus && (
+                <View style={[styles.row, styles.bonusRow]}>
+                  <Text style={styles.bonusName}>Bonus ×{bonus.outcomeOdds.toFixed(2)}</Text>
+                  <Text style={styles.bonusPoints}>
+                    {bonus.baseScore} → {bonus.finalScore}
+                  </Text>
+                </View>
+              )}
             </View>
           </Pressable>
         </Pressable>
@@ -107,6 +115,24 @@ function makeStyles(c: Palette) {
     },
     rulePoints: {
       color: c.success,
+      fontSize: font.size.xs,
+      fontWeight: font.weight.semibold,
+      fontVariant: ['tabular-nums'],
+    },
+    bonusRow: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.border,
+      paddingTop: 6,
+      marginTop: 2,
+    },
+    bonusName: {
+      flex: 1,
+      color: c.warning,
+      fontSize: font.size.xs,
+      fontWeight: font.weight.medium,
+    },
+    bonusPoints: {
+      color: c.warning,
       fontSize: font.size.xs,
       fontWeight: font.weight.semibold,
       fontVariant: ['tabular-nums'],

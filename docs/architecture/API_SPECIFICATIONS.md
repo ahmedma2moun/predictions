@@ -35,7 +35,7 @@ Returns matches with the user's prediction attached.
 ```
 
 ### GET /api/matches/[matchId]
-Single match with the user's prediction and all group members' predictions (when finished).
+Single match with the user's prediction and all group members' predictions (when finished). Includes `odds` (`{ homeWin, draw, awayWin, locked, votes: { homeWin, draw, awayWin } }`) once the match is locked (always for admins); the UI shows the Prediction Odds card to all users from lock time onward. `odds` is `null` when the match's season has odds disabled.
 
 ### GET /api/matches/[matchId]/group-predictions
 Other users' predictions for a specific match (used to show group picks before and after kickoff).
@@ -79,9 +79,29 @@ Ranked leaderboard with aggregated points.
 ```
 
 ### GET /api/leaderboard/user-predictions
-Another user's prediction list for a specific match (used on leaderboard detail).
+A user's scored prediction history (used when expanding a row on the leaderboard). **Scoped to the ACTIVE season** — returns `[]` when no season is active.
 
-**Query params**: `userId` (number), `matchId` (number)
+**Query params**: `userId` (number, required), `leagueId` (number, repeatable), `from` / `to` (ISO dates)
+
+**Response**: Array of items:
+```json
+[{
+  "matchId": "12",
+  "kickoffTime": "2026-06-01T18:00:00.000Z",
+  "homeTeamName": "Arsenal",
+  "awayTeamName": "Chelsea",
+  "homeScore": 2,
+  "awayScore": 1,
+  "result": { "homeScore": 2, "awayScore": 0 },
+  "pointsAwarded": 15,
+  "baseScore": 10,
+  "outcomeOdds": 1.5,
+  "matchOdds": { "homeWin": 1.5, "draw": 3.0, "awayWin": 2.2 },
+  "scoringBreakdown": [{ "ruleName": "Correct Winner", "pointsAwarded": 10, "matched": true }],
+  "oddsBonus": { "outcomeOdds": 1.5, "baseScore": 10, "finalScore": 15 }
+}]
+```
+`matchOdds` is the locked 1/X/2 odds snapshot (null when odds were never locked); `oddsBonus` is present only when the season had odds enabled at scoring time.
 
 ### GET /api/groups
 Returns the authenticated user's groups.
@@ -210,7 +230,7 @@ Returns upcoming/live/finished matches with the user's prediction attached.
 **Query params**: `leagueId` (number), `status` (string), `week` (ISO date string)
 
 ### GET /api/mobile/matches/[matchId]
-Single match with prediction.
+Single match with prediction. Includes `odds` once the match is locked (always for admins), same shape as the web endpoint; the mobile match screen shows the Prediction Odds card to all users from lock time onward.
 
 ### GET /api/mobile/matches/[matchId]/group-predictions
 Other users' predictions for a match.
@@ -222,7 +242,7 @@ Head-to-head record between the two teams.
 All predictions for a match (admin-level view or post-kickoff).
 
 ### GET /api/mobile/predictions
-User's prediction history.
+User's prediction history. Each item includes `baseScore`, `outcomeOdds`, `oddsBonus` (`{ outcomeOdds, baseScore, finalScore }`, null unless season odds were enabled), and `match.odds` (locked 1/X/2 odds + votes, null when never locked).
 
 **Query params**: `groupId` (number)
 
@@ -240,7 +260,7 @@ Ranked leaderboard.
 **Query params**: `period` (`all` | `week` | `month`), `leagueId` (number), `groupId` (number)
 
 ### GET /api/mobile/leaderboard/user-predictions
-Another user's predictions for a specific match.
+A user's scored prediction history for the leaderboard expand. Same semantics as the web endpoint: **scoped to the ACTIVE season** (`[]` when off-season), includes `matchOdds` and `oddsBonus`; `scoringBreakdown` uses the mobile shape `{ key, name, points, awarded }`.
 
 ### GET /api/mobile/groups
 Returns the authenticated user's groups.
