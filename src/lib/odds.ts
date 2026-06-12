@@ -6,7 +6,12 @@ export const ODDS_MAX_DEFAULT = 5.0;
 export type Outcome = 'homeWin' | 'draw' | 'awayWin';
 
 export interface PredictionPool { homeWin: number; draw: number; awayWin: number; }
-export interface MatchOddsResult { homeWin: number; draw: number; awayWin: number; }
+export interface MatchOddsResult {
+  homeWin: number;
+  draw: number;
+  awayWin: number;
+  votes: { homeWin: number; draw: number; awayWin: number };
+}
 export interface OddsConfig { oddsEnabled: boolean; oddsMin: number; oddsMax: number; }
 
 export function deriveOutcome(homeScore: number, awayScore: number): Outcome {
@@ -16,35 +21,39 @@ export function deriveOutcome(homeScore: number, awayScore: number): Outcome {
 }
 
 export function calcMatchOdds(pool: PredictionPool, config: OddsConfig): MatchOddsResult {
-  if (!config.oddsEnabled) return { homeWin: 1.0, draw: 1.0, awayWin: 1.0 };
+  const votes = { homeWin: pool.homeWin, draw: pool.draw, awayWin: pool.awayWin };
+
+  if (!config.oddsEnabled) return { homeWin: 1.0, draw: 1.0, awayWin: 1.0, votes };
 
   const { oddsMin, oddsMax } = config;
-  const total = pool.homeWin + pool.draw + pool.awayWin;
   const mid = Math.round(((oddsMin + oddsMax) / 2) * 100) / 100;
 
-  if (total === 0) return { homeWin: mid, draw: mid, awayWin: mid };
+  // Only consider outcomes that have at least one prediction
+  const outcomes = (['homeWin', 'draw', 'awayWin'] as const).filter(o => pool[o] > 0);
+  const activeTotal = outcomes.reduce((s, o) => s + pool[o], 0);
 
-  // Sentinel for 0-vote outcomes: total²+1 is always > total/1 (the max voted raw),
-  // so a 0-vote outcome always normalizes to oddsMax rather than colliding with voted ones.
-  const sentinel = total * total + 1;
-  const raw = {
-    homeWin: pool.homeWin > 0 ? total / pool.homeWin : sentinel,
-    draw:    pool.draw    > 0 ? total / pool.draw    : sentinel,
-    awayWin: pool.awayWin > 0 ? total / pool.awayWin : sentinel,
-  };
+  if (outcomes.length === 0) {
+    return { homeWin: mid, draw: mid, awayWin: mid, votes };
+  }
 
-  const rawMin = Math.min(raw.homeWin, raw.draw, raw.awayWin);
-  const rawMax = Math.max(raw.homeWin, raw.draw, raw.awayWin);
+  // raw[o] = activeTotal / votes[o] — more popular → lower raw → closer to oddsMin
+  const raw = Object.fromEntries(outcomes.map(o => [o, activeTotal / pool[o]])) as Record<string, number>;
+
+  const rawValues = Object.values(raw);
+  const rawMin = Math.min(...rawValues);
+  const rawMax = Math.max(...rawValues);
 
   const normalize = (v: number): number => {
     if (rawMax === rawMin) return mid;
     return Math.round((oddsMin + ((v - rawMin) / (rawMax - rawMin)) * (oddsMax - oddsMin)) * 100) / 100;
   };
 
+  // Outcomes with 0 votes get oddsMax as a placeholder (no one to score them anyway)
   return {
-    homeWin: normalize(raw.homeWin),
-    draw:    normalize(raw.draw),
-    awayWin: normalize(raw.awayWin),
+    homeWin: pool.homeWin > 0 ? normalize(raw.homeWin) : oddsMax,
+    draw:    pool.draw    > 0 ? normalize(raw.draw)    : oddsMax,
+    awayWin: pool.awayWin > 0 ? normalize(raw.awayWin) : oddsMax,
+    votes,
   };
 }
 
@@ -59,7 +68,7 @@ export function calcFinalScore(baseScore: number, odds: number): number {
  * persists them with a lockedAt timestamp.
  */
 export async function lockMatchOdds(matchId: number, config: OddsConfig): Promise<MatchOddsResult> {
-  if (!config.oddsEnabled) return { homeWin: 1.0, draw: 1.0, awayWin: 1.0 };
+  if (!config.oddsEnabled) return { homeWin: 1.0, draw: 1.0, awayWin: 1.0, votes: { homeWin: 0, draw: 0, awayWin: 0 } };
 
   const existing = await prisma.matchOdds.findUnique({ where: { matchId } });
   if (existing?.lockedAt) {
@@ -67,6 +76,7 @@ export async function lockMatchOdds(matchId: number, config: OddsConfig): Promis
       homeWin: Number(existing.homeWinOdds),
       draw:    Number(existing.drawOdds),
       awayWin: Number(existing.awayWinOdds),
+      votes: { homeWin: existing.homeWinVotes, draw: existing.drawVotes, awayWin: existing.awayWinVotes },
     };
   }
 
@@ -115,10 +125,19 @@ export async function lockMatchOdds(matchId: number, config: OddsConfig): Promis
 export async function getLiveMatchOdds(
   matchId: number,
   config: OddsConfig,
-): Promise<(MatchOddsResult & { locked: boolean; homeWinVotes: number; drawVotes: number; awayWinVotes: number; totalVotes: number }) | null> {
+): Promise<(MatchOddsResult & { locked: boolean }) | null> {
   if (!config.oddsEnabled) return null;
 
   const existing = await prisma.matchOdds.findUnique({ where: { matchId } });
+  if (existing?.lockedAt) {
+    return {
+      homeWin: Number(existing.homeWinOdds),
+      draw:    Number(existing.drawOdds),
+      awayWin: Number(existing.awayWinOdds),
+      votes: { homeWin: existing.homeWinVotes, draw: existing.drawVotes, awayWin: existing.awayWinVotes },
+      locked: true,
+    };
+  }
 
   const predictions = await prisma.prediction.findMany({
     where: { matchId },
@@ -129,28 +148,10 @@ export async function getLiveMatchOdds(
   for (const p of predictions) {
     pool[deriveOutcome(p.homeScore, p.awayScore)]++;
   }
-  const totalVotes = pool.homeWin + pool.draw + pool.awayWin;
-
-  if (existing?.lockedAt) {
-    return {
-      homeWin: Number(existing.homeWinOdds),
-      draw:    Number(existing.drawOdds),
-      awayWin: Number(existing.awayWinOdds),
-      locked: true,
-      homeWinVotes: pool.homeWin,
-      drawVotes:    pool.draw,
-      awayWinVotes: pool.awayWin,
-      totalVotes,
-    };
-  }
 
   const odds = calcMatchOdds(pool, config);
   return {
     ...odds,
     locked: false,
-    homeWinVotes: pool.homeWin,
-    drawVotes:    pool.draw,
-    awayWinVotes: pool.awayWin,
-    totalVotes,
   };
 }
