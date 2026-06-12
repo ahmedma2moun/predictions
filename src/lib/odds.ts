@@ -44,7 +44,7 @@ export function calcMatchOdds(pool: PredictionPool, config: OddsConfig): MatchOd
   const rawMax = Math.max(...rawValues);
 
   const normalize = (v: number): number => {
-    if (rawMax === rawMin) return mid;
+    if (rawMax === rawMin) return oddsMin;
     return Math.round((oddsMin + ((v - rawMin) / (rawMax - rawMin)) * (oddsMax - oddsMin)) * 100) / 100;
   };
 
