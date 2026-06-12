@@ -32,7 +32,7 @@ export async function GET(
     scoringBreakdown: serializeBreakdown(p.rawBreakdown),
   })) ?? null;
 
-  const base = serializeMatchForMobile({ ...match, leagueName: match.league?.name ?? null });
+  const base = serializeMatchForMobile({ ...match, leagueName: match.league?.name ?? (match as any).season?.name ?? null });
 
   return NextResponse.json({
     ...base,

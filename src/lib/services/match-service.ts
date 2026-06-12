@@ -80,7 +80,10 @@ export async function getMatches(
 
   const matches = await MatchRepository.findMany({
     where,
-    include: { league: { select: { name: true } } },
+    include: {
+      league: { select: { name: true } },
+      season: { select: { name: true } },
+    },
     orderBy: { kickoffTime: 'asc' },
     take: 100,
   });
@@ -129,7 +132,7 @@ export async function getMatchById(
     where: { id: matchId },
     include: {
       league: { select: { name: true } },
-      season: { select: { oddsEnabled: true, oddsMin: true, oddsMax: true } },
+      season: { select: { name: true, oddsEnabled: true, oddsMin: true, oddsMax: true } },
     },
   });
   if (!match) return null;

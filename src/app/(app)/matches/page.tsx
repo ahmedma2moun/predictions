@@ -18,7 +18,7 @@ export default async function MatchesPage() {
   const matches = await MatchRepository.findMany({
     where: { status: { in: ["scheduled", "live"] } },
     orderBy: { kickoffTime: "asc" },
-    include: { league: { select: { name: true } } },
+    include: { league: { select: { name: true } }, season: { select: { name: true } } },
   });
 
   const matchIds = matches.map((m) => m.id);
@@ -54,7 +54,7 @@ export default async function MatchesPage() {
           const isLive = match.status === "live";
 
           // Competition label: "MATCHDAY 35 · PREMIER LEAGUE"
-          const leagueName = (match as any).league?.name as string | undefined;
+          const leagueName = ((match as any).league?.name ?? (match as any).season?.name) as string | undefined;
           const compParts: string[] = [];
           if (match.matchday) {
             compParts.push(`MATCHDAY ${match.matchday}`);

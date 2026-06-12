@@ -27,7 +27,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
 
   return NextResponse.json({
     ...serializeMatch(match),
-    leagueName: match.league?.name ?? null,
+    leagueName: match.league?.name ?? (match as any).season?.name ?? null,
     isAdmin,
     standings: { home: homeStanding, away: awayStanding },
     prediction,
