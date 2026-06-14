@@ -83,7 +83,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KickoffTime } from "@/components/KickoffTime";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ScoringBreakdown } from "@/components/ScoringBreakdown";
-import { OddsFactors, getPredictedOutcome } from "@/components/OddsFactors";
+import { OddsPopover, getPredictedOutcome } from "@/components/OddsFactors";
 import { useLeaderboard } from "./useLeaderboard";
 import type { UserPrediction } from "./useLeaderboard";
 import { LeaderboardFilters } from "./LeaderboardFilters";
@@ -160,13 +160,18 @@ function UserPredictionList({ predictions }: { predictions: UserPrediction[] }) 
               {p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
                 <ScoringBreakdown rules={p.scoringBreakdown} bonus={p.oddsBonus} />
               )}
+              {p.matchOdds && (
+                <OddsPopover
+                  odds={p.matchOdds}
+                  picked={p.oddsBonus && p.oddsBonus.finalScore !== p.oddsBonus.baseScore ? getPredictedOutcome(p.homeScore, p.awayScore) : undefined}
+                  homeTeamName={p.homeTeamName}
+                  awayTeamName={p.awayTeamName}
+                />
+              )}
             </span>
             <span>
               Result: <span className="font-mono-nums text-foreground">{p.result.homeScore}–{p.result.awayScore}</span>
             </span>
-            {p.matchOdds && (
-              <OddsFactors odds={p.matchOdds} picked={getPredictedOutcome(p.homeScore, p.awayScore)} />
-            )}
           </div>
         </div>
       ))}

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { KickoffTime } from "@/components/KickoffTime";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ScoringBreakdown, type OddsBonus, type RuleBreakdown } from "@/components/ScoringBreakdown";
-import { OddsFactors, getPredictedOutcome } from "@/components/OddsFactors";
+import { OddsPopover, getPredictedOutcome } from "@/components/OddsFactors";
 import { computeWeekLabel, getWeekBounds } from "@/lib/period-filter";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,7 @@ type OtherPrediction = {
   awayScore: number;
   pointsAwarded: number | null;
   scoringBreakdown: RuleBreakdown[] | null;
+  oddsBonus: OddsBonus | null;
 };
 
 function ScoreTile({ pred }: { pred: SerializedPrediction }) {
@@ -102,7 +103,12 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
                 </span>
               </span>
               {match.odds && (
-                <OddsFactors odds={match.odds} picked={getPredictedOutcome(pred.homeScore, pred.awayScore)} />
+                <OddsPopover
+                  odds={match.odds}
+                  picked={pred.oddsBonus && pred.oddsBonus.finalScore !== pred.oddsBonus.baseScore ? getPredictedOutcome(pred.homeScore, pred.awayScore) : undefined}
+                  homeTeamName={match.homeTeam.name}
+                  awayTeamName={match.awayTeam.name}
+                />
               )}
             </div>
           )}
@@ -137,7 +143,7 @@ function ScoreTile({ pred }: { pred: SerializedPrediction }) {
               <div className="flex items-center gap-2 shrink-0">
                 <span className="font-mono-nums">{o.homeScore}–{o.awayScore}</span>
                 {isFinished && o.scoringBreakdown && o.scoringBreakdown.length > 0 && (
-                  <ScoringBreakdown rules={o.scoringBreakdown} />
+                  <ScoringBreakdown rules={o.scoringBreakdown} bonus={o.oddsBonus} />
                 )}
                 {isFinished && (
                   <span className={cn("font-medium font-mono-nums", (o.pointsAwarded ?? 0) > 0 ? "text-warning" : "text-muted-foreground")}>

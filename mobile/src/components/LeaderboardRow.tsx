@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Muted } from '@/components/ui';
 import { ScoringBreakdown } from '@/components/ScoringBreakdown';
-import { OddsFactors, getPredictedOutcome } from '@/components/OddsFactors';
+import { OddsPopover, getPredictedOutcome } from '@/components/OddsFactors';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { LeaderboardEntry, LeaderboardUserPrediction } from '@/types/api';
@@ -358,15 +358,24 @@ const UserPredRow = memo(function UserPredRow({ p }: { p: LeaderboardUserPredict
       </View>
       <View style={styles.predTileMeta}>
         <Muted style={{ fontSize: font.size.xs }}>{formatKickoff(p.kickoffTime)}</Muted>
-        <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-          Pick: <Text style={{ color: colors.foreground, fontFamily: 'JetBrainsMono', fontVariant: ['tabular-nums'] }}>{p.homeScore}–{p.awayScore}</Text>
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+            Pick: <Text style={{ color: colors.foreground, fontFamily: 'JetBrainsMono', fontVariant: ['tabular-nums'] }}>{p.homeScore}–{p.awayScore}</Text>
+          </Text>
+          {p.matchOdds && (
+            <OddsPopover
+              odds={p.matchOdds}
+              picked={p.oddsBonus && p.oddsBonus.finalScore !== p.oddsBonus.baseScore
+                ? getPredictedOutcome(p.homeScore, p.awayScore)
+                : undefined}
+              homeTeamName={p.homeTeamName}
+              awayTeamName={p.awayTeamName}
+            />
+          )}
+        </View>
         <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
           Result: <Text style={{ color: colors.foreground, fontFamily: 'JetBrainsMono', fontVariant: ['tabular-nums'] }}>{p.result.homeScore}–{p.result.awayScore}</Text>
         </Text>
-        {p.matchOdds && (
-          <OddsFactors odds={p.matchOdds} picked={getPredictedOutcome(p.homeScore, p.awayScore)} />
-        )}
       </View>
     </View>
   );

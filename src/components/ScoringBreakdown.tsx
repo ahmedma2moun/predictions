@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Info } from "lucide-react";
 
-export type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
+export type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean; key?: string };
 export type OddsBonus = { outcomeOdds: number; baseScore: number; finalScore: number };
 
 type AnchorPos = { x: number; top?: number; bottom?: number };
@@ -30,6 +30,26 @@ export function ScoringBreakdown({ rules, bonus }: { rules: RuleBreakdown[]; bon
     setOpen((v) => !v);
   }
 
+  const rows: React.ReactNode[] = [];
+  for (const r of matched) {
+    rows.push(
+      <div key={r.ruleName} className="flex items-center justify-between gap-4">
+        <span className="text-xs text-green-500 font-medium">{r.ruleName}</span>
+        <span className="text-xs text-green-500 font-medium">+{r.pointsAwarded}</span>
+      </div>
+    );
+    if (bonus && bonus.finalScore !== bonus.baseScore && r.key === 'correct_winner') {
+      rows.push(
+        <div key="odds-bonus" className="flex items-center justify-between gap-4 pl-2">
+          <span className="text-xs text-warning font-medium">Odds ×{bonus.outcomeOdds.toFixed(2)}</span>
+          <span className="text-xs text-warning font-medium font-mono-nums">
+            → {Math.round(r.pointsAwarded * bonus.outcomeOdds)}
+          </span>
+        </div>
+      );
+    }
+  }
+
   return (
     <>
       <button
@@ -51,20 +71,7 @@ export function ScoringBreakdown({ rules, bonus }: { rules: RuleBreakdown[]; bon
           >
             <p className="text-xs font-semibold mb-1.5 text-foreground">Rules matched</p>
             <div className="space-y-1">
-              {matched.map((r) => (
-                <div key={r.ruleName} className="flex items-center justify-between gap-4">
-                  <span className="text-xs text-green-500 font-medium">{r.ruleName}</span>
-                  <span className="text-xs text-green-500 font-medium">+{r.pointsAwarded}</span>
-                </div>
-              ))}
-              {bonus && (
-                <div className="flex items-center justify-between gap-4 border-t border-border mt-1.5 pt-1.5">
-                  <span className="text-xs text-warning font-medium">Bonus ×{bonus.outcomeOdds.toFixed(2)}</span>
-                  <span className="text-xs text-warning font-medium font-mono-nums">
-                    {bonus.baseScore} → {bonus.finalScore}
-                  </span>
-                </div>
-              )}
+              {rows}
             </div>
           </div>
         </>,

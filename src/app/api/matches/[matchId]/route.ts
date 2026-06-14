@@ -23,6 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     awayScore: p.awayScore,
     pointsAwarded: p.pointsAwarded,
     scoringBreakdown: (p.rawBreakdown as { rules?: unknown[] } | null)?.rules ?? null,
+    oddsBonus: (p.rawBreakdown as { odds?: unknown } | null)?.odds ?? null,
   })) ?? null;
 
   return NextResponse.json({

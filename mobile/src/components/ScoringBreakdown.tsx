@@ -7,8 +7,8 @@ import type { OddsBonus, ScoringRuleBreakdown } from '@/types/api';
 
 /**
  * Icon-only trigger — tap opens a centered popup listing only matched rules.
- * Mirrors the web `ScoringBreakdown` component (which uses a hover popover).
- * Renders nothing when no rules matched.
+ * Odds ×N row is inserted right after the correct_winner rule when the bonus
+ * actually changed the score (finalScore !== baseScore).
  */
 export function ScoringBreakdown({ rules, bonus }: { rules: ScoringRuleBreakdown[]; bonus?: OddsBonus | null }) {
   const { colors } = useTheme();
@@ -18,6 +18,8 @@ export function ScoringBreakdown({ rules, bonus }: { rules: ScoringRuleBreakdown
   const matched = rules.filter(r => r.awarded);
   if (matched.length === 0) return null;
 
+  const bonusApplied = !!(bonus && bonus.finalScore !== bonus.baseScore);
+
   return (
     <>
       <Pressable
@@ -26,37 +28,28 @@ export function ScoringBreakdown({ rules, bonus }: { rules: ScoringRuleBreakdown
         style={({ pressed }) => [styles.trigger, pressed && { opacity: 0.6 }]}
         accessibilityLabel="View scoring breakdown"
       >
-        <Ionicons
-          name="information-circle-outline"
-          size={14}
-          color={colors.mutedForeground}
-        />
+        <Ionicons name="information-circle-outline" size={14} color={colors.mutedForeground} />
       </Pressable>
 
-      <Modal
-        transparent
-        animationType="fade"
-        visible={open}
-        onRequestClose={() => setOpen(false)}
-      >
+      <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={styles.popover} onPress={e => e.stopPropagation()}>
             <Text style={styles.title}>Rules matched</Text>
             <View style={{ gap: 6 }}>
               {matched.map(r => (
-                <View key={r.key} style={styles.row}>
-                  <Text style={styles.ruleName}>{r.name}</Text>
-                  <Text style={styles.rulePoints}>+{r.points}</Text>
+                <View key={r.key}>
+                  <View style={styles.row}>
+                    <Text style={styles.ruleName}>{r.name}</Text>
+                    <Text style={styles.rulePoints}>+{r.points}</Text>
+                  </View>
+                  {bonusApplied && r.key === 'correct_winner' && bonus && (
+                    <View style={[styles.row, styles.oddsRow]}>
+                      <Text style={styles.oddsLabel}>Odds ×{bonus.outcomeOdds.toFixed(2)}</Text>
+                      <Text style={styles.oddsValue}>→ {Math.round(r.points * bonus.outcomeOdds)}</Text>
+                    </View>
+                  )}
                 </View>
               ))}
-              {bonus && (
-                <View style={[styles.row, styles.bonusRow]}>
-                  <Text style={styles.bonusName}>Bonus ×{bonus.outcomeOdds.toFixed(2)}</Text>
-                  <Text style={styles.bonusPoints}>
-                    {bonus.baseScore} → {bonus.finalScore}
-                  </Text>
-                </View>
-              )}
             </View>
           </Pressable>
         </Pressable>
@@ -119,19 +112,17 @@ function makeStyles(c: Palette) {
       fontWeight: font.weight.semibold,
       fontVariant: ['tabular-nums'],
     },
-    bonusRow: {
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: c.border,
-      paddingTop: 6,
+    oddsRow: {
+      paddingLeft: spacing.sm,
       marginTop: 2,
     },
-    bonusName: {
+    oddsLabel: {
       flex: 1,
       color: c.warning,
       fontSize: font.size.xs,
       fontWeight: font.weight.medium,
     },
-    bonusPoints: {
+    oddsValue: {
       color: c.warning,
       fontSize: font.size.xs,
       fontWeight: font.weight.semibold,

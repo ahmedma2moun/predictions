@@ -30,6 +30,7 @@ export async function GET(
     awayScore: p.awayScore,
     pointsAwarded: p.pointsAwarded,
     scoringBreakdown: serializeBreakdown(p.rawBreakdown),
+    oddsBonus: (p.rawBreakdown as { odds?: unknown } | null)?.odds ?? null,
   })) ?? null;
 
   const base = serializeMatchForMobile({ ...match, leagueName: match.league?.name ?? (match as any).season?.name ?? null });

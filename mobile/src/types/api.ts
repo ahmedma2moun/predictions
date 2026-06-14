@@ -66,6 +66,7 @@ export interface MatchDetail extends MatchListItem {
     awayScore: number;
     pointsAwarded: number;
     scoringBreakdown: Array<{ key: string; name: string; points: number; awarded: boolean }> | null;
+    oddsBonus: OddsBonus | null;
   }> | null;
 }
 
