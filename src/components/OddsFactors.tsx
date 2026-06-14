@@ -89,7 +89,7 @@ export function OddsPopover({
         ref={triggerRef}
         type="button"
         onClick={handleClick}
-        className={cn("text-muted-foreground hover:text-foreground transition-colors", className)}
+        className={cn("inline-flex items-center gap-0.5 rounded px-1 py-0.5 bg-warning/15 text-warning hover:bg-warning/25 transition-colors", className)}
         aria-label="View match odds"
       >
         <BarChart2 className="h-3 w-3" />

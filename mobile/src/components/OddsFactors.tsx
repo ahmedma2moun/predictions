@@ -85,7 +85,9 @@ export function OddsPopover({
         style={({ pressed }) => [styles.trigger, pressed && { opacity: 0.6 }, style as any]}
         accessibilityLabel="View match odds"
       >
-        <Ionicons name="bar-chart-outline" size={13} color={colors.mutedForeground} />
+        <View style={styles.triggerChip}>
+          <Ionicons name="bar-chart-outline" size={12} color={colors.warning} />
+        </View>
       </Pressable>
 
       <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
@@ -123,8 +125,14 @@ export function OddsPopover({
 function makeStyles(c: Palette) {
   return StyleSheet.create({
     trigger: {
-      width: 18,
-      height: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    triggerChip: {
+      backgroundColor: c.warning + '26',
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      paddingVertical: 2,
       alignItems: 'center',
       justifyContent: 'center',
     },
