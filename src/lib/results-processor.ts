@@ -314,6 +314,10 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
           winner = 'draw';
         }
 
+        // If the match had no result yet (e.g. was reset by an admin), clear scoresProcessed
+        // so the scoring step always runs for a freshly-received result.
+        const hadNoResult = match.resultHomeScore === null;
+
         const updatedMatch = await MatchRepository.update({
           where: { id: match.id },
           data: {
@@ -323,6 +327,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
             resultPenaltyHomeScore: penaltyHomeScore,
             resultPenaltyAwayScore: penaltyAwayScore,
             resultWinner: winner,
+            ...(hadNoResult ? { scoresProcessed: false } : {}),
           },
         });
         updated++;
