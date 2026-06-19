@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -159,6 +160,8 @@ function StandingsList({
 }
 
 function SeasonCard({ season, myId }: { season: SeasonWithStandings; myId?: string }) {
+  const [open, setOpen] = useState(false);
+
   const filteredEntries = useMemo(() => {
     return season.standings
       .filter(s => s.groupId === null)
@@ -167,19 +170,32 @@ function SeasonCard({ season, myId }: { season: SeasonWithStandings; myId?: stri
   }, [season.standings]);
 
   return (
-    <div className="rounded-[14px] border border-border bg-card p-4 space-y-4">
-      <div>
-        <p className="font-semibold text-base">{season.name}</p>
-        {season.description && (
-          <p className="text-sm text-muted-foreground mt-0.5">{season.description}</p>
-        )}
-        <p className="text-xs text-muted-foreground mt-1">
-          {formatDate(season.startDate)}
-          {season.endedAt && ` → ${formatDate(season.endedAt)}`}
-        </p>
-      </div>
+    <div className="rounded-[14px] border border-border bg-card overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-3 p-4 text-left"
+        aria-expanded={open}
+      >
+        <div>
+          <p className="font-semibold text-base">{season.name}</p>
+          {season.description && (
+            <p className="text-sm text-muted-foreground mt-0.5">{season.description}</p>
+          )}
+          <p className="text-xs text-muted-foreground mt-1">
+            {formatDate(season.startDate)}
+            {season.endedAt && ` → ${formatDate(season.endedAt)}`}
+          </p>
+        </div>
+        <ChevronDown
+          className={cn("h-5 w-5 text-muted-foreground shrink-0 transition-transform", open && "rotate-180")}
+        />
+      </button>
 
-      <StandingsList entries={filteredEntries} myId={myId} />
+      {open && (
+        <div className="px-4 pb-4">
+          <StandingsList entries={filteredEntries} myId={myId} />
+        </div>
+      )}
     </div>
   );
 }

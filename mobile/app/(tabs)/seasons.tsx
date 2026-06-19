@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -254,6 +256,8 @@ function EndedSeasonCard({
   myId: string | undefined;
 }) {
   const { colors } = useTheme();
+  const [open, setOpen] = useState(false);
+
   return (
     <View
       style={[
@@ -261,17 +265,28 @@ function EndedSeasonCard({
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
-      <View style={{ gap: 2 }}>
-        <Text style={[cardStyles.seasonName, { color: colors.foreground }]}>{season.name}</Text>
-        {season.description ? (
-          <Muted style={{ fontSize: font.size.xs }}>{season.description}</Muted>
-        ) : null}
-        <Muted style={{ fontSize: font.size.xxs }}>
-          {formatDate(season.startDate)}
-          {season.endedAt ? ` → ${formatDate(season.endedAt)}` : ''}
-        </Muted>
-      </View>
-      <StandingsList entries={season.overallStandings} myId={myId} />
+      <Pressable
+        onPress={() => setOpen(v => !v)}
+        style={cardStyles.header}
+      >
+        <View style={{ gap: 2, flex: 1 }}>
+          <Text style={[cardStyles.seasonName, { color: colors.foreground }]}>{season.name}</Text>
+          {season.description ? (
+            <Muted style={{ fontSize: font.size.xs }}>{season.description}</Muted>
+          ) : null}
+          <Muted style={{ fontSize: font.size.xxs }}>
+            {formatDate(season.startDate)}
+            {season.endedAt ? ` → ${formatDate(season.endedAt)}` : ''}
+          </Muted>
+        </View>
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={colors.mutedForeground}
+        />
+      </Pressable>
+
+      {open && <StandingsList entries={season.overallStandings} myId={myId} />}
     </View>
   );
 }
@@ -283,6 +298,7 @@ const cardStyles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.md,
   },
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   seasonName: { fontSize: font.size.md, fontWeight: font.weight.semibold },
 });
 
