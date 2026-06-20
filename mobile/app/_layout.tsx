@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { ROUTES } from '@/constants/routes';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 import { registerForPushNotifications } from '@/notifications/push';
+import { routeForNotification } from '@/notifications/route-for-notification';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,6 +40,9 @@ function PushRegistrar() {
   const { token } = useAuth();
   const registered = useRef<string | null>(null);
   const router = useRouter();
+  // Guards against navigating twice for the notification that cold-started the app
+  // (the initial response is also delivered to the live listener on some platforms).
+  const handledColdStart = useRef(false);
 
   useEffect(() => {
     if (!token || registered.current === token) return;
@@ -46,14 +50,30 @@ function PushRegistrar() {
     registerForPushNotifications(token).catch(() => {});
   }, [token]);
 
+  // Live taps while the app is running (foreground/background).
   useEffect(() => {
+    if (!token) return;
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
-      const type = (response.notification.request.content.data as any)?.type as string | undefined;
-      if (type === 'results') router.push(ROUTES.predictions as any);
-      else router.push(ROUTES.matches as any);
+      const data = response.notification.request.content.data;
+      router.push(routeForNotification(data) as any);
     });
     return () => sub.remove();
-  }, [router]);
+  }, [token, router]);
+
+  // Cold start: the app was launched by tapping a notification while killed.
+  // The live listener does not fire for that response, so handle it explicitly
+  // once the user is authenticated.
+  useEffect(() => {
+    if (!token || handledColdStart.current) return;
+    handledColdStart.current = true;
+    Notifications.getLastNotificationResponseAsync()
+      .then(response => {
+        if (!response) return;
+        const data = response.notification.request.content.data;
+        router.push(routeForNotification(data) as any);
+      })
+      .catch(() => {});
+  }, [token, router]);
 
   return null;
 }
