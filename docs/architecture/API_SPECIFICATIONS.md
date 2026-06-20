@@ -40,7 +40,7 @@ Single match with the user's prediction and all group members' predictions (when
 ### GET /api/matches/[matchId]/group-predictions
 Other users' predictions for a specific match (used to show group picks before and after kickoff).
 
-**Query params**: `groupId` (number, required), `liveHomeScore` / `liveAwayScore` (number, optional) — when the match has no official result yet, passing the current live score computes each entry's `pointsAwarded`/`scoringBreakdown` on the fly (via `calculateScore()`) against that live score instead of the stored (post-match) result. Each entry includes `isLive: boolean` indicating whether its points reflect this live computation.
+**Query params**: `groupId` (number, required), `liveHomeScore` / `liveAwayScore` (number, optional) — when the match has no official result yet, passing the current live score computes each entry's `pointsAwarded`/`scoringBreakdown` on the fly (via `calculateScore()`) against that live score instead of the stored (post-match) result. If the match's season has `oddsEnabled`, the same odds multiplier used at final scoring (`calcFinalScore()` in `src/lib/odds.ts`) is applied to the live `correct_winner` points using the current (pre-lock) prediction pool from `getLiveMatchOdds()`, so live points match what the final score would be if the match ended now. Each entry includes `isLive: boolean` indicating whether its points reflect this live computation.
 
 ### GET /api/matches/[matchId]/h2h
 Head-to-head record between the two teams from historical match data.
