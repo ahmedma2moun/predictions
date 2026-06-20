@@ -132,8 +132,11 @@ jobs:
             config.build_settings['DEVELOPMENT_TEAM'] = team_id
             config.build_settings.delete('PROVISIONING_PROFILE_SPECIFIER')
             config.build_settings.delete('PROVISIONING_PROFILE')
-            config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
-            config.build_settings['CODE_SIGN_IDENTITY[sdk=iphoneos*]'] = 'Apple Distribution'
+            # Automatic mode signs the archive for development; exportArchive
+            # (method: app-store-connect) re-signs for distribution. Pinning a
+            # distribution identity here conflicts with automatic signing.
+            config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Development'
+            config.build_settings.delete('CODE_SIGN_IDENTITY[sdk=iphoneos*]')
           end
 
           # Mirror automatic style + team in the project attributes block.
