@@ -85,19 +85,17 @@ jobs:
             -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -k "" $KEYCHAIN_PATH
 
-      - name: Install provisioning profile
+      - name: Set up App Store Connect API key
         env:
-          PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
         run: |
-          PP_PATH=$RUNNER_TEMP/profile.mobileprovision
-          echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > $PP_PATH
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          UUID=$(security cms -D -i $PP_PATH | plutil -extract UUID xml1 - -o - | xmllint --xpath '//string/text()' -)
-          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo "ASC_KEY_PATH=$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
 
-      - name: Configure app target signing
+      - name: Configure app target signing (automatic)
         env:
-          PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           gem install xcodeproj --no-document
@@ -106,23 +104,32 @@ jobs:
 
           project_path = 'mobile/ios/FootballPredictions.xcodeproj'
           target_name  = 'FootballPredictions'
-          profile_name = ENV['PROFILE_NAME']
           team_id      = ENV['TEAM_ID']
 
           project = Xcodeproj::Project.open(project_path)
           target  = project.targets.find { |t| t.name == target_name }
           raise "Target #{target_name} not found" unless target
 
+          # Automatic signing: Xcode generates/downloads a matching distribution
+          # profile for the certificate present in the keychain via the ASC API key.
           target.build_configurations.each do |config|
-            config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+            config.build_settings['CODE_SIGN_STYLE'] = 'Automatic'
             config.build_settings['DEVELOPMENT_TEAM'] = team_id
+            config.build_settings.delete('PROVISIONING_PROFILE_SPECIFIER')
+            config.build_settings.delete('PROVISIONING_PROFILE')
             config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
             config.build_settings['CODE_SIGN_IDENTITY[sdk=iphoneos*]'] = 'Apple Distribution'
-            config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = profile_name
           end
 
+          # Mirror automatic style + team in the project attributes block.
+          attrs = project.root_object.attributes
+          attrs['TargetAttributes'] ||= {}
+          attrs['TargetAttributes'][target.uuid] ||= {}
+          attrs['TargetAttributes'][target.uuid]['ProvisioningStyle'] = 'Automatic'
+          attrs['TargetAttributes'][target.uuid]['DevelopmentTeam'] = team_id
+
           project.save
-          puts "Signing configured on target #{target_name}."
+          puts "Automatic signing configured on target #{target_name}."
           EOF
 
       - name: Write ExportOptions.plist
@@ -139,19 +146,15 @@ jobs:
               <key>uploadSymbols</key>
               <true/>
               <key>signingStyle</key>
-              <string>manual</string>
-              <key>signingCertificate</key>
-              <string>Apple Distribution</string>
-              <key>provisioningProfiles</key>
-              <dict>
-                  <key>com.maamoun.footballpredictions</key>
-                  <string>${{ secrets.IOS_PROFILE_NAME }}</string>
-              </dict>
+              <string>automatic</string>
           </dict>
           </plist>
           EOF
 
       - name: Archive
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
         run: |
           set -o pipefail
           xcodebuild archive \
@@ -160,28 +163,33 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             -archivePath $RUNNER_TEMP/FootballPredictions.xcarchive \
-            -destination "generic/platform=iOS"
+            -destination "generic/platform=iOS" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
       - name: Export IPA
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
         run: |
           xcodebuild -exportArchive \
             -archivePath $RUNNER_TEMP/FootballPredictions.xcarchive \
             -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
-            -exportPath $RUNNER_TEMP/export
+            -exportPath $RUNNER_TEMP/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
       - name: Upload to TestFlight
         env:
           ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
-          ASC_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
         run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "$ASC_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-
           xcrun altool --upload-app \
             -f $RUNNER_TEMP/export/FootballPredictions.ipa \
             -t ios \
             --apiKey "$ASC_KEY_ID" \
             --apiIssuer "$ASC_ISSUER_ID"
-
-          rm -f ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
