@@ -95,6 +95,36 @@ jobs:
           UUID=$(security cms -D -i $PP_PATH | plutil -extract UUID xml1 - -o - | xmllint --xpath '//string/text()' -)
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
 
+      - name: Configure app target signing
+        env:
+          PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          gem install xcodeproj --no-document
+          ruby - <<'EOF'
+          require 'xcodeproj'
+
+          project_path = 'mobile/ios/FootballPredictions.xcodeproj'
+          target_name  = 'FootballPredictions'
+          profile_name = ENV['PROFILE_NAME']
+          team_id      = ENV['TEAM_ID']
+
+          project = Xcodeproj::Project.open(project_path)
+          target  = project.targets.find { |t| t.name == target_name }
+          raise "Target #{target_name} not found" unless target
+
+          target.build_configurations.each do |config|
+            config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+            config.build_settings['DEVELOPMENT_TEAM'] = team_id
+            config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
+            config.build_settings['CODE_SIGN_IDENTITY[sdk=iphoneos*]'] = 'Apple Distribution'
+            config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = profile_name
+          end
+
+          project.save
+          puts "Signing configured on target #{target_name}."
+          EOF
+
       - name: Write ExportOptions.plist
         run: |
           cat > $RUNNER_TEMP/ExportOptions.plist << EOF
@@ -127,13 +157,10 @@ jobs:
           xcodebuild archive \
             -workspace mobile/ios/FootballPredictions.xcworkspace \
             -scheme FootballPredictions \
+            -configuration Release \
             -sdk iphoneos \
             -archivePath $RUNNER_TEMP/FootballPredictions.xcarchive \
-            -destination "generic/platform=iOS" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="${{ secrets.IOS_PROFILE_NAME }}" \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
+            -destination "generic/platform=iOS"
 
       - name: Export IPA
         run: |
