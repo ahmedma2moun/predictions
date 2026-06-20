@@ -6,6 +6,7 @@ import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { GroupRepository } from '@/lib/repositories/group-repository';
 import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
 import { getMaxPointsPerMatch, calculateScore } from '@/lib/scoring-engine';
+import { deriveOutcome, calcFinalScore, getLiveMatchOdds, type OddsConfig } from '@/lib/odds';
 
 export type PredictionWithMatch = Prediction & {
   match: Match & { league: { name: string } | null; matchOdds: MatchOdds | null };
@@ -165,7 +166,12 @@ export async function getGroupPredictionsForMatch(
 ): Promise<GroupPredictionResult> {
   const match = await MatchRepository.findUnique({
     where: { id: matchId },
-    select: { id: true, kickoffTime: true, resultHomeScore: true },
+    select: {
+      id: true,
+      kickoffTime: true,
+      resultHomeScore: true,
+      season: { select: { oddsEnabled: true, oddsMin: true, oddsMax: true } },
+    },
   });
   if (!match) return { error: 'Match not found', status: 404 };
   if (!isAdmin && new Date() < match.kickoffTime) {
@@ -200,6 +206,13 @@ export async function getGroupPredictionsForMatch(
     : null;
   const liveWinner = liveResult ? getWinner(liveResult.homeScore, liveResult.awayScore) : null;
 
+  const oddsConfig: OddsConfig = {
+    oddsEnabled: match.season?.oddsEnabled ?? false,
+    oddsMin: match.season ? Number(match.season.oddsMin) : 1.1,
+    oddsMax: match.season ? Number(match.season.oddsMax) : 5.0,
+  };
+  const liveOdds = useLiveScore ? await getLiveMatchOdds(matchId, oddsConfig) : null;
+
   const entries: GroupPredictionEntry[] = nonAdminMembers.map(m => {
     const pred = predMap.get(m.userId);
 
@@ -209,12 +222,22 @@ export async function getGroupPredictionsForMatch(
         { homeScore: liveResult!.homeScore, awayScore: liveResult!.awayScore, winner: liveWinner },
         liveRules,
       );
+
+      let finalScore = totalPoints;
+      if (liveOdds) {
+        const outcome = deriveOutcome(pred.homeScore, pred.awayScore);
+        const odd = liveOdds[outcome];
+        const winnerPoints = breakdown.find(r => r.key === 'correct_winner')?.pointsAwarded ?? 0;
+        const otherPoints = totalPoints - winnerPoints;
+        finalScore = calcFinalScore(winnerPoints, otherPoints, odd);
+      }
+
       return {
         userId: m.userId.toString(),
         userName: m.user.name,
         homeScore: pred.homeScore,
         awayScore: pred.awayScore,
-        pointsAwarded: totalPoints,
+        pointsAwarded: finalScore,
         scoringBreakdown: { rules: breakdown },
         predicted: true,
         isLive: true,
