@@ -166,6 +166,7 @@ export interface GroupPredictionEntry {
   pointsAwarded: number | null;
   scoringBreakdown: ScoringRuleBreakdown[] | null;
   predicted: boolean;
+  isLive: boolean;
 }
 
 export interface AccuracyStats {
