@@ -5,7 +5,7 @@ import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { GroupRepository } from '@/lib/repositories/group-repository';
 import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
-import { getMaxPointsPerMatch } from '@/lib/scoring-engine';
+import { getMaxPointsPerMatch, calculateScore } from '@/lib/scoring-engine';
 
 export type PredictionWithMatch = Prediction & {
   match: Match & { league: { name: string } | null; matchOdds: MatchOdds | null };
@@ -144,6 +144,12 @@ export interface GroupPredictionEntry {
   pointsAwarded: number | null;
   scoringBreakdown: unknown;
   predicted: boolean;
+  isLive: boolean;
+}
+
+export interface LiveResultInput {
+  homeScore: number;
+  awayScore: number;
 }
 
 type GroupPredictionResult =
@@ -155,10 +161,11 @@ export async function getGroupPredictionsForMatch(
   groupId: number,
   requestingUserId: number,
   isAdmin: boolean,
+  liveResult?: LiveResultInput | null,
 ): Promise<GroupPredictionResult> {
   const match = await MatchRepository.findUnique({
     where: { id: matchId },
-    select: { id: true, kickoffTime: true },
+    select: { id: true, kickoffTime: true, resultHomeScore: true },
   });
   if (!match) return { error: 'Match not found', status: 404 };
   if (!isAdmin && new Date() < match.kickoffTime) {
@@ -186,8 +193,34 @@ export async function getGroupPredictionsForMatch(
 
   const predMap = new Map(predictions.map(p => [p.userId, p]));
 
+  // Live points only apply while the official result hasn't been entered yet.
+  const useLiveScore = !!liveResult && match.resultHomeScore === null;
+  const liveRules = useLiveScore
+    ? await ScoringRuleService.getAll({ where: { isActive: true } })
+    : null;
+  const liveWinner = liveResult ? getWinner(liveResult.homeScore, liveResult.awayScore) : null;
+
   const entries: GroupPredictionEntry[] = nonAdminMembers.map(m => {
     const pred = predMap.get(m.userId);
+
+    if (useLiveScore && pred && liveRules && liveWinner) {
+      const { totalPoints, breakdown } = calculateScore(
+        { homeScore: pred.homeScore, awayScore: pred.awayScore },
+        { homeScore: liveResult!.homeScore, awayScore: liveResult!.awayScore, winner: liveWinner },
+        liveRules,
+      );
+      return {
+        userId: m.userId.toString(),
+        userName: m.user.name,
+        homeScore: pred.homeScore,
+        awayScore: pred.awayScore,
+        pointsAwarded: totalPoints,
+        scoringBreakdown: { rules: breakdown },
+        predicted: true,
+        isLive: true,
+      };
+    }
+
     return {
       userId: m.userId.toString(),
       userName: m.user.name,
@@ -196,6 +229,7 @@ export async function getGroupPredictionsForMatch(
       pointsAwarded: pred?.pointsAwarded ?? null,
       scoringBreakdown: pred?.scoringBreakdown ?? null,
       predicted: !!pred,
+      isLive: false,
     };
   });
 

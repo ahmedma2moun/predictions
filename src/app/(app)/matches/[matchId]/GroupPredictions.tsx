@@ -13,6 +13,7 @@ interface GroupPredictionEntry {
   pointsAwarded: number | null;
   scoringBreakdown: RuleBreakdown[] | null;
   predicted: boolean;
+  isLive: boolean;
 }
 
 interface Group {
@@ -25,10 +26,12 @@ export function GroupPredictions({
   matchId,
   hasResult,
   isKnockout,
+  liveScore,
 }: {
   matchId: string;
   hasResult: boolean;
   isKnockout: boolean;
+  liveScore?: { homeScore: number | null; awayScore: number | null } | null;
 }) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -39,8 +42,12 @@ export function GroupPredictions({
     fetch('/api/groups')
       .then(r => r.json())
       .then((data: Group[]) => {
-        setGroups(data);
-        if (data.length > 0) setSelectedGroupId(data[0].id);
+        const sorted = [...data].sort((a, b) => {
+          if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+        setGroups(sorted);
+        if (sorted.length > 0) setSelectedGroupId(sorted[0].id);
       })
       .catch(() => {});
   }, []);
@@ -49,12 +56,17 @@ export function GroupPredictions({
     if (!selectedGroupId) return;
     setLoading(true);
     setPredictions(null);
-    fetch(`/api/matches/${matchId}/group-predictions?groupId=${selectedGroupId}`)
+    const params = new URLSearchParams({ groupId: selectedGroupId });
+    if (!hasResult && liveScore?.homeScore != null && liveScore?.awayScore != null) {
+      params.set('liveHomeScore', String(liveScore.homeScore));
+      params.set('liveAwayScore', String(liveScore.awayScore));
+    }
+    fetch(`/api/matches/${matchId}/group-predictions?${params.toString()}`)
       .then(r => r.json())
       .then(data => setPredictions(Array.isArray(data) ? data : null))
       .catch(() => setPredictions(null))
       .finally(() => setLoading(false));
-  }, [matchId, selectedGroupId]);
+  }, [matchId, selectedGroupId, hasResult, liveScore?.homeScore, liveScore?.awayScore]);
 
   if (groups.length === 0) return null;
 
@@ -97,10 +109,15 @@ export function GroupPredictions({
                   {p.predicted ? (
                     <div className="flex items-center gap-2">
                       <span className="tabular-nums text-sm">{p.homeScore} – {p.awayScore}</span>
-                      {!isKnockout && hasResult && p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
+                      {!isKnockout && (hasResult || p.isLive) && p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
                         <ScoringBreakdown rules={p.scoringBreakdown} />
                       )}
-                      {!isKnockout && hasResult && (
+                      {!isKnockout && p.isLive && (
+                        (p.pointsAwarded ?? 0) > 0
+                          ? <span className="text-live font-bold text-sm">+{p.pointsAwarded} live</span>
+                          : <span className="text-live text-sm">0 live</span>
+                      )}
+                      {!isKnockout && !p.isLive && hasResult && (
                         (p.pointsAwarded ?? 0) > 0
                           ? <span className="text-yellow-500 font-bold text-sm">+{p.pointsAwarded} pts</span>
                           : <span className="text-muted-foreground text-sm">0 pts</span>

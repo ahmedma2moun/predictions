@@ -58,22 +58,12 @@ export default function MatchPredictionScreen() {
         setAway(data.prediction.awayScore);
       }
       setH2h(h2hData);
-      setGroups(groupsData ?? []);
-      if (groupsData && groupsData.length > 0) setSelectedGroupId(groupsData[0].id);
-
-      if (data.externalId && isMatchLocked(data.kickoffTime)) {
-        apiRequest<{ homeScore: number | null; awayScore: number | null }>(
-          `/api/mobile/matches/${matchId}/live`,
-          { token },
-        )
-          .then(live => {
-            if (live.homeScore !== null && live.awayScore !== null) {
-              setLiveScore({ homeScore: live.homeScore, awayScore: live.awayScore });
-            }
-          })
-          .catch(() => null);
-      }
-
+      const sortedGroups = [...(groupsData ?? [])].sort((a, b) => {
+        if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+      setGroups(sortedGroups);
+      if (sortedGroups.length > 0) setSelectedGroupId(sortedGroups[0].id);
     } catch (e: any) {
       Alert.alert('Failed to load match', e?.message ?? 'Unknown error');
     } finally {
@@ -84,6 +74,32 @@ export default function MatchPredictionScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!token || !matchId || !match?.externalId || !isMatchLocked(match.kickoffTime)) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function fetchLive() {
+      try {
+        const live = await apiRequest<{ status: string; homeScore: number | null; awayScore: number | null }>(
+          `/api/mobile/matches/${matchId}/live`,
+          { token: token! },
+        );
+        if (cancelled) return;
+        if (live.homeScore !== null && live.awayScore !== null) {
+          setLiveScore({ homeScore: live.homeScore, awayScore: live.awayScore });
+        }
+        if (live.status === 'IN_PLAY' || live.status === 'PAUSED') {
+          timer = setTimeout(fetchLive, 60_000);
+        }
+      } catch {
+        // ignore — live score is best-effort
+      }
+    }
+
+    fetchLive();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [token, matchId, match?.externalId, match?.kickoffTime]);
 
   useEffect(() => {
     if (!token || !matchId || !selectedGroupId || !match) return;
@@ -91,14 +107,19 @@ export default function MatchPredictionScreen() {
     if (!locked && !match.isAdmin) return;
     setGroupPredictionsLoading(true);
     setGroupPredictions(null);
+    const params = new URLSearchParams({ groupId: selectedGroupId });
+    if (!match.result && liveScore) {
+      params.set('liveHomeScore', String(liveScore.homeScore));
+      params.set('liveAwayScore', String(liveScore.awayScore));
+    }
     apiRequest<GroupPredictionEntry[]>(
-      `/api/mobile/matches/${matchId}/group-predictions?groupId=${selectedGroupId}`,
+      `/api/mobile/matches/${matchId}/group-predictions?${params.toString()}`,
       { token },
     )
       .then(data => setGroupPredictions(data))
       .catch(() => setGroupPredictions(null))
       .finally(() => setGroupPredictionsLoading(false));
-  }, [token, matchId, selectedGroupId, match]);
+  }, [token, matchId, selectedGroupId, match, liveScore]);
 
   if (loading) {
     return (
@@ -458,7 +479,12 @@ export default function MatchPredictionScreen() {
                       <Text style={[styles.predScore, { color: colors.foreground, fontFamily: 'JetBrainsMono' }]}>
                         {p.homeScore} – {p.awayScore}
                       </Text>
-                      {!knockout && match.result && (
+                      {!knockout && p.isLive && (
+                        <Text style={{ color: colors.live, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
+                          {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded} live` : '0 live'}
+                        </Text>
+                      )}
+                      {!knockout && !p.isLive && match.result && (
                         <Text style={{ color: (p.pointsAwarded ?? 0) > 0 ? colors.warning : colors.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
                           {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded}` : '0'}
                         </Text>

@@ -87,17 +87,24 @@ export default function MatchPredictionPage() {
 
   useEffect(() => {
     if (!match || !locked || !match.externalId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     async function fetchLive() {
       const res = await fetch(`/api/matches/${matchId}/live`).catch(() => null);
-      if (!res?.ok) return;
+      if (!res?.ok || cancelled) return;
       const data = await res.json();
       if (data.homeScore !== null && data.awayScore !== null) {
         setLiveScore({ homeScore: data.homeScore, awayScore: data.awayScore });
       }
+      // Keep polling while the match is actually in progress.
+      if (data.status === 'IN_PLAY' || data.status === 'PAUSED') {
+        timer = setTimeout(fetchLive, 60_000);
+      }
     }
 
     fetchLive();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [match, matchId, locked]);
 
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin text-4xl">⚽</div></div>;
@@ -432,6 +439,7 @@ export default function MatchPredictionPage() {
           matchId={String(matchId)}
           hasResult={!!match.result}
           isKnockout={isKnockout}
+          liveScore={liveScore}
         />
       )}
 

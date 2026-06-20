@@ -21,7 +21,14 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid groupId' }, { status: 400 });
   }
 
-  const result = await getGroupPredictionsForMatch(Number(matchId), groupId, userId, isAdmin);
+  const liveHome = req.nextUrl.searchParams.get('liveHomeScore');
+  const liveAway = req.nextUrl.searchParams.get('liveAwayScore');
+  const liveResult =
+    liveHome !== null && liveAway !== null && Number.isInteger(Number(liveHome)) && Number.isInteger(Number(liveAway))
+      ? { homeScore: Number(liveHome), awayScore: Number(liveAway) }
+      : null;
+
+  const result = await getGroupPredictionsForMatch(Number(matchId), groupId, userId, isAdmin, liveResult);
   if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
 
   return NextResponse.json(

@@ -40,6 +40,8 @@ Single match with the user's prediction and all group members' predictions (when
 ### GET /api/matches/[matchId]/group-predictions
 Other users' predictions for a specific match (used to show group picks before and after kickoff).
 
+**Query params**: `groupId` (number, required), `liveHomeScore` / `liveAwayScore` (number, optional) — when the match has no official result yet, passing the current live score computes each entry's `pointsAwarded`/`scoringBreakdown` on the fly (via `calculateScore()`) against that live score instead of the stored (post-match) result. Each entry includes `isLive: boolean` indicating whether its points reflect this live computation.
+
 ### GET /api/matches/[matchId]/h2h
 Head-to-head record between the two teams from historical match data.
 
@@ -234,6 +236,8 @@ Single match with prediction. Includes `odds` once the match is locked (always f
 
 ### GET /api/mobile/matches/[matchId]/group-predictions
 Other users' predictions for a match.
+
+**Query params**: `groupId` (number, required), `liveHomeScore` / `liveAwayScore` (number, optional) — same live-points behavior as the web endpoint above.
 
 ### GET /api/mobile/matches/[matchId]/h2h
 Head-to-head record between the two teams.
