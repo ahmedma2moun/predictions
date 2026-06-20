@@ -91,8 +91,23 @@ jobs:
           ASC_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
-          echo "$ASC_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          echo "ASC_KEY_PATH=$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+          KEY_FILE="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+
+          if printf '%s' "$ASC_KEY_CONTENT" | grep -q "BEGIN PRIVATE KEY"; then
+            # Raw PEM — convert any literal "\n" escape sequences to real newlines.
+            printf '%b' "$ASC_KEY_CONTENT" > "$KEY_FILE"
+          else
+            # No PEM header — assume the secret is a base64-encoded .p8 file.
+            printf '%s' "$ASC_KEY_CONTENT" | base64 --decode > "$KEY_FILE"
+          fi
+
+          # Fail early (without printing the key) if it is not a parseable PKCS#8 key.
+          if ! openssl pkey -in "$KEY_FILE" -noout 2>/dev/null; then
+            echo "::error::ASC_API_KEY_CONTENT is not a valid .p8 private key after decoding."
+            exit 1
+          fi
+
+          echo "ASC_KEY_PATH=$KEY_FILE" >> "$GITHUB_ENV"
 
       - name: Configure app target signing (automatic)
         env:
