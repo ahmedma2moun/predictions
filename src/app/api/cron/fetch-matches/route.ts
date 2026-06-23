@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const weekStart = new Date();
   weekStart.setUTCHours(0, 0, 0, 0);
   const from = format(weekStart, 'yyyy-MM-dd');
-  const to   = format(addDays(weekStart, 7), 'yyyy-MM-dd');
+  const to   = format(addDays(weekStart, 6), 'yyyy-MM-dd');
 
   const { inserted, skipped, errors, insertedMatches, skippedMatches } = await fetchAndInsertMatches({
     from,
