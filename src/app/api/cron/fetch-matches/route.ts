@@ -10,15 +10,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const weekStart = new Date();
-  weekStart.setUTCHours(0, 0, 0, 0);
-  const from = format(weekStart, 'yyyy-MM-dd');
-  const to   = format(addDays(weekStart, 7), 'yyyy-MM-dd');
+  const fromDate = new Date();
+  fromDate.setUTCHours(0, 0, 0, 0);
+  const from = format(fromDate, 'yyyy-MM-dd');
+  const to   = format(addDays(fromDate, 6), 'yyyy-MM-dd');
 
   const { inserted, skipped, errors, insertedMatches, skippedMatches } = await fetchAndInsertMatches({
     from,
     to,
-    weekStart,
+    fromDate,
     filterByTeams: true,
     logPrefix: 'cron/fetch-matches',
   });
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   logger.info('[cron/fetch-matches] Done —', JSON.parse(JSON.stringify(summary)));
 
   try {
-    await sendFetchMatchesCronEmail({ inserted, skipped, errors, insertedMatches, skippedMatches });
+    await sendFetchMatchesCronEmail({ inserted, skipped, errors, insertedMatches, skippedMatches, from, to });
   } catch (e) {
     logger.error('[cron/fetch-matches] Failed to send cron notification email:', { error: e instanceof Error ? e.message : String(e) });
   }
