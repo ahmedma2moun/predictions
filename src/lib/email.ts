@@ -478,9 +478,11 @@ export async function sendFetchMatchesCronEmail(params: {
   errors: number;
   insertedMatches: CronMatchItem[];
   skippedMatches: CronMatchItem[];
+  from: string;
+  to: string;
 }): Promise<void> {
   const to = 'ahmed.m.maamoun94@gmail.com';
-  const { inserted, skipped, errors, insertedMatches, skippedMatches } = params;
+  const { inserted, skipped, errors, insertedMatches, skippedMatches, from, to: windowTo } = params;
   const timestamp = new Date().toUTCString();
 
   function matchRows(matches: CronMatchItem[]): string {
@@ -521,6 +523,7 @@ export async function sendFetchMatchesCronEmail(params: {
       <div style="background:#6366f1;padding:16px 24px;border-radius:8px 8px 0 0;">
         <h2 style="margin:0;color:#fff;font-size:18px;">Cron: fetch-matches</h2>
         <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:12px;">${timestamp}</p>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:12px;">Window: ${from} → ${windowTo}</p>
       </div>
       <div style="padding:20px 24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
         <table style="width:100%;border-collapse:collapse;">

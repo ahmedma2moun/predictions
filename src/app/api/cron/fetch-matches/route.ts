@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   logger.info('[cron/fetch-matches] Done —', JSON.parse(JSON.stringify(summary)));
 
   try {
-    await sendFetchMatchesCronEmail({ inserted, skipped, errors, insertedMatches, skippedMatches });
+    await sendFetchMatchesCronEmail({ inserted, skipped, errors, insertedMatches, skippedMatches, from, to });
   } catch (e) {
     logger.error('[cron/fetch-matches] Failed to send cron notification email:', { error: e instanceof Error ? e.message : String(e) });
   }
