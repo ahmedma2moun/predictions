@@ -61,7 +61,7 @@ export interface FetchMatchesSummary {
  *
  * @param from        - Start date string (yyyy-MM-dd)
  * @param to          - End date string (yyyy-MM-dd)
- * @param weekStart   - The weekStart value written onto inserted matches
+ * @param fromDate    - The Date written onto inserted matches' `weekStart` column (fetch-batch marker, not a calendar week)
  * @param leagueId    - Optional DB league id to restrict to a single league
  * @param filterByTeams - When true, only keep fixtures involving active teams
  * @param logPrefix   - Prefix for console log lines
@@ -69,12 +69,12 @@ export interface FetchMatchesSummary {
 export async function fetchAndInsertMatches(params: {
   from: string;
   to: string;
-  weekStart: Date;
+  fromDate: Date;
   leagueId?: number;
   filterByTeams?: boolean;
   logPrefix: string;
 }): Promise<FetchMatchesSummary> {
-  const { from, to, weekStart, leagueId, filterByTeams = false, logPrefix } = params;
+  const { from, to, fromDate, leagueId, filterByTeams = false, logPrefix } = params;
 
   const [leagues, activeTeamsByLeague, activeSeason] = await Promise.all([
     leagueId
@@ -147,7 +147,7 @@ export async function fetchAndInsertMatches(params: {
             matchday: f.fixture.matchday ?? null,
             venue: f.fixture.venue ?? null,
             scoresProcessed: false,
-            weekStart,
+            weekStart: fromDate,
             seasonId: activeSeasonId,
           })),
         });
@@ -171,16 +171,16 @@ export async function fetchAndInsertMatches(params: {
     }
   }
 
-  await sendNewMatchNotifications(weekStart, inserted, logPrefix);
+  await sendNewMatchNotifications(fromDate, inserted, logPrefix);
 
   return { inserted, skipped, errors, debug, insertedMatches, skippedMatches };
 }
 
-export async function sendNewMatchNotifications(weekStart: Date, insertedCount: number, logPrefix: string) {
+export async function sendNewMatchNotifications(fromDate: Date, insertedCount: number, logPrefix: string) {
   if (insertedCount === 0) return;
   try {
     const newMatches = await MatchRepository.findMany({
-      where: { weekStart, status: 'scheduled' },
+      where: { weekStart: fromDate, status: 'scheduled' },
       include: { league: { select: { name: true } } },
       orderBy: { kickoffTime: 'asc' },
     });

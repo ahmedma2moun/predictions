@@ -157,15 +157,15 @@ export async function POST(req: NextRequest) {
   // ── Fetch upcoming fixtures (this week) ─────────────────────────────────────
   if (action !== 'fetch') return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 
-  const weekStart = new Date();
-  weekStart.setUTCHours(0, 0, 0, 0);
-  const from = format(weekStart, 'yyyy-MM-dd');
-  const to   = format(addDays(weekStart, 6), 'yyyy-MM-dd');
+  const fromDate = new Date();
+  fromDate.setUTCHours(0, 0, 0, 0);
+  const from = format(fromDate, 'yyyy-MM-dd');
+  const to   = format(addDays(fromDate, 6), 'yyyy-MM-dd');
 
   const { inserted, skipped, debug } = await fetchAndInsertMatches({
     from,
     to,
-    weekStart,
+    fromDate,
     leagueId: leagueId ? Number(leagueId) : undefined,
     filterByTeams: true,
     logPrefix: 'admin/matches fetch',
