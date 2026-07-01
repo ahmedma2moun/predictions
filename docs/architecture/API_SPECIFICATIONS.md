@@ -45,6 +45,9 @@ Other users' predictions for a specific match (used to show group picks before a
 ### GET /api/matches/[matchId]/h2h
 Head-to-head record between the two teams from historical match data.
 
+### GET /api/matches/[matchId]/live
+Live status/score for a locked match, polled client-side (every 60s while the match is in progress). Calls `fetchFixtureById()` from the football service layer (never the provider's raw API directly) and returns `{ status: 'scheduled'|'live'|'finished'|'postponed'|'cancelled', homeScore, awayScore }`, normalized via `mapFixtureStatus()`. `fetchFixtureById()` caches each fixture lookup for 30s (`src/lib/football/service.ts`) so concurrent viewers of the same live match collapse into one upstream request — free-tier providers cap requests at ~10/min, shared across the whole app. Returns 400 if the match has no `externalId` (custom match), 502 if the upstream fetch fails.
+
 ### GET /api/predictions
 User's prediction history (populated with match data), limit 100, sorted newest first.
 
@@ -241,6 +244,9 @@ Other users' predictions for a match.
 
 ### GET /api/mobile/matches/[matchId]/h2h
 Head-to-head record between the two teams.
+
+### GET /api/mobile/matches/[matchId]/live
+Same behavior as the web `/api/matches/[matchId]/live` endpoint above.
 
 ### GET /api/mobile/matches/[matchId]/predictions
 All predictions for a match (admin-level view or post-kickoff).

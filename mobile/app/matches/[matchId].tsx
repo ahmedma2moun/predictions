@@ -89,7 +89,7 @@ export default function MatchPredictionScreen() {
         if (live.homeScore !== null && live.awayScore !== null) {
           setLiveScore({ homeScore: live.homeScore, awayScore: live.awayScore });
         }
-        if (live.status === 'IN_PLAY' || live.status === 'PAUSED') {
+        if (live.status === 'live') {
           timer = setTimeout(fetchLive, 60_000);
         }
       } catch {

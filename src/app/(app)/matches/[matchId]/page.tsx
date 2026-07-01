@@ -98,7 +98,7 @@ export default function MatchPredictionPage() {
         setLiveScore({ homeScore: data.homeScore, awayScore: data.awayScore });
       }
       // Keep polling while the match is actually in progress.
-      if (data.status === 'IN_PLAY' || data.status === 'PAUSED') {
+      if (data.status === 'live') {
         timer = setTimeout(fetchLive, 60_000);
       }
     }

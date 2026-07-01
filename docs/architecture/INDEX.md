@@ -63,6 +63,7 @@ Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → Postgr
 | API architecture | Service layer (`lib/services/`) → repository layer (`lib/repositories/`) | Web and mobile routes share one query implementation; only auth and serialization differ |
 | Mobile auth | JWT Bearer (separate from NextAuth) | Mobile can't use httpOnly cookies; `getMobileSession()` verifies a signed JWT from `SecureStore` |
 | Gamification | Streaks + badges (`streak-badge-service.ts`) | Scoring predictions builds current/longest streak; badges (first_exact_score, on_a_roll, group_champion) awarded automatically |
+| Live score fetch caching | 30s shared cache in `fetchFixtureById()` (`service.ts`) | Client-side polling from every open match page would otherwise exceed the 10 req/min free-tier budget; collapses concurrent viewers into one upstream call per cache window |
 
 ## Reading Order by Role
 
