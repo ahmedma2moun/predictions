@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, getSessionUser } from '@/lib/auth';
 import { getMatchById } from '@/lib/services/match-service';
+import { fetchFixtureById, mapFixtureStatus } from '@/lib/football/service';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
   const session = await auth();
@@ -18,21 +19,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     return NextResponse.json({ error: 'No external match' }, { status: 400 });
   }
 
-  const apiKey = process.env.FOOTBALL_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+  const fixture = await fetchFixtureById(match.externalId).catch(() => null);
+  if (!fixture) return NextResponse.json({ error: 'Failed to fetch live data' }, { status: 502 });
 
-  const res = await fetch(`https://api.football-data.org/v4/matches/${match.externalId}`, {
-    headers: { 'X-Auth-Token': apiKey },
-    next: { revalidate: 0 },
-    signal: AbortSignal.timeout(10_000),
-  });
-
-  if (!res.ok) return NextResponse.json({ error: 'Failed to fetch live data' }, { status: 502 });
-
-  const fd = await res.json();
   return NextResponse.json({
-    status: fd.status as string,
-    homeScore: (fd.score?.fullTime?.home ?? null) as number | null,
-    awayScore: (fd.score?.fullTime?.away ?? null) as number | null,
+    status: mapFixtureStatus(fixture.fixture.status.short),
+    homeScore: fixture.score.fulltime.home ?? fixture.goals.home,
+    awayScore: fixture.score.fulltime.away ?? fixture.goals.away,
   });
 }

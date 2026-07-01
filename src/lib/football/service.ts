@@ -11,6 +11,12 @@ export { mapFixtureStatus } from './types';
 import { getFootballProvider } from './factory';
 import type { APILeague, APIFixture, APITeam, APIStandingEntry } from './types';
 
+// Short-lived shared cache for single-fixture lookups (used for live-score polling).
+// Collapses many concurrent viewers of the same live match into one upstream call —
+// the free-tier providers cap requests at ~10/min, shared across the whole app.
+const FIXTURE_CACHE_TTL_MS = 30_000;
+const fixtureCache = new Map<number, { promise: Promise<APIFixture | null>; expiresAt: number }>();
+
 export function fetchLeagues(): Promise<APILeague[]> {
   return getFootballProvider().fetchLeagues();
 }
@@ -30,7 +36,15 @@ export function fetchFixtures(params: {
 }
 
 export function fetchFixtureById(fixtureId: number): Promise<APIFixture | null> {
-  return getFootballProvider().fetchFixtureById(fixtureId);
+  const now = Date.now();
+  const cached = fixtureCache.get(fixtureId);
+  if (cached && cached.expiresAt > now) return cached.promise;
+
+  const promise = getFootballProvider().fetchFixtureById(fixtureId);
+  fixtureCache.set(fixtureId, { promise, expiresAt: now + FIXTURE_CACHE_TTL_MS });
+  // Don't cache failures — let the next call retry immediately.
+  promise.catch(() => fixtureCache.delete(fixtureId));
+  return promise;
 }
 
 export function fetchStandings(leagueId: number): Promise<{ season: number; standings: APIStandingEntry[] }> {
