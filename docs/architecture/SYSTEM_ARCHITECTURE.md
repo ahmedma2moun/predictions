@@ -14,6 +14,7 @@ src/
 │   │   ├── matches/        # Match list + [matchId] prediction form
 │   │   ├── predictions/    # User prediction history (tabbed by group)
 │   │   ├── leaderboard/    # Ranked table with period + group filters
+│   │   ├── champion/       # Champion Bonus tab — pick view (OPEN) / reveal view (LOCKED)
 │   │   └── admin/          # Admin panel
 │   │       ├── groups/     # Group management + membership
 │   │       ├── leagues/    # League fetch + activation
@@ -21,6 +22,7 @@ src/
 │   │       ├── results/    # Manual result entry
 │   │       ├── scoring/    # Scoring rule editor
 │   │       ├── teams/      # Team sync + activation
+│   │       ├── seasons/    # Season lifecycle + ChampionBonusAdminPanel (per season card)
 │   │       └── users/      # User create + edit
 │   ├── api/
 │   │   ├── auth/           # NextAuth catch-all handler
@@ -30,18 +32,20 @@ src/
 │   │   ├── predictions/    # GET history, POST submit
 │   │   ├── leaderboard/    # GET ranked aggregation
 │   │   │   └── user-predictions/ # GET a user's scored history (active season only, with odds)
+│   │   ├── champion-bonus/   # GET user state; pick/ POST set pick
 │   │   ├── admin/
 │   │   │   ├── groups/     # CRUD groups + membership
 │   │   │   ├── leagues/    # Fetch + activate leagues
 │   │   │   ├── matches/    # Fetch + paginate fixtures
 │   │   │   ├── results/    # POST manual results
 │   │   │   ├── scoring-rules/  # GET + PATCH rules
-│   │   │   ├── recalculate/    # POST recalculate all scores
+│   │   │   ├── recalculate/    # POST recalculate all scores (+ Champion Bonus safety-net recompute)
 │   │   │   ├── teams/      # Sync + activate teams
 │   │   │   ├── test-email/     # POST send test email to self
 │   │   │   ├── test-notification/ # POST send push notification to users/all
 │   │   │   ├── notifications/devices/ # GET list FCM tokens for a user
 │   │   │   ├── calculate-champions/   # POST award group_champion badges
+│   │   │   ├── seasons/[id]/champion-bonus/  # GET/POST/PATCH/DELETE config; lock/ POST lock picks
 │   │   │   └── users/          # CRUD users
 │   │   ├── cron/
 │   │   │   ├── fetch-matches     # Thu 18:00 UTC — fetch upcoming fixtures
@@ -54,6 +58,7 @@ src/
 │   │   │   ├── matches/      # GET list; [matchId]/ GET detail, group-predictions, h2h, predictions
 │   │   │   ├── predictions/  # GET history, POST submit; stats/ GET stats
 │   │   │   ├── leaderboard/  # GET ranked; user-predictions/ GET a user's scored history (active season only)
+│   │   │   ├── champion-bonus/  # GET user state; pick/ POST set pick
 │   │   │   ├── groups/       # GET user's groups
 │   │   │   ├── leagues/      # GET active leagues
 │   │   │   ├── devices/      # POST/DELETE FCM token registration
@@ -71,7 +76,8 @@ src/
 │   │   ├── types.ts        # Normalized types + IFootballProvider interface + mapFixtureStatus
 │   │   └── providers/
 │   │       ├── football-data.ts  # football-data.org v4 implementation (default)
-│   │       └── api-football.ts   # API-Football (RapidAPI) alternative — activate via FOOTBALL_PROVIDER=api-football
+│   │       ├── api-football.ts   # API-Football (RapidAPI) alternative — activate via FOOTBALL_PROVIDER=api-football
+│   │       └── mock.ts           # In-memory provider for tests/local dev — FOOTBALL_PROVIDER=mock, setMockFixtures()/clearMock()
 │   ├── scoring-engine.ts   # calculateScore() — only place scoring logic lives
 │   ├── odds.ts             # calcMatchOdds(), calcFinalScore(), lockMatchOdds(), getLiveMatchOdds()
 │   ├── utils.ts            # formatKickoff(), isMatchLocked(), getWinner()
@@ -91,12 +97,14 @@ src/
 │   │   ├── team-service.ts         # getByLeagueId(), syncTeamWithLeague(), deleteOrphansForLeague()
 │   │   ├── scoring-rule-service.ts # getAll(), update() — scoring rule CRUD
 │   │   ├── device-service.ts       # FCM token CRUD (getAll, create, upsert, remove, removeMany)
-│   │   └── streak-badge-service.ts # updateStreaksAndBadges(), awardAllTimeGroupChampions()
+│   │   ├── streak-badge-service.ts # updateStreaksAndBadges(), awardAllTimeGroupChampions()
+│   │   └── champion-bonus-service.ts # enable/updateTeams/lock/cancel, getAdminState/getUserState, setPick, processFinishedMatch, recomputeSeason
 │   ├── repositories/       # Thin Prisma wrappers — called by services, not route handlers
 │   │   ├── match-repository.ts, prediction-repository.ts, league-repository.ts
 │   │   ├── team-repository.ts, team-league-repository.ts, group-repository.ts
 │   │   ├── group-member-repository.ts, user-repository.ts, device-repository.ts
 │   │   ├── scoring-rule-repository.ts, team-standing-repository.ts
+│   │   ├── champion-bonus-repository.ts  # config/teams/picks/awards CRUD + getBonusStats() raw SQL
 │   │   └── system-repository.ts   # Cross-model raw SQL helpers
 │   └── export/
 │       ├── config.ts       # Export output dir + Gmail recipients
@@ -332,3 +340,9 @@ fetch-matches cron runs
 ### ADR-11: 30s shared cache on `fetchFixtureById` for live-score polling
 **Decision**: `service.ts#fetchFixtureById()` caches the in-flight/resolved promise per `fixtureId` for 30 seconds (module-level `Map`, evicted on failure) before delegating to the provider.
 **Rationale**: The live-score feature (`/api/matches/[matchId]/live`, `/api/mobile/matches/[matchId]/live`) originally called `https://api.football-data.org` directly from the route handler, bypassing the provider abstraction and polling once per open match page every 60s with zero rate-limit protection. Free-tier providers cap requests at ~10/min shared across the whole app (cron jobs included), so a live match with just a few concurrent viewers could exhaust the budget and start failing with 429s. Routing through `fetchFixtureById()` with a shared 30s cache means N viewers of the same live match cost one upstream call per cache window, not N calls — consistent with how `getStandingsMap()` already caches standings.
+
+### ADR-12: Champion Bonus as a separate aggregate, never touching `Prediction.pointsAwarded`
+**Decision**: Champion Bonus lives in 4 new tables (`ChampionBonus`, `ChampionBonusTeam`, `ChampionBonusPick`, `ChampionBonusAward`) rather than as fields on `Season` or `Prediction`. Bonus points are computed on read (leaderboard, standings) as a separate additive term, never written into `Prediction.pointsAwarded`.
+**Rationale**: `recalculateAllScores()` (`prediction-service.ts`) overwrites `pointsAwarded` for every prediction, and leaderboard accuracy assumes points come only from match scoring — mixing bonus points into that field would make both wrong. `seasonId @unique` on `ChampionBonus` enforces one league per season at the schema level. There is no `CANCELLED` status: cancel is a cascading delete of the whole aggregate (dead configs simply don't exist, so no query path ever needs to filter them out); re-enabling after cancel is a fresh insert.
+**Awards are per (team, match), not per (user, match)**: `ChampionBonusAward` has one row per counted game of an allowed team, keyed by `@@unique([championBonusId, teamId, matchId])`. Users' bonus totals join `pick.teamId = award.teamId`, so N users who picked the same team share the same award rows instead of an N×games explosion — the expandable reveal UI reads the breakdown straight from this table, and a correction is a per-team delete+insert, not a per-user rewrite.
+**Recompute-from-scratch idempotency**: on every relevant finished/corrected match, the whole ledger for the affected team(s) is rebuilt ordered by `(kickoffTime asc, id asc)`, giving a deterministic `gameNumber` regardless of result arrival order. Double-processing and result corrections are both harmless — the unique constraint plus full rebuild make every mutation idempotent.

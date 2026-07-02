@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import type {
+  ChampionBonusState,
   LeaderboardEntry,
   LeaderboardGroup,
   LeaderboardLeague,
@@ -36,6 +37,21 @@ export function useLeaderboard() {
   const [expandedLoading, setExpandedLoading] = useState(false);
   const expandedCache = useRef<Record<string, LeaderboardUserPrediction[]>>({});
   const [expandedData, setExpandedData] = useState<LeaderboardUserPrediction[] | null>(null);
+
+  // Champion Bonus team names, for the "👑 Champion Bonus (TeamName)" line in expanded rows.
+  const [championTeamByUser, setChampionTeamByUser] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!token) return;
+    const controller = new AbortController();
+    apiRequest<ChampionBonusState>('/api/mobile/champion-bonus', { token, signal: controller.signal })
+      .then(data => {
+        if (data.enabled && data.status === 'LOCKED') {
+          setChampionTeamByUser(Object.fromEntries(data.picks.map(p => [p.userId, p.teamName])));
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [token]);
 
   // Fire-once groups fetch with AbortController cleanup
   useEffect(() => {
@@ -163,5 +179,6 @@ export function useLeaderboard() {
     toggleExpand,
     weekLabel,
     monthLabel,
+    championTeamByUser,
   };
 }

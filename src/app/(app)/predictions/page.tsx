@@ -3,6 +3,8 @@ import { PredictionTabs, type SerializedPrediction } from "./PredictionTabs";
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { getAccuracyStats } from '@/lib/services/prediction-service';
 import { AccuracyStatsCard } from './AccuracyStatsCard';
+import { ChampionBonusService } from '@/lib/services/champion-bonus-service';
+import { ChampionBonusMyScoreCard } from './ChampionBonusMyScoreCard';
 
 function getWeekStart(): Date {
   const d = new Date();
@@ -17,7 +19,7 @@ export default async function PredictionsPage() {
   const session = await auth();
   const userId = Number((session!.user as { id: string }).id);
 
-  const [predictions, accuracyStats] = await Promise.all([
+  const [predictions, accuracyStats, championBonusState] = await Promise.all([
     PredictionRepository.findMany({
       where: { userId },
       include: {
@@ -50,6 +52,7 @@ export default async function PredictionsPage() {
       take: 200,
     }),
     getAccuracyStats(userId),
+    ChampionBonusService.getUserState(userId),
   ]);
 
   const allPreds: SerializedPrediction[] = predictions.map((p) => ({
@@ -121,6 +124,8 @@ export default async function PredictionsPage() {
           recentPoints={recentPoints}
         />
       )}
+
+      <ChampionBonusMyScoreCard state={championBonusState} />
 
       {allPreds.length === 0 ? (
         <p className="text-muted-foreground">No predictions yet. Go predict some matches!</p>

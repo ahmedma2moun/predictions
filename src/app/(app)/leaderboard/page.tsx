@@ -137,12 +137,27 @@ function PodiumTower({
   );
 }
 
-function UserPredictionList({ predictions }: { predictions: UserPrediction[] }) {
-  if (predictions.length === 0) {
+function UserPredictionList({
+  predictions,
+  championBonusPoints,
+  championTeamName,
+}: {
+  predictions: UserPrediction[];
+  championBonusPoints: number;
+  championTeamName?: string;
+}) {
+  if (predictions.length === 0 && championBonusPoints === 0) {
     return <p className="text-xs text-muted-foreground text-center py-2">No scored predictions in this period.</p>;
   }
   return (
     <div className="mt-2 space-y-2 border-t border-border pt-2">
+      {championBonusPoints > 0 && (
+        <div className="rounded-md bg-amber-500/10 border border-amber-500/25 px-3 py-2 text-xs flex items-center gap-1.5">
+          <span>👑</span>
+          <span className="font-medium">Champion Bonus{championTeamName ? ` (${championTeamName})` : ""}</span>
+          <span className="ml-auto font-semibold">+{championBonusPoints} pts</span>
+        </div>
+      )}
       {predictions.map((p) => (
         <div key={p.matchId} className="rounded-md bg-card-elevated px-3 py-2 text-xs space-y-1">
           <div className="flex items-center justify-between gap-2">
@@ -195,6 +210,7 @@ export default function LeaderboardPage() {
     isCurrentPeriod,
     offSeason,
     lastSeasonId,
+    championTeamByUser,
   } = useLeaderboard();
 
   const showPodium = isCurrentPeriod && !isLoading && leaderboard.length >= 3;
@@ -320,7 +336,17 @@ export default function LeaderboardPage() {
                       />
                     )}
                   </div>
-                  <span className="text-[14px] font-bold font-mono-nums shrink-0">{entry.totalPoints}</span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    <span className="text-[14px] font-bold font-mono-nums">{entry.totalPoints}</span>
+                    {entry.championBonusPoints > 0 && (
+                      <span
+                        title={`Champion Bonus: +${entry.championBonusPoints} pts`}
+                        className="text-[10px] font-bold font-mono-nums text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-full px-1.5 py-0.5"
+                      >
+                        👑+{entry.championBonusPoints}
+                      </span>
+                    )}
+                  </span>
                   <button
                     onClick={() => toggleUser(entry.userId)}
                     className="ml-1 p-1 rounded hover:bg-card-elevated transition-colors text-muted-foreground hover:text-foreground shrink-0"
@@ -337,7 +363,11 @@ export default function LeaderboardPage() {
                         {[1, 2].map(i => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
                       </div>
                     ) : (
-                      <UserPredictionList predictions={preds} />
+                      <UserPredictionList
+                        predictions={preds}
+                        championBonusPoints={entry.championBonusPoints}
+                        championTeamName={championTeamByUser[entry.userId]}
+                      />
                     )}
                   </div>
                 )}

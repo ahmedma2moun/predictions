@@ -15,6 +15,7 @@ import { type ScoringRule, type Prediction } from '@prisma/client';
 import { NotFoundError } from '@/lib/errors';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { ChampionBonusService } from '@/lib/services/champion-bonus-service';
 import { prisma } from '@/lib/prisma';
 
 type CorrectedPrediction = {
@@ -144,6 +145,17 @@ export async function correctMatchResult(
   }
 
   await MatchRepository.update({ where: { id: matchId }, data: { scoresProcessed: true } });
+
+  // A correction can flip resultWinner — rebuild both teams' Champion Bonus ledgers.
+  await ChampionBonusService.processFinishedMatch({
+    seasonId: match.seasonId,
+    externalLeagueId: match.externalLeagueId,
+    homeTeamExtId: match.homeTeamExtId,
+    awayTeamExtId: match.awayTeamExtId,
+    kickoffTime: match.kickoffTime,
+  }).catch(e =>
+    logger.error(`[result-correction] Champion Bonus recompute failed for match ${matchId}:`, { error: e instanceof Error ? e.message : String(e) }),
+  );
 
   const affectedUserIds = [...new Set(updated.map(p => p.userId))];
   await updateUserStreaks(affectedUserIds);
@@ -332,6 +344,12 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
         });
         updated++;
         logger.info(`[${logPrefix}] Result saved: ${match.homeTeamName} ${homeScore}–${awayScore} ${match.awayTeamName}`);
+
+        // Accrue Champion Bonus before the scoring-processed short-circuit: the bonus
+        // must count for matches with zero predictions and already-scored matches too.
+        await ChampionBonusService.processFinishedMatch(updatedMatch).catch(e =>
+          logger.error(`[${logPrefix}] Champion Bonus accrual failed for match ${match.id}:`, { error: e instanceof Error ? e.message : String(e) }),
+        );
 
         if (updatedMatch.scoresProcessed) {
           logger.info(`[${logPrefix}] Match ${match.id} already scored — skipping`);

@@ -40,6 +40,7 @@ export default function LeaderboardScreen() {
     toggleExpand,
     weekLabel,
     monthLabel,
+    championTeamByUser,
   } = useLeaderboard();
 
   const showPodium = entries.length >= 3 && isCurrentPeriod;
@@ -63,9 +64,10 @@ export default function LeaderboardScreen() {
         expandedData={expandedUserId === item.userId ? expandedData : null}
         onToggle={toggleExpand}
         showMedal={showPodium && index < 3}
+        championTeamName={championTeamByUser[item.userId]}
       />
     ),
-    [myId, isCurrentPeriod, expandedUserId, expandedLoading, expandedData, toggleExpand, showPodium],
+    [myId, isCurrentPeriod, expandedUserId, expandedLoading, expandedData, toggleExpand, showPodium, championTeamByUser],
   );
 
   if (loading) {

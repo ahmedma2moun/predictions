@@ -29,10 +29,11 @@ interface Props {
   expandedData: LeaderboardUserPrediction[] | null;
   onToggle: (userId: string) => void;
   showMedal?: boolean;
+  championTeamName?: string;
 }
 
 export const LeaderboardRow = memo(function LeaderboardRow({
-  item, index, myId, isCurrentPeriod, isExpanded, expandedLoading, expandedData, onToggle, showMedal,
+  item, index, myId, isCurrentPeriod, isExpanded, expandedLoading, expandedData, onToggle, showMedal, championTeamName,
 }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -92,9 +93,18 @@ export const LeaderboardRow = memo(function LeaderboardRow({
         </View>
 
         {/* Points */}
-        <Text style={[styles.pts, { color: isMe ? colors.primary : colors.foreground, fontFamily: 'JetBrainsMonoBold' }]}>
-          {item.totalPoints}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={[styles.pts, { color: isMe ? colors.primary : colors.foreground, fontFamily: 'JetBrainsMonoBold' }]}>
+            {item.totalPoints}
+          </Text>
+          {item.championBonusPoints > 0 && (
+            <View style={[styles.bonusChip, { backgroundColor: 'rgba(242,181,68,0.14)' }]}>
+              <Text style={{ color: colors.warning, fontSize: 10, fontWeight: font.weight.bold, fontFamily: 'JetBrainsMono' }}>
+                👑+{item.championBonusPoints}
+              </Text>
+            </View>
+          )}
+        </View>
         <Ionicons
           name={isExpanded ? 'chevron-up' : 'chevron-down'}
           size={14}
@@ -104,6 +114,16 @@ export const LeaderboardRow = memo(function LeaderboardRow({
 
       {isExpanded && (
         <View style={[styles.expandedBox, { borderTopColor: colors.border }]}>
+          {item.championBonusPoints > 0 && (
+            <View style={[styles.bonusLine, { backgroundColor: 'rgba(242,181,68,0.10)' }]}>
+              <Text style={{ color: colors.foreground, fontSize: font.size.xs, fontWeight: font.weight.semibold, flex: 1 }}>
+                👑 Champion Bonus{championTeamName ? ` (${championTeamName})` : ''}
+              </Text>
+              <Text style={{ color: colors.warning, fontSize: font.size.xs, fontWeight: font.weight.bold, fontFamily: 'JetBrainsMono' }}>
+                +{item.championBonusPoints}
+              </Text>
+            </View>
+          )}
           {expandedLoading ? (
             <ActivityIndicator color={colors.primary} />
           ) : expandedData && expandedData.length > 0 ? (
@@ -429,6 +449,19 @@ function makeStyles(c: Palette) {
       borderTopWidth: StyleSheet.hairlineWidth,
       padding: spacing.md,
       gap: spacing.xs,
+    },
+    bonusChip: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: radius.pill,
+    },
+    bonusLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      borderRadius: radius.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs + 2,
     },
     predTile: {
       borderRadius: radius.sm,
