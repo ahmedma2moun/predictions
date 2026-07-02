@@ -19,7 +19,11 @@ PostgreSQL database
 ├── Group           — user groups for sub-leaderboards
 ├── GroupMember     — many-to-many User ↔ Group
 ├── TeamStanding    — cached league standings from football-data.org
-└── DeviceToken     — FCM push tokens for mobile notifications
+├── DeviceToken     — FCM push tokens for mobile notifications
+├── ChampionBonus       — per-season Champion Bonus config (one league per season)
+├── ChampionBonusTeam   — admin-selected allowed team subset
+├── ChampionBonusPick   — one user pick per config
+└── ChampionBonusAward  — per (team, counted match) ledger row, ONE per game (not per user)
 ```
 
 ## Schema Reference
@@ -188,6 +192,52 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 | createdAt / updatedAt | DateTime | | auto-managed |
 | | | **@@index([userId])** | |
 
+### `ChampionBonus`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| seasonId | Int | **unique** FK → Season (cascade) | one config (one league) per season |
+| leagueId | Int | FK → League (cascade) | the single league the admin enabled |
+| status | ChampionBonusStatus enum | default 'OPEN' | OPEN (picks editable) → LOCKED (awards accruing) |
+| lockedAt | DateTime? | | set on lock; only matches kicking off after this count |
+| createdAt / updatedAt | DateTime | | auto-managed |
+
+No CANCELLED status — cancel deletes the row (cascades teams/picks/awards); re-enable is a fresh insert.
+
+### `ChampionBonusTeam`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| championBonusId | Int | FK → ChampionBonus (cascade) | |
+| teamId | Int | FK → Team (cascade) | |
+| | | **@@unique([championBonusId, teamId])** | admin-selected allowed subset (from ALL league teams) |
+
+### `ChampionBonusPick`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| championBonusId | Int | FK → ChampionBonus (cascade) | |
+| userId | Int | FK → User (cascade) | |
+| teamId | Int | FK → Team (cascade) | |
+| createdAt / updatedAt | DateTime | | auto-managed |
+| | | **@@unique([championBonusId, userId])** | one pick per user; upsert on change (while OPEN only) |
+| | | **@@index([championBonusId, teamId])** | join target for bonus totals |
+
+### `ChampionBonusAward`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| championBonusId | Int | FK → ChampionBonus (cascade) | |
+| teamId | Int | FK → Team (cascade) | |
+| matchId | Int | FK → Match (cascade) | |
+| gameNumber | Int | | Nth counted game since lock, 1-based |
+| isWin | Boolean | | from `Match.resultWinner` (penalty wins count) |
+| points | Int | | `isWin ? 2^min(gameNumber, 20) : 0` — exponent capped to avoid Int overflow |
+| | | **@@unique([championBonusId, teamId, matchId])** | ONE row per (team, counted match) — not per user; 50 users on the same team share these rows |
+| | | **@@index([championBonusId, teamId])** | |
+
+Ledger is rebuilt from scratch per team on every relevant finished/corrected match (`ORDER BY kickoffTime asc, id asc`), so `gameNumber` stays deterministic regardless of result arrival order and re-processing is idempotent.
+
 ## Enums
 
 | Enum | Values |
@@ -196,6 +246,7 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 | `BadgeKey` | `first_exact_score`, `on_a_roll`, `perfect_week`, `group_champion` |
 | `MatchStatus` | `scheduled`, `live`, `finished`, `postponed`, `cancelled` |
 | `Winner` | `home`, `away`, `draw` |
+| `ChampionBonusStatus` | `OPEN` (picks editable), `LOCKED` (picks frozen, awards accruing) |
 
 ## Repository Layer
 
@@ -215,6 +266,7 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 | `scoring-rule-repository.ts` | ScoringRule |
 | `team-standing-repository.ts` | TeamStanding |
 | `system-repository.ts` | Cross-model utilities (e.g. raw SQL helpers) |
+| `champion-bonus-repository.ts` | ChampionBonus, ChampionBonusTeam, ChampionBonusPick, ChampionBonusAward |
 
 Route handlers and higher-level lib files should **not** import repositories directly — they use services, which call repositories.
 

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { ChampionBonusAdminPanel } from "./ChampionBonusAdminPanel";
 
 type SeasonStatus = "DRAFT" | "ACTIVE" | "ENDED";
 
@@ -388,6 +389,7 @@ export function SeasonsAdminClient({ initialSeasons }: { initialSeasons: Season[
                   )}
                 </div>
               </div>
+              {season.status !== "ENDED" && <ChampionBonusAdminPanel seasonId={season.id} />}
             </CardContent>
           </Card>
         ))}

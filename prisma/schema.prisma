@@ -43,6 +43,11 @@ enum Winner {
   draw
 }
 
+enum ChampionBonusStatus {
+  OPEN     // picks editable
+  LOCKED   // picks frozen, awards accruing
+}
+
 model User {
   id                Int           @id @default(autoincrement())
   name              String
@@ -60,6 +65,7 @@ model User {
   deviceTokens      DeviceToken[]
   badges            UserBadge[]
   seasonStandings   SeasonStanding[]
+  championBonusPicks ChampionBonusPick[]
 }
 
 model UserBadge {
@@ -85,6 +91,7 @@ model League {
   updatedAt   DateTime     @updatedAt
   teamLeagues TeamLeague[]
   matches     Match[]
+  championBonuses ChampionBonus[]
 }
 
 model Team {
@@ -95,6 +102,9 @@ model Team {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   teamLeagues TeamLeague[]
+  championBonusTeams ChampionBonusTeam[]
+  championBonusPicks ChampionBonusPick[]
+  championBonusAwards ChampionBonusAward[]
 }
 
 model TeamLeague {
@@ -144,6 +154,7 @@ model Match {
   season           Season?      @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   predictions      Prediction[]
   matchOdds        MatchOdds?
+  championBonusAwards ChampionBonusAward[]
 
   @@index([status, kickoffTime])
   @@index([externalLeagueId, kickoffTime])
@@ -251,6 +262,7 @@ model Season {
   updatedAt   DateTime         @updatedAt
   matches     Match[]
   standings   SeasonStanding[]
+  championBonus ChampionBonus?
 }
 
 model MatchOdds {
@@ -284,4 +296,60 @@ model SeasonStanding {
 
   @@index([seasonId, groupId])
   @@index([userId])
+}
+
+model ChampionBonus {
+  id        Int                 @id @default(autoincrement())
+  seasonId  Int                 @unique          // one config (one league) per season
+  season    Season              @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  leagueId  Int
+  league    League              @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  status    ChampionBonusStatus @default(OPEN)
+  lockedAt  DateTime?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  teams     ChampionBonusTeam[]
+  picks     ChampionBonusPick[]
+  awards    ChampionBonusAward[]
+}
+
+model ChampionBonusTeam {          // admin-selected allowed subset
+  id              Int           @id @default(autoincrement())
+  championBonusId Int
+  championBonus   ChampionBonus @relation(fields: [championBonusId], references: [id], onDelete: Cascade)
+  teamId          Int
+  team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([championBonusId, teamId])
+}
+
+model ChampionBonusPick {
+  id              Int           @id @default(autoincrement())
+  championBonusId Int
+  championBonus   ChampionBonus @relation(fields: [championBonusId], references: [id], onDelete: Cascade)
+  userId          Int
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId          Int
+  team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([championBonusId, userId])   // one pick per user
+  @@index([championBonusId, teamId])
+}
+
+model ChampionBonusAward {            // ONE row per (team, counted match) — not per user
+  id              Int           @id @default(autoincrement())
+  championBonusId Int
+  championBonus   ChampionBonus @relation(fields: [championBonusId], references: [id], onDelete: Cascade)
+  teamId          Int
+  team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  matchId         Int
+  match           Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  gameNumber      Int           // Nth counted game since lock, 1-based
+  isWin           Boolean       // based on resultWinner (penalty wins count)
+  points          Int           // isWin ? 2^min(gameNumber, 20) : 0   (cap prevents Int overflow)
+
+  @@unique([championBonusId, teamId, matchId])
+  @@index([championBonusId, teamId])
 }

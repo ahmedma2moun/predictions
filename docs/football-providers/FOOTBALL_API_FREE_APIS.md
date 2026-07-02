@@ -68,3 +68,7 @@ The app uses a provider abstraction at `src/lib/football/`. To activate a differ
 4. Set the provider-specific API key env var
 
 `service.ts` and all callers (`matches-processor`, `results-processor`, `standings`, `h2h`, admin routes) require **no changes**.
+
+## Mock Provider (tests / local dev without an API key)
+
+`src/lib/football/providers/mock.ts` implements `IFootballProvider` entirely in-memory — no network calls. Set `FOOTBALL_PROVIDER=mock` (see `.env.test`, used by the Vitest e2e suite) and drive it with `setMockFixtures(fixtures)` / `clearMock()`. `fetchFixtures()` filters the in-memory list by league id, so `processMatchResults()` and every downstream hook (scoring, Champion Bonus) run completely unchanged against it. Useful for local dev too when you don't have a real API key yet.

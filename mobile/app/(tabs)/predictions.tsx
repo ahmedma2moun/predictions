@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Muted } from '@/components/ui';
 import { PredictionCard } from '@/components/PredictionCard';
 import { AccuracyStatsCard } from '@/components/AccuracyStatsCard';
+import { ChampionBonusMyScoreCard } from '@/components/ChampionBonusMyScoreCard';
 import { AppHeader } from '@/components/AppHeader';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useAccuracyStats } from '@/hooks/useAccuracyStats';
@@ -121,6 +122,7 @@ export default function PredictionsScreen() {
               onPrev={() => setWeekOffset(o => o - 1)}
               onNext={() => setWeekOffset(o => o + 1)}
             />
+            <ChampionBonusMyScoreCard />
           </View>
         }
         ListEmptyComponent={

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { GroupRepository } from '@/lib/repositories/group-repository';
 import { UserRepository } from '@/lib/repositories/user-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { ChampionBonusRepository } from '@/lib/repositories/champion-bonus-repository';
 import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
 import { getMaxPointsPerMatch } from '@/lib/scoring-engine';
 
@@ -20,6 +21,7 @@ export interface LeaderboardEntry {
   email: string | null;
   avatarUrl: string | null;
   totalPoints: number;
+  championBonusPoints: number;
   predictionsCount: number;
   correctPredictions: number;
   accuracy: number;
@@ -58,31 +60,43 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
     if (userIdFilter.length === 0) return [];
   }
 
-  const conditions: Prisma.Sql[] = [Prisma.sql`m.status = 'finished'`];
+  const matchConditions: Prisma.Sql[] = [Prisma.sql`m.status = 'finished'`];
 
   if (leagueIds.length === 1) {
-    conditions.push(Prisma.sql`m."externalLeagueId" = ${leagueIds[0]}`);
+    matchConditions.push(Prisma.sql`m."externalLeagueId" = ${leagueIds[0]}`);
   } else if (leagueIds.length > 1) {
-    conditions.push(Prisma.sql`m."externalLeagueId" = ANY(${leagueIds})`);
+    matchConditions.push(Prisma.sql`m."externalLeagueId" = ANY(${leagueIds})`);
   }
 
   const effectiveFrom = groupKickoffGte ?? (from ? new Date(from) : null);
-  if (effectiveFrom) conditions.push(Prisma.sql`m."kickoffTime" >= ${effectiveFrom}`);
-  if (to)            conditions.push(Prisma.sql`m."kickoffTime" < ${new Date(to)}`);
-  if (seasonId != null) conditions.push(Prisma.sql`m."seasonId" = ${seasonId}`);
+  if (effectiveFrom) matchConditions.push(Prisma.sql`m."kickoffTime" >= ${effectiveFrom}`);
+  if (to)            matchConditions.push(Prisma.sql`m."kickoffTime" < ${new Date(to)}`);
+  if (seasonId != null) matchConditions.push(Prisma.sql`m."seasonId" = ${seasonId}`);
 
-  if (userIdFilter !== null) {
-    conditions.push(Prisma.sql`p."userId" = ANY(${userIdFilter})`);
-  }
+  // Prediction points reuse the match conditions + a per-user (p) filter.
+  const predConditions = [...matchConditions];
+  if (userIdFilter !== null) predConditions.push(Prisma.sql`p."userId" = ANY(${userIdFilter})`);
+  const whereClause = Prisma.join(predConditions, ' AND ');
 
-  const whereClause = Prisma.join(conditions, ' AND ');
+  // Champion Bonus reuses the same match conditions; the user filter applies to
+  // the pick's user (cbp) instead of the prediction's.
+  const bonusConditions = [...matchConditions];
+  if (userIdFilter !== null) bonusConditions.push(Prisma.sql`cbp."userId" = ANY(${userIdFilter})`);
+  const bonusWhere = Prisma.join(bonusConditions, ' AND ');
 
-  const rows = await PredictionRepository.getLeaderboardStats(whereClause);
+  const [rows, bonusRows] = await Promise.all([
+    PredictionRepository.getLeaderboardStats(whereClause),
+    ChampionBonusRepository.getBonusStats(bonusWhere),
+  ]);
+
+  const bonusMap = new Map(bonusRows.map(r => [Number(r.userId), Number(r.bonus)]));
 
   const scoredUserIds = new Set(rows.map(r => Number(r.userId)));
-  const allUserIds    = userIdFilter
-    ? [...new Set([...scoredUserIds, ...userIdFilter])]
-    : [...scoredUserIds];
+  const allUserIds    = [...new Set([
+    ...scoredUserIds,
+    ...(userIdFilter ?? []),
+    ...bonusMap.keys(),
+  ])];
 
   if (allUserIds.length === 0) return [];
 
@@ -130,41 +144,48 @@ export async function getLeaderboard(filters: LeaderboardFilters): Promise<Leade
     if (!user) return [];
     const predictionsCount   = Number(entry.predictionsCount);
     const correctPredictions = Number(entry.correctPredictions);
-    const totalPoints        = Number(entry.totalPoints);
+    const predictionPoints   = Number(entry.totalPoints);
+    const bonus              = bonusMap.get(Number(entry.userId)) ?? 0;
     return [{
       userId: Number(entry.userId),
       name: user.name,
       email: user.email,
       avatarUrl: user.avatarUrl ?? null,
-      totalPoints,
+      totalPoints: predictionPoints + bonus,
+      championBonusPoints: bonus,
       predictionsCount,
       correctPredictions,
-      accuracy: predictionsCount > 0 && maxPoints > 0 ? Math.round((totalPoints / (maxPoints * predictionsCount)) * 100) : 0,
+      // Accuracy is prediction-only — the bonus never inflates it.
+      accuracy: predictionsCount > 0 && maxPoints > 0 ? Math.round((predictionPoints / (maxPoints * predictionsCount)) * 100) : 0,
       currentStreak: user.currentStreak,
       ...buildBadgeFields(user),
     }];
   });
 
-  if (userIdFilter !== null) {
-    for (const uid of userIdFilter) {
-      if (!scoredUserIds.has(uid)) {
-        const user = userMap.get(uid);
-        if (!user) continue;
-        result.push({
-          userId: uid,
-          name: user.name,
-          email: user.email,
-          avatarUrl: user.avatarUrl ?? null,
-          totalPoints: 0,
-          predictionsCount: 0,
-          correctPredictions: 0,
-          accuracy: 0,
-          currentStreak: user.currentStreak,
-          ...buildBadgeFields(user),
-        });
-      }
-    }
+  // Users with no scored predictions but who belong to the filtered group and/or
+  // earned Champion Bonus points still appear (bonus-only entries).
+  for (const uid of allUserIds) {
+    if (scoredUserIds.has(uid)) continue;
+    const user = userMap.get(uid);
+    if (!user) continue;
+    const bonus = bonusMap.get(uid) ?? 0;
+    result.push({
+      userId: uid,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl ?? null,
+      totalPoints: bonus,
+      championBonusPoints: bonus,
+      predictionsCount: 0,
+      correctPredictions: 0,
+      accuracy: 0,
+      currentStreak: user.currentStreak,
+      ...buildBadgeFields(user),
+    });
   }
+
+  // Bonus is added after the SQL ORDER BY, so re-sort by the final total.
+  result.sort((a, b) => b.totalPoints - a.totalPoints || (a.name ?? '').localeCompare(b.name ?? ''));
 
   // On-the-fly group_champion: set flag for #1 of any group-scoped period that has ended.
   // All-time persisted winners already have isGroupChampion=true from the badge flag.

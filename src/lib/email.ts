@@ -463,6 +463,97 @@ export async function sendSeasonEndEmail(to: string, seasonName: string): Promis
   });
 }
 
+// ─── Champion Bonus Emails ────────────────────────────────────────────────────
+
+function championBonusShell(headerBg: string, emoji: string, title: string, bodyHtml: string, ctaLabel = 'Open Champion Bonus'): string {
+  const appUrl = process.env.NEXTAUTH_URL ?? '';
+  return `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#1a1a1a;">
+      <div style="background:${headerBg};padding:20px 24px;border-radius:8px 8px 0 0;">
+        <h2 style="margin:0;color:#fff;font-size:20px;">${emoji} ${title}</h2>
+      </div>
+      <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
+        ${bodyHtml}
+        <div style="margin-top:20px;text-align:center;">
+          <a href="${appUrl}/champion"
+             style="display:inline-block;background:${headerBg};color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:600;font-size:15px;">
+            ${ctaLabel} &rarr;
+          </a>
+        </div>
+      </div>
+    </div>`;
+}
+
+export async function sendChampionBonusEnabledEmail(to: string | null | undefined, leagueName: string): Promise<void> {
+  if (!to) return;
+  const body = `
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#444;">
+      A new <strong>Champion Bonus</strong> mini-game is live for <strong>${leagueName}</strong>!
+    </p>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#444;">
+      Pick one team before the admin locks selections. Once locked, every game your champion plays doubles the stakes:
+      <strong>Win 1 = 2 pts · Win 2 = 4 · Win 3 = 8 …</strong> — but draws and losses still double the next stake, so choose wisely.
+    </p>`;
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `👑 Champion Bonus is live — pick your champion from ${leagueName}!`,
+    html: championBonusShell('#a855f7', '👑', 'Champion Bonus is live!', body, 'Pick your champion'),
+  });
+}
+
+export async function sendChampionBonusLockedEmail(to: string | null | undefined, leagueName: string): Promise<void> {
+  if (!to) return;
+  const body = `
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#444;">
+      Champion picks for <strong>${leagueName}</strong> are now <strong>locked</strong> — see who everyone chose!
+    </p>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#444;">
+      Every game your champion plays from now on counts. Each win doubles your bonus.
+    </p>`;
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `🔒 Champion picks are locked — see who everyone chose!`,
+    html: championBonusShell('#6366f1', '🔒', 'Champion picks are locked', body, 'See the reveal'),
+  });
+}
+
+export async function sendChampionBonusWinEmail(
+  to: string | null | undefined,
+  params: { teamName: string; points: number; nextWinPoints: number },
+): Promise<void> {
+  if (!to) return;
+  const body = `
+    <p style="margin:0 0 12px;font-size:16px;line-height:1.5;color:#1a1a1a;">
+      <strong>${params.teamName} won!</strong> 🎉
+    </p>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#444;">
+      You earned <strong>+${params.points} Champion Bonus point${params.points !== 1 ? 's' : ''}</strong>.
+      Your next win is worth <strong>${params.nextWinPoints} pts</strong>.
+    </p>`;
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `👑 ${params.teamName} won — +${params.points} Champion Bonus points!`,
+    html: championBonusShell('#16a34a', '👑', `${params.teamName} won!`, body, 'View your bonus'),
+  });
+}
+
+export async function sendChampionBonusCancelledEmail(to: string | null | undefined): Promise<void> {
+  if (!to) return;
+  const body = `
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#444;">
+      The <strong>Champion Bonus</strong> mini-game has been cancelled. All bonus points have been removed from the leaderboard.
+    </p>`;
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `Champion Bonus cancelled — bonus points removed`,
+    html: championBonusShell('#ef4444', '⚠️', 'Champion Bonus cancelled', body, 'Open the app'),
+  });
+}
+
 // ─── Fetch-Matches Cron Email ─────────────────────────────────────────────────
 
 export interface CronMatchItem {

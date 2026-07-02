@@ -12,6 +12,7 @@ export type LeaderboardEntry = {
   name: string;
   avatarUrl?: string;
   totalPoints: number;
+  championBonusPoints: number;
   predictionsCount: number;
   accuracy: number;
   currentStreak: number;
@@ -75,6 +76,19 @@ export function useLeaderboard() {
 
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [loadingUserId, setLoadingUserId]   = useState<string | null>(null);
+
+  // Champion Bonus team names, for the "👑 Champion Bonus (TeamName)" line in expanded rows.
+  const [championTeamByUser, setChampionTeamByUser] = useState<Record<string, string>>({});
+  useEffect(() => {
+    fetch("/api/champion-bonus")
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((data: { enabled: boolean; status?: string; picks?: Array<{ userId: string; teamName: string }> }) => {
+        if (data.enabled && data.status === "LOCKED" && data.picks) {
+          setChampionTeamByUser(Object.fromEntries(data.picks.map(p => [p.userId, p.teamName])));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const lbCache = useRef<Record<string, LbCacheEntry>>({});
   const upCache = useRef<Record<string, UpCacheEntry>>({});
@@ -213,6 +227,7 @@ export function useLeaderboard() {
     expandedUserId, loadingUserId,
     upData,
     toggleUser,
+    championTeamByUser,
     weekLabel,
     monthLabel,
     myId,

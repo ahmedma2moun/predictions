@@ -8,9 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "npx tsx scripts/seed.ts",
+    "seed:dev-data": "npx tsx scripts/seed-dev-data.ts",
     "backfill-matchday": "npx tsx scripts/backfill-matchday.ts",
     "backfill-stage-leg": "npx tsx scripts/backfill-stage-leg.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -45,6 +48,7 @@
     "prisma": "^6.19.3",
     "shadcn": "^4.1.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   }
 }

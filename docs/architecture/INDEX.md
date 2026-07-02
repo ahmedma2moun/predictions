@@ -64,6 +64,9 @@ Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → Postgr
 | Mobile auth | JWT Bearer (separate from NextAuth) | Mobile can't use httpOnly cookies; `getMobileSession()` verifies a signed JWT from `SecureStore` |
 | Gamification | Streaks + badges (`streak-badge-service.ts`) | Scoring predictions builds current/longest streak; badges (first_exact_score, on_a_roll, group_champion) awarded automatically |
 | Live score fetch caching | 30s shared cache in `fetchFixtureById()` (`service.ts`) | Client-side polling from every open match page would otherwise exceed the 10 req/min free-tier budget; collapses concurrent viewers into one upstream call per cache window |
+| Champion Bonus data model | 4 separate tables, never `Prediction.pointsAwarded` | Admin `recalculateAllScores()` overwrites `pointsAwarded`; bonus is a read-time additive term instead. Awards are per (team, match), not per (user, match) — N users on one team share the same award rows |
+| Champion Bonus cancel | Cascading delete, no CANCELLED status | Dead configs simply don't exist, so no query path ever needs to filter them out; re-enable is a fresh insert |
+| Champion Bonus scoring | Recompute-from-scratch per team, ordered by kickoff | Deterministic `gameNumber` regardless of result arrival order; double-processing and corrections are idempotent by construction |
 
 ## Reading Order by Role
 

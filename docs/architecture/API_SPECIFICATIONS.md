@@ -78,10 +78,12 @@ Ranked leaderboard with aggregated points.
   "userId": "5",
   "name": "Ahmed",
   "totalPoints": 42,
+  "championBonusPoints": 8,
   "predictionsCount": 10,
   "accuracy": 70
 }]
 ```
+`totalPoints` = prediction points + `championBonusPoints` (a separate additive term); `accuracy` is prediction-only and never inflated by the bonus.
 
 ### GET /api/leaderboard/user-predictions
 A user's scored prediction history (used when expanding a row on the leaderboard). **Scoped to the ACTIVE season** — returns `[]` when no season is active.
@@ -107,6 +109,21 @@ A user's scored prediction history (used when expanding a row on the leaderboard
 }]
 ```
 `matchOdds` is the locked 1/X/2 odds snapshot (null when odds were never locked); `oddsBonus` is present only when the season had odds enabled at scoring time.
+
+### GET /api/champion-bonus
+Champion Bonus state for the active season. Discriminated by `enabled`/`status`:
+- `{ enabled: false }` — no config for the active season
+- `enabled: true, status: 'OPEN'` — `{ league, allowedTeams, pickCount, myPick }`
+- `enabled: true, status: 'LOCKED'` — `{ league, lockedAt, myPick, teams: { [teamId]: { name, logo, awards, totalPoints, nextWinPoints } }, picks: [{ userId, name, teamId, teamName, totalBonus }] }`
+
+One payload — the LOCKED reveal's per-user/per-team breakdown is fully included, no lazy per-row fetch.
+
+### POST /api/champion-bonus/pick
+Upserts the caller's Champion Bonus pick.
+
+**Body**: `{ teamId: number }`
+
+**Errors**: `400` Champion Bonus not enabled / team not in the allowed set, `409` picks are locked.
 
 ### GET /api/groups
 Returns the authenticated user's groups.
@@ -184,6 +201,16 @@ List registered FCM device tokens for a specific user.
 ### POST /api/admin/calculate-champions
 Award the `group_champion` badge to the all-time top scorer in each group.
 Returns `{ awarded: number, groups: number, winners: [...] }`.
+
+### GET/POST/PATCH/DELETE /api/admin/seasons/[id]/champion-bonus
+Manage the season's Champion Bonus config (one league per season).
+- `GET` — admin state: `{ enabled, status, league, lockedAt, allowedTeams, pickCount, picks }` (`picks` populated once LOCKED)
+- `POST` `{ leagueId, teamIds: number[] }` — enable; requires season not ENDED, no existing config, `teamIds.length >= 2`, every team linked to `leagueId`
+- `PATCH` `{ teamIds: number[] }` — replace the allowed team set (OPEN only); removing a team deletes picks on that team
+- `DELETE` — cancel: deletes config (cascades teams/picks/awards), leaderboard reverts by construction
+
+### POST /api/admin/seasons/[id]/champion-bonus/lock
+Freezes picks (OPEN → LOCKED) and sets `lockedAt`. Only matches kicking off after this timestamp accrue bonus. Rejects if already locked.
 
 ---
 
@@ -265,12 +292,18 @@ Submit or update a prediction.
 **Body**: `{ matchId: string, homeScore: number, awayScore: number }`
 
 ### GET /api/mobile/leaderboard
-Ranked leaderboard.
+Ranked leaderboard. Entries include `championBonusPoints` (see web `/api/leaderboard`).
 
 **Query params**: `period` (`all` | `week` | `month`), `leagueId` (number), `groupId` (number)
 
 ### GET /api/mobile/leaderboard/user-predictions
 A user's scored prediction history for the leaderboard expand. Same semantics as the web endpoint: **scoped to the ACTIVE season** (`[]` when off-season), includes `matchOdds` and `oddsBonus`; `scoringBreakdown` uses the mobile shape `{ key, name, points, awarded }`.
+
+### GET /api/mobile/champion-bonus
+Same payload as `GET /api/champion-bonus`, mobile bearer auth.
+
+### POST /api/mobile/champion-bonus/pick
+Same as `POST /api/champion-bonus/pick`, mobile bearer auth.
 
 ### GET /api/mobile/groups
 Returns the authenticated user's groups.

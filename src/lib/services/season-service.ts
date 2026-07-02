@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma, BadgeKey, SeasonStatus } from '@prisma/client';
 import { SeasonRepository } from '@/lib/repositories/season-repository';
 import { UserRepository } from '@/lib/repositories/user-repository';
+import { ChampionBonusRepository } from '@/lib/repositories/champion-bonus-repository';
 import { DeviceTokenRepository } from '@/lib/repositories/device-repository';
 import { sendPushToUsers } from '@/lib/fcm';
 import { sendSeasonEndEmail } from '@/lib/email';
@@ -175,16 +176,21 @@ interface UserStat {
 }
 
 async function buildStandingsData(seasonId: number) {
-  const predStats = await prisma.prediction.groupBy({
-    by: ['userId'],
-    where: { match: { seasonId, status: 'finished' } },
-    _sum: { pointsAwarded: true },
-    _count: { id: true },
-  });
+  const [predStats, bonusRows] = await Promise.all([
+    prisma.prediction.groupBy({
+      by: ['userId'],
+      where: { match: { seasonId, status: 'finished' } },
+      _sum: { pointsAwarded: true },
+      _count: { id: true },
+    }),
+    ChampionBonusRepository.getBonusStats(Prisma.sql`m."seasonId" = ${seasonId} AND m.status = 'finished'`),
+  ]);
 
-  if (predStats.length === 0) return { overall: [], perGroup: [] };
+  const bonusMap = new Map(bonusRows.map(r => [Number(r.userId), Number(r.bonus)]));
+  const predMap = new Map(predStats.map(r => [r.userId, r]));
 
-  const allUserIds = predStats.map(r => r.userId);
+  const allUserIds = [...new Set([...predStats.map(r => r.userId), ...bonusMap.keys()])];
+  if (allUserIds.length === 0) return { overall: [], perGroup: [] };
 
   const exactRows = await prisma.$queryRaw<Array<{ userId: bigint; exactCount: bigint }>>(
     Prisma.sql`
@@ -210,18 +216,21 @@ async function buildStandingsData(seasonId: number) {
   });
   const userMap = new Map(users.map(u => [u.id, u]));
 
-  const statMap = new Map<number, UserStat>(
-    predStats.flatMap(r => {
-      const user = userMap.get(r.userId);
-      if (!user) return [];
-      return [[r.userId, {
-        userId: r.userId,
-        totalPoints: r._sum.pointsAwarded ?? 0,
-        totalPredictions: r._count.id,
-        exactScores: exactMap.get(r.userId) ?? 0,
-      }]];
-    }),
-  );
+  // Champion Bonus is a separate additive term folded into totalPoints before
+  // ranking, so season standings, final records, and badges all include it.
+  const statMap = new Map<number, UserStat>();
+  for (const uid of allUserIds) {
+    const user = userMap.get(uid);
+    if (!user) continue; // admins excluded by the role filter above
+    const ps = predMap.get(uid);
+    const bonus = bonusMap.get(uid) ?? 0;
+    statMap.set(uid, {
+      userId: uid,
+      totalPoints: (ps?._sum.pointsAwarded ?? 0) + bonus,
+      totalPredictions: ps?._count.id ?? 0,
+      exactScores: exactMap.get(uid) ?? 0,
+    });
+  }
 
   const overallSorted = [...statMap.values()].sort((a, b) => b.totalPoints - a.totalPoints);
 

@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
       name: entry.name,
       avatarUrl: entry.avatarUrl,
       totalPoints: entry.totalPoints,
+      championBonusPoints: entry.championBonusPoints,
       predictionsCount: entry.predictionsCount,
       accuracy: entry.accuracy,
       currentStreak: entry.currentStreak,

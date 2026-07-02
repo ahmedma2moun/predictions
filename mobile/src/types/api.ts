@@ -121,6 +121,7 @@ export interface LeaderboardEntry {
   name: string;
   avatarUrl: string | null;
   totalPoints: number;
+  championBonusPoints: number;
   predictionsCount: number;
   accuracy: number;
   currentStreak: number;
@@ -242,3 +243,62 @@ export interface PredictionHistoryItem {
     odds?: MatchOdds | null;
   };
 }
+
+// ── Champion Bonus ────────────────────────────────────────────────────────────
+
+export interface ChampionBonusAllowedTeam {
+  teamId: string;
+  name: string;
+  logo: string | null;
+}
+
+export interface ChampionBonusAwardTile {
+  matchId: string;
+  gameNumber: number;
+  opponentName: string;
+  homeAway: 'home' | 'away';
+  teamScore: number | null;
+  opponentScore: number | null;
+  kickoffTime: string;
+  isWin: boolean;
+  points: number;
+}
+
+export interface ChampionBonusRevealTeam {
+  teamId: string;
+  name: string;
+  logo: string | null;
+  awards: ChampionBonusAwardTile[];
+  totalPoints: number;
+  nextWinPoints: number;
+}
+
+export interface ChampionBonusRevealPick {
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  teamId: string;
+  teamName: string;
+  teamLogo: string | null;
+  totalBonus: number;
+}
+
+export type ChampionBonusState =
+  | { enabled: false }
+  | {
+      enabled: true;
+      status: 'OPEN';
+      league: { id: string; name: string; logo: string | null };
+      allowedTeams: ChampionBonusAllowedTeam[];
+      pickCount: number;
+      myPick: { teamId: string } | null;
+    }
+  | {
+      enabled: true;
+      status: 'LOCKED';
+      league: { id: string; name: string; logo: string | null };
+      lockedAt: string;
+      myPick: { teamId: string } | null;
+      teams: Record<string, ChampionBonusRevealTeam>;
+      picks: ChampionBonusRevealPick[];
+    };
