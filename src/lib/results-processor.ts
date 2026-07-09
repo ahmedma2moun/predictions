@@ -295,14 +295,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
           logger.warn(`[${logPrefix}] Fixture ${match.externalId} not found in API response — skipping`);
           continue;
         }
-        const currentStatus = mapFixtureStatus(f.fixture.status.short);
-        if (currentStatus !== 'finished') {
-          if (currentStatus === 'live' && match.status !== 'live') {
-            await MatchRepository.update({ where: { id: match.id }, data: { status: 'live' } });
-            logger.info(`[${logPrefix}] Match ${match.id} is now live: ${match.homeTeamName} vs ${match.awayTeamName}`);
-          }
-          continue;
-        }
+        if (mapFixtureStatus(f.fixture.status.short) !== 'finished') continue;
 
         const rawHomeScore = f.score.fulltime.home ?? f.goals.home;
         const rawAwayScore = f.score.fulltime.away ?? f.goals.away;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMobileSession } from '@/lib/mobile-auth';
-import { getMatchById, syncMatchStatus } from '@/lib/services/match-service';
+import { getMatchById } from '@/lib/services/match-service';
 import { fetchFixtureById, mapFixtureStatus } from '@/lib/football/service';
 
 export async function GET(
@@ -25,11 +25,8 @@ export async function GET(
   const fixture = await fetchFixtureById(match.externalId).catch(() => null);
   if (!fixture) return NextResponse.json({ error: 'Failed to fetch live data' }, { status: 502 });
 
-  const status = mapFixtureStatus(fixture.fixture.status.short);
-  await syncMatchStatus(match.id, match.status, status).catch(() => {});
-
   return NextResponse.json({
-    status,
+    status: mapFixtureStatus(fixture.fixture.status.short),
     homeScore: fixture.score.fulltime.home ?? fixture.goals.home,
     awayScore: fixture.score.fulltime.away ?? fixture.goals.away,
   });
