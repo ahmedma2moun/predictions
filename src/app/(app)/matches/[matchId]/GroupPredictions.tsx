@@ -109,10 +109,10 @@ export function GroupPredictions({
                   {p.predicted ? (
                     <div className="flex items-center gap-2">
                       <span className="tabular-nums text-sm">{p.homeScore} – {p.awayScore}</span>
-                      {!isKnockout && (hasResult || p.isLive) && p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
+                      {(p.isLive || (!isKnockout && hasResult)) && p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
                         <ScoringBreakdown rules={p.scoringBreakdown} />
                       )}
-                      {!isKnockout && p.isLive && (
+                      {p.isLive && (
                         (p.pointsAwarded ?? 0) > 0
                           ? <span className="text-live font-bold text-sm">+{p.pointsAwarded} live</span>
                           : <span className="text-live text-sm">0 live</span>
