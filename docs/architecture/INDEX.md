@@ -67,6 +67,7 @@ Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → Postgr
 | Champion Bonus data model | 4 separate tables, never `Prediction.pointsAwarded` | Admin `recalculateAllScores()` overwrites `pointsAwarded`; bonus is a read-time additive term instead. Awards are per (team, match), not per (user, match) — N users on one team share the same award rows |
 | Champion Bonus cancel | Cascading delete, no CANCELLED status | Dead configs simply don't exist, so no query path ever needs to filter them out; re-enable is a fresh insert |
 | Champion Bonus scoring | Recompute-from-scratch per team, ordered by kickoff | Deterministic `gameNumber` regardless of result arrival order; double-processing and corrections are idempotent by construction |
+| `Match.status = 'live'` sync | Opportunistic write from `/live` polling + `fetch-results`, no dedicated cron | `Match.status` was only ever written as `'scheduled'` (insert) or `'finished'` (results); every LIVE badge/pill checked this field and could never fire. Piggybacking on already-frequent code paths fixes it without new infra |
 
 ## Reading Order by Role
 

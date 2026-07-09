@@ -65,6 +65,15 @@ export interface MatchDetailData {
   odds: MatchOddsData | null;
 }
 
+// Called opportunistically from live-score polling and the fetch-results cron —
+// `status` in the DB is otherwise only ever written at insert time ('scheduled')
+// and once results come in ('finished'), so it never reflects an in-progress match.
+export async function syncMatchStatus(matchId: number, currentStatus: MatchStatus, apiStatus: string): Promise<void> {
+  if (apiStatus === 'live' && currentStatus !== 'live') {
+    await MatchRepository.update({ where: { id: matchId }, data: { status: 'live' } });
+  }
+}
+
 export async function getMatches(
   filters: MatchFilters,
   opts: { userId: number; isAdmin: boolean; withStandings?: boolean },
