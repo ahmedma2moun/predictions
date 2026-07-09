@@ -479,7 +479,7 @@ export default function MatchPredictionScreen() {
                       <Text style={[styles.predScore, { color: colors.foreground, fontFamily: 'JetBrainsMono' }]}>
                         {p.homeScore} – {p.awayScore}
                       </Text>
-                      {!knockout && p.isLive && (
+                      {p.isLive && (
                         <Text style={{ color: colors.live, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
                           {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded} live` : '0 live'}
                         </Text>
