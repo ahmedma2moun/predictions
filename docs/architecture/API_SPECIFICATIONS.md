@@ -46,7 +46,7 @@ Other users' predictions for a specific match (used to show group picks before a
 Head-to-head record between the two teams from historical match data.
 
 ### GET /api/matches/[matchId]/live
-Live status/score for a locked match, polled client-side (every 60s while the match is in progress). Calls `fetchFixtureById()` from the football service layer (never the provider's raw API directly) and returns `{ status: 'scheduled'|'live'|'finished'|'postponed'|'cancelled', homeScore, awayScore }`, normalized via `mapFixtureStatus()`. `fetchFixtureById()` caches each fixture lookup for 30s (`src/lib/football/service.ts`) so concurrent viewers of the same live match collapse into one upstream request — free-tier providers cap requests at ~10/min, shared across the whole app. Returns 400 if the match has no `externalId` (custom match), 502 if the upstream fetch fails.
+Live status/score for a locked match, polled client-side (every 60s while the match is in progress). Calls `fetchFixtureById()` from the football service layer (never the provider's raw API directly) and returns `{ status: 'scheduled'|'live'|'finished'|'postponed'|'cancelled', homeScore, awayScore }`, normalized via `mapFixtureStatus()`. `fetchFixtureById()` caches each fixture lookup for 30s (`src/lib/football/service.ts`) so concurrent viewers of the same live match collapse into one upstream request — free-tier providers cap requests at ~10/min, shared across the whole app. Returns 400 if the match has no `externalId` (custom match), 502 if the upstream fetch fails. Also calls `syncMatchStatus()` (`src/lib/services/match-service.ts`) to opportunistically write `Match.status = 'live'` in the DB the first time a poll observes an in-progress match — `Match.status` is otherwise only ever written at insert (`'scheduled'`) and on result ingestion (`'finished'`), so without this it never reflects a match in progress (see ADR-12).
 
 ### GET /api/predictions
 User's prediction history (populated with match data), limit 100, sorted newest first.
@@ -273,7 +273,7 @@ Other users' predictions for a match.
 Head-to-head record between the two teams.
 
 ### GET /api/mobile/matches/[matchId]/live
-Same behavior as the web `/api/matches/[matchId]/live` endpoint above.
+Same behavior as the web `/api/matches/[matchId]/live` endpoint above, including the `syncMatchStatus()` live-status write.
 
 ### GET /api/mobile/matches/[matchId]/predictions
 All predictions for a match (admin-level view or post-kickoff).
