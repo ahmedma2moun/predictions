@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoringBreakdown } from "@/components/ScoringBreakdown";
@@ -16,10 +17,45 @@ interface GroupPredictionEntry {
   isLive: boolean;
 }
 
+interface LiveStandingEntry {
+  userId: string;
+  previousRank: number;
+  rank: number;
+  movement: "up" | "down" | "same";
+  points: number;
+  livePoints: number;
+  liveTotalPoints: number;
+}
+
+interface LiveStandingResponse {
+  hasLiveMatches: boolean;
+  standings: LiveStandingEntry[];
+}
+
 interface Group {
   id: string;
   name: string;
   isDefault: boolean;
+}
+
+function MovementArrow({ entry }: { entry: LiveStandingEntry }) {
+  if (entry.movement === "up") {
+    return (
+      <span className="flex items-center text-green-600 dark:text-green-500" title={`Up from #${entry.previousRank}`}>
+        <ArrowUp className="h-3.5 w-3.5" />
+        <span className="text-[10px] font-bold font-mono-nums">{entry.previousRank - entry.rank}</span>
+      </span>
+    );
+  }
+  if (entry.movement === "down") {
+    return (
+      <span className="flex items-center text-red-600 dark:text-red-500" title={`Down from #${entry.previousRank}`}>
+        <ArrowDown className="h-3.5 w-3.5" />
+        <span className="text-[10px] font-bold font-mono-nums">{entry.rank - entry.previousRank}</span>
+      </span>
+    );
+  }
+  return <Minus className="h-3.5 w-3.5 text-muted-foreground" aria-label="No change" />;
 }
 
 export function GroupPredictions({
@@ -36,6 +72,7 @@ export function GroupPredictions({
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<GroupPredictionEntry[] | null>(null);
+  const [standing, setStanding] = useState<LiveStandingResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -56,19 +93,37 @@ export function GroupPredictions({
     if (!selectedGroupId) return;
     setLoading(true);
     setPredictions(null);
+    setStanding(null);
     const params = new URLSearchParams({ groupId: selectedGroupId });
     if (!hasResult && liveScore?.homeScore != null && liveScore?.awayScore != null) {
       params.set('liveHomeScore', String(liveScore.homeScore));
       params.set('liveAwayScore', String(liveScore.awayScore));
     }
-    fetch(`/api/matches/${matchId}/group-predictions?${params.toString()}`)
-      .then(r => r.json())
-      .then(data => setPredictions(Array.isArray(data) ? data : null))
-      .catch(() => setPredictions(null))
+    Promise.all([
+      fetch(`/api/matches/${matchId}/group-predictions?${params.toString()}`)
+        .then(r => r.json())
+        .catch(() => null),
+      fetch(`/api/leaderboard/live?groupId=${selectedGroupId}`)
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null),
+    ])
+      .then(([preds, standingData]: [unknown, LiveStandingResponse | null]) => {
+        setPredictions(Array.isArray(preds) ? preds : null);
+        setStanding(standingData && Array.isArray(standingData.standings) ? standingData : null);
+      })
       .finally(() => setLoading(false));
   }, [matchId, selectedGroupId, hasResult, liveScore?.homeScore, liveScore?.awayScore]);
 
   if (groups.length === 0) return null;
+
+  const standingByUser = new Map((standing?.standings ?? []).map(s => [s.userId, s]));
+  const rows = (predictions ?? [])
+    .filter(p => p.predicted)
+    .sort((a, b) => {
+      const ra = standingByUser.get(a.userId)?.rank ?? Number.MAX_SAFE_INTEGER;
+      const rb = standingByUser.get(b.userId)?.rank ?? Number.MAX_SAFE_INTEGER;
+      return ra - rb;
+    });
 
   return (
     <Card>
@@ -98,16 +153,29 @@ export function GroupPredictions({
       <CardContent className="p-0">
         {loading ? (
           <p className="text-sm text-muted-foreground text-center py-4">Loading…</p>
-        ) : !predictions || predictions.filter(p => p.predicted).length === 0 ? (
+        ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No predictions in this group.</p>
         ) : (
           <div className="divide-y">
-            {predictions.filter(p => p.predicted).map(p => (
-              <div key={p.userId} className="px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{p.userName ?? 'Unknown'}</span>
-                  {p.predicted ? (
-                    <div className="flex items-center gap-2">
+            {rows.map(p => {
+              const s = standingByUser.get(p.userId);
+              return (
+                <div key={p.userId} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {s && (
+                        <>
+                          <span className="w-6 text-xs font-bold font-mono-nums text-muted-foreground shrink-0">
+                            #{s.rank}
+                          </span>
+                          <span className="w-7 shrink-0 flex justify-center">
+                            <MovementArrow entry={s} />
+                          </span>
+                        </>
+                      )}
+                      <span className="font-medium text-sm truncate">{p.userName ?? 'Unknown'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
                       <span className="tabular-nums text-sm">{p.homeScore} – {p.awayScore}</span>
                       {(p.isLive || (!isKnockout && hasResult)) && p.scoringBreakdown && p.scoringBreakdown.length > 0 && (
                         <ScoringBreakdown rules={p.scoringBreakdown} />
@@ -122,13 +190,16 @@ export function GroupPredictions({
                           ? <span className="text-yellow-500 font-bold text-sm">+{p.pointsAwarded} pts</span>
                           : <span className="text-muted-foreground text-sm">0 pts</span>
                       )}
+                      {s && (
+                        <span className="text-sm font-bold font-mono-nums" title="Live group total">
+                          {s.liveTotalPoints} pts
+                        </span>
+                      )}
                     </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">No prediction</span>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

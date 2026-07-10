@@ -73,15 +73,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="live"
-        options={{
-          title: 'Live',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pulse-outline" color={color} size={size} />
-          ),
-        }}
-      />
       {/* Champion tab is hidden from the tab bar; the screen stays routable. */}
       <Tabs.Screen name="champion" options={{ href: null }} />
       <Tabs.Screen

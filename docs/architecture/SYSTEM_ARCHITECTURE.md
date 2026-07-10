@@ -14,7 +14,6 @@ src/
 │   │   ├── matches/        # Match list + [matchId] prediction form
 │   │   ├── predictions/    # User prediction history (tabbed by group)
 │   │   ├── leaderboard/    # Ranked table with period + group filters
-│   │   ├── live/           # Live group standing — leaderboard re-ranked with in-play provisional points + movement arrows
 │   │   ├── champion/       # Champion Bonus — pick view (OPEN) / reveal view (LOCKED); hidden from nav, reachable by URL
 │   │   └── admin/          # Admin panel
 │   │       ├── groups/     # Group management + membership
@@ -32,7 +31,7 @@ src/
 │   │   ├── matches/        # GET list + GET single match
 │   │   ├── predictions/    # GET history, POST submit
 │   │   ├── leaderboard/    # GET ranked aggregation
-│   │   │   ├── live/       # GET live group standing (provisional in-play points + rank movement)
+│   │   │   ├── live/       # GET live group standing (provisional in-play points + rank movement) — consumed by the match page's Group Comparison
 │   │   │   └── user-predictions/ # GET a user's scored history (active season only, with odds)
 │   │   ├── champion-bonus/   # GET user state; pick/ POST set pick
 │   │   ├── admin/

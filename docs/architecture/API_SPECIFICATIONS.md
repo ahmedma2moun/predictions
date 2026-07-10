@@ -86,7 +86,7 @@ Ranked leaderboard with aggregated points.
 `totalPoints` = prediction points + `championBonusPoints` (a separate additive term); `accuracy` is prediction-only and never inflated by the bonus.
 
 ### GET /api/leaderboard/live
-Live group standing: the current leaderboard re-ranked with provisional points from matches that are in play right now. **Scoped to the ACTIVE season** — returns an empty payload with `X-Season-Status: off` when no season is active.
+Live group standing: the current leaderboard re-ranked with provisional points from matches that are in play right now. Consumed by the match page's **Group Comparison** section, which joins these standings (rank, movement arrow, live total) onto the per-match prediction rows. **Scoped to the ACTIVE season** — returns an empty payload with `X-Season-Status: off` when no season is active.
 
 **Query params**: `groupId` (number, optional)
 
