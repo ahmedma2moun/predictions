@@ -76,6 +76,7 @@ All DB query logic lives in `src/lib/services/`. Route handlers do **only** thre
 | Matches | `src/lib/services/match-service.ts` | `getMatches()`, `getMatchById()` |
 | Predictions | `src/lib/services/prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` |
 | Leaderboard | `src/lib/services/leaderboard-service.ts` | `getLeaderboard()` |
+| Live Standing | `src/lib/services/live-standing-service.ts` | `getLiveGroupStanding()` |
 | Groups | `src/lib/services/group-service.ts` | `getUserGroups()` |
 | Leagues | `src/lib/services/league-service.ts` | `getActiveLeagues()` |
 | Users | `src/lib/services/user-service.ts` | `getAllUsers()`, `createUser()`, `updateUser()` |

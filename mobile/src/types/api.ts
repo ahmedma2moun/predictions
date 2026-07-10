@@ -244,6 +244,40 @@ export interface PredictionHistoryItem {
   };
 }
 
+// ── Live Group Standing ───────────────────────────────────────────────────────
+
+export type LiveMovement = 'up' | 'down' | 'same';
+
+export interface LiveStandingMatch {
+  matchId: string;
+  homeTeamName: string;
+  homeTeamLogo: string | null;
+  awayTeamName: string;
+  awayTeamLogo: string | null;
+  homeScore: number;
+  awayScore: number;
+  status: 'live' | 'finished';
+  kickoffTime: string;
+}
+
+export interface LiveStandingEntry {
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  previousRank: number;
+  rank: number;
+  movement: LiveMovement;
+  points: number;
+  livePoints: number;
+  liveTotalPoints: number;
+}
+
+export interface LiveGroupStanding {
+  hasLiveMatches: boolean;
+  matches: LiveStandingMatch[];
+  standings: LiveStandingEntry[];
+}
+
 // ── Champion Bonus ────────────────────────────────────────────────────────────
 
 export interface ChampionBonusAllowedTeam {

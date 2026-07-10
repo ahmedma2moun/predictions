@@ -85,6 +85,41 @@ Ranked leaderboard with aggregated points.
 ```
 `totalPoints` = prediction points + `championBonusPoints` (a separate additive term); `accuracy` is prediction-only and never inflated by the bonus.
 
+### GET /api/leaderboard/live
+Live group standing: the current leaderboard re-ranked with provisional points from matches that are in play right now. **Scoped to the ACTIVE season** — returns an empty payload with `X-Season-Status: off` when no season is active.
+
+**Query params**: `groupId` (number, optional)
+
+**Response**:
+```json
+{
+  "hasLiveMatches": true,
+  "matches": [{
+    "matchId": "12",
+    "homeTeamName": "Arsenal",
+    "homeTeamLogo": "https://…",
+    "awayTeamName": "Chelsea",
+    "awayTeamLogo": "https://…",
+    "homeScore": 1,
+    "awayScore": 0,
+    "status": "live",
+    "kickoffTime": "2026-06-01T18:00:00.000Z"
+  }],
+  "standings": [{
+    "userId": "5",
+    "name": "Ahmed",
+    "avatarUrl": null,
+    "previousRank": 3,
+    "rank": 1,
+    "movement": "up",
+    "points": 42,
+    "livePoints": 15,
+    "liveTotalPoints": 57
+  }]
+}
+```
+`points` are confirmed (finished matches + Champion Bonus); `livePoints` are provisional, computed from the in-play score with `calculateScore()` + the odds multiplier. `movement` compares `rank` (live) against `previousRank` (confirmed points only): `up` | `down` | `same`. Live scores come from the football API via the shared 30s single-fixture cache; when the API result is `finished` but the result hasn't been processed by the cron yet, the match still counts as provisional. Matches also drop out of the window 4h after kickoff.
+
 ### GET /api/leaderboard/user-predictions
 A user's scored prediction history (used when expanding a row on the leaderboard). **Scoped to the ACTIVE season** — returns `[]` when no season is active.
 
@@ -295,6 +330,9 @@ Submit or update a prediction.
 Ranked leaderboard. Entries include `championBonusPoints` (see web `/api/leaderboard`).
 
 **Query params**: `period` (`all` | `week` | `month`), `leagueId` (number), `groupId` (number)
+
+### GET /api/mobile/leaderboard/live
+Same payload and semantics as `GET /api/leaderboard/live`, mobile bearer auth.
 
 ### GET /api/mobile/leaderboard/user-predictions
 A user's scored prediction history for the leaderboard expand. Same semantics as the web endpoint: **scoped to the ACTIVE season** (`[]` when off-season), includes `matchOdds` and `oddsBonus`; `scoringBreakdown` uses the mobile shape `{ key, name, points, awarded }`.

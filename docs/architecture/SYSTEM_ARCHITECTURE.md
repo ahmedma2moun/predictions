@@ -14,7 +14,8 @@ src/
 │   │   ├── matches/        # Match list + [matchId] prediction form
 │   │   ├── predictions/    # User prediction history (tabbed by group)
 │   │   ├── leaderboard/    # Ranked table with period + group filters
-│   │   ├── champion/       # Champion Bonus tab — pick view (OPEN) / reveal view (LOCKED)
+│   │   ├── live/           # Live group standing — leaderboard re-ranked with in-play provisional points + movement arrows
+│   │   ├── champion/       # Champion Bonus — pick view (OPEN) / reveal view (LOCKED); hidden from nav, reachable by URL
 │   │   └── admin/          # Admin panel
 │   │       ├── groups/     # Group management + membership
 │   │       ├── leagues/    # League fetch + activation
@@ -31,6 +32,7 @@ src/
 │   │   ├── matches/        # GET list + GET single match
 │   │   ├── predictions/    # GET history, POST submit
 │   │   ├── leaderboard/    # GET ranked aggregation
+│   │   │   ├── live/       # GET live group standing (provisional in-play points + rank movement)
 │   │   │   └── user-predictions/ # GET a user's scored history (active season only, with odds)
 │   │   ├── champion-bonus/   # GET user state; pick/ POST set pick
 │   │   ├── admin/
@@ -57,7 +59,7 @@ src/
 │   │   │   ├── auth/login/   # POST credential login → signed JWT
 │   │   │   ├── matches/      # GET list; [matchId]/ GET detail, group-predictions, h2h, predictions
 │   │   │   ├── predictions/  # GET history, POST submit; stats/ GET stats
-│   │   │   ├── leaderboard/  # GET ranked; user-predictions/ GET a user's scored history (active season only)
+│   │   │   ├── leaderboard/  # GET ranked; live/ GET live group standing; user-predictions/ GET a user's scored history (active season only)
 │   │   │   ├── champion-bonus/  # GET user state; pick/ POST set pick
 │   │   │   ├── groups/       # GET user's groups
 │   │   │   ├── leagues/      # GET active leagues
@@ -91,6 +93,7 @@ src/
 │   │   ├── match-service.ts        # getMatches(), getMatchById()
 │   │   ├── prediction-service.ts   # getUserPredictions(), upsertPrediction(), getUserPredictionHistory()
 │   │   ├── leaderboard-service.ts  # getLeaderboard()
+│   │   ├── live-standing-service.ts # getLiveGroupStanding() — leaderboard + provisional in-play points + movement
 │   │   ├── group-service.ts        # getUserGroups()
 │   │   ├── league-service.ts       # getActiveLeagues()
 │   │   ├── user-service.ts         # getAllUsers(), createUser(), updateUser(), checkEmailExists()
@@ -159,6 +162,7 @@ All DB query logic lives in `src/lib/services/`. Route handlers (both `/api/*` a
 | `match-service.ts` | `getMatches()`, `getMatchById()` | `/api/matches`, `/api/mobile/matches` |
 | `prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` (supports `seasonId` filter; returns `baseScore`, `outcomeOdds`, locked `matchOdds`) | `/api/predictions`, `/api/mobile/predictions`, leaderboard routes |
 | `leaderboard-service.ts` | `getLeaderboard()` | `/api/leaderboard`, `/api/mobile/leaderboard` |
+| `live-standing-service.ts` | `getLiveGroupStanding()` — base leaderboard + provisional points from in-play matches (live scores via `fetchFixtureById` 30s cache), rank movement `up`/`down`/`same` | `/api/leaderboard/live`, `/api/mobile/leaderboard/live` |
 | `group-service.ts` | `getUserGroups()` | `/api/groups`, `/api/mobile/groups` |
 | `league-service.ts` | `getActiveLeagues()` | `/api/leagues`, `/api/mobile/leagues` |
 | `user-service.ts` | `getAllUsers()`, `createUser()`, `updateUser()`, `checkEmailExists()` | `/api/admin/users`, auth |
