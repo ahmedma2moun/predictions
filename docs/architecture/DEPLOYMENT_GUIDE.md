@@ -33,11 +33,19 @@ Both `DATABASE_URL` and `DIRECT_URL` are required. Prisma uses `DIRECT_URL` for 
 DIRECT_URL=postgres://... DATABASE_URL=postgres://... npx prisma migrate deploy
 ```
 
-### 3. football-data.org API Key
+### 3. Football Provider API Key
 
-1. Sign up at football-data.org
-2. Copy your API token → set as `FOOTBALL_API_KEY`
-3. Free tier: 10 requests/minute. Each cron call costs 1 request per league.
+The app supports multiple football data providers behind `src/lib/football/factory.ts`.
+Set `FOOTBALL_PROVIDER` plus the matching key — see
+`docs/football-providers/FOOTBALL_API_FREE_APIS.md` for full comparison and setup guides.
+
+| `FOOTBALL_PROVIDER` | Key to set | Notes |
+|---|---|---|
+| `football-data` (default if unset) | `FOOTBALL_API_KEY` | Sign up at football-data.org. Free tier: 10 req/min |
+| `api-football` | `API_FOOTBALL_KEY` | Sign up at dashboard.api-football.com. Free tier: 100 req/day |
+| `thesportsdb` | `THESPORTSDB_API_KEY` | **Paid plan required** ($9/mo+ at thesportsdb.com/pricing) — the implementation throws without a key |
+
+Only set the env vars for the provider you're actually running; the others are ignored.
 
 ### 4. Gmail App Password (for notifications)
 
@@ -63,11 +71,14 @@ DIRECT_URL=postgres://user:pass@host:5432/db
 NEXTAUTH_SECRET=<32+ char random string>
 MOBILE_JWT_SECRET=<32+ char random string — used for mobile app auth>
 NEXTAUTH_URL=https://your-app.vercel.app
-FOOTBALL_API_KEY=<your-football-data.org-key>
 CRON_SECRET=<32+ char random string>
 GMAIL_USER=your-gmail@gmail.com
 GMAIL_APP_PASSWORD=<16-char app password>
 TRIGGER_SECRET=<32+ char random string — used by cron-job.org to authenticate fetch-results calls>
+
+# Football provider — set FOOTBALL_PROVIDER + the matching key (see §3 above)
+FOOTBALL_PROVIDER=api-football
+API_FOOTBALL_KEY=<your-api-football-key>
 ```
 
 ### 7. Seed the Database

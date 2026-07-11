@@ -10,9 +10,10 @@ For full registration steps, endpoint mapping, and implementation code, see the 
 | File | Provider | Status |
 |---|---|---|
 | [football-data.md](football-data.md) | football-data.org v4 | **Active (current)** |
-| [api-football.md](api-football.md) | API-Football / API-Sports | Ready to activate |
+| [api-football.md](api-football.md) | API-Football / API-Sports | Implemented, ready to activate |
 | [sportmonks.md](sportmonks.md) | Sportmonks v3 | Ready to activate |
 | [allsports.md](allsports.md) | AllSportsAPI | Ready to activate |
+| [thesportsdb.md](thesportsdb.md) | TheSportsDB | Implemented (paid key required), ready to activate |
 
 ---
 
@@ -39,6 +40,7 @@ All providers must implement all 6 methods of `IFootballProvider` from `src/lib/
 | **API-Football** | 100 | Yes (~15s) | 1,000+ leagues | Via team ID lookup | Yes |
 | **Sportmonks** | ~4,320 (180/hr) | Yes | Top 5 + UCL | Via team ID lookup | Yes |
 | **AllSportsAPI** | 100 | Yes | 400+ leagues | Via team ID lookup | Yes |
+| **TheSportsDB** | n/a — paid only (100–120/min) | Yes | Global | Via team ID lookup (no native H2H) | Yes, paid plan |
 
 ### H2H Note
 
