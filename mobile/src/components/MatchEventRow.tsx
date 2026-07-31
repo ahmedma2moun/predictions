@@ -4,62 +4,92 @@ import { font, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { MatchEvent } from '@/types/api';
 
-function eventBadge(event: MatchEvent): { icon: string; label: string; ownGoal: boolean } {
+export type DisplayMatchEvent = MatchEvent & { icons: string[]; ownGoal: boolean };
+
+function singleIcon(event: MatchEvent): { icon: string; ownGoal: boolean } {
   if (event.type === 'goal') {
     const ownGoal = event.detail.toLowerCase().includes('own');
-    return { icon: '⚽', label: ownGoal ? 'Own Goal' : 'Goal', ownGoal };
+    return { icon: '⚽', ownGoal };
   }
   const isRed = event.detail.toLowerCase().includes('red');
-  return { icon: isRed ? '🟥' : '🟨', label: isRed ? 'Red Card' : 'Yellow Card', ownGoal: false };
+  return { icon: isRed ? '🟥' : '🟨', ownGoal: false };
 }
 
-function EventIcon({ event, colors }: { event: MatchEvent; colors: Palette }) {
-  const { icon, ownGoal } = eventBadge(event);
+// A second-yellow dismissal comes back from TheSportsDB as two separate
+// timeline entries — a Yellow Card immediately followed by a Red Card for
+// the same player/minute/team. Collapse that pair into one event row
+// showing both icons instead of two rows.
+export function mergeMatchEvents(events: MatchEvent[]): DisplayMatchEvent[] {
+  const sorted = [...events].sort((a, b) => a.minute - b.minute);
+  const used = new Set<number>();
+  const result: DisplayMatchEvent[] = [];
+
+  sorted.forEach((e, i) => {
+    if (used.has(i)) return;
+    if (e.type === 'card' && e.detail.toLowerCase().includes('yellow')) {
+      const j = sorted.findIndex((o, idx) =>
+        idx > i && !used.has(idx) && o.type === 'card' &&
+        o.detail.toLowerCase().includes('red') &&
+        o.player === e.player && o.minute === e.minute && o.team === e.team
+      );
+      if (j !== -1) {
+        used.add(i);
+        used.add(j);
+        result.push({ ...sorted[j], icons: ['🟨', '🟥'], ownGoal: false });
+        return;
+      }
+    }
+    used.add(i);
+    const { icon, ownGoal } = singleIcon(e);
+    result.push({ ...e, icons: [icon], ownGoal });
+  });
+
+  return result;
+}
+
+function EventIcon({ event, colors }: { event: DisplayMatchEvent; colors: Palette }) {
   return (
     <View
       style={{
-        width: 20,
+        minWidth: 20,
         height: 20,
+        paddingHorizontal: event.icons.length > 1 ? 4 : 0,
         borderRadius: 10,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: ownGoal ? colors.live + '26' : 'transparent',
+        gap: 1,
+        backgroundColor: event.ownGoal ? colors.live + '26' : 'transparent',
       }}
     >
-      <Text style={{ fontSize: 11, lineHeight: 13 }}>{icon}</Text>
+      {event.icons.map((icon, i) => (
+        <Text key={i} style={{ fontSize: 11, lineHeight: 13 }}>{icon}</Text>
+      ))}
     </View>
   );
 }
 
-export function MatchEventRow({ event }: { event: MatchEvent }) {
+export function MatchEventRow({ event }: { event: DisplayMatchEvent }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const isHome = event.team === 'home';
-  const { label, ownGoal } = eventBadge(event);
-  const labelColor = ownGoal ? colors.live : colors.mutedForeground;
 
   return (
     <View style={styles.row}>
-      <View style={[styles.side, !isHome && styles.hidden]}>
-        <View style={styles.sideTop}>
-          <Text numberOfLines={1} style={[styles.player, { color: colors.foreground, textAlign: 'right' }]}>
-            {event.player}
-          </Text>
-          <EventIcon event={event} colors={colors} />
-        </View>
-        <Text style={[styles.label, { color: labelColor, textAlign: 'right' }]}>{label}</Text>
+      <View style={[styles.side, { justifyContent: 'flex-end' }, !isHome && styles.hidden]}>
+        <Text numberOfLines={1} style={[styles.player, { color: colors.foreground, textAlign: 'right' }]}>
+          {event.player}
+        </Text>
+        <EventIcon event={event} colors={colors} />
       </View>
       <Text style={[styles.minute, { color: colors.mutedForeground, fontFamily: 'JetBrainsMono' }]}>
         {event.minute}&apos;
       </Text>
       <View style={[styles.side, isHome && styles.hidden]}>
-        <View style={[styles.sideTop, { justifyContent: 'flex-start' }]}>
-          <EventIcon event={event} colors={colors} />
-          <Text numberOfLines={1} style={[styles.player, { color: colors.foreground }]}>
-            {event.player}
-          </Text>
-        </View>
-        <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+        <EventIcon event={event} colors={colors} />
+        <Text numberOfLines={1} style={[styles.player, { color: colors.foreground }]}>
+          {event.player}
+        </Text>
       </View>
     </View>
   );
@@ -67,12 +97,10 @@ export function MatchEventRow({ event }: { event: MatchEvent }) {
 
 function makeStyles(c: Palette) {
   return StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 6 },
-    side: { flex: 1, gap: 2, minWidth: 0 },
-    sideTop: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-end' },
+    row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5 },
+    side: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
     hidden: { opacity: 0 },
     minute: { width: 32, textAlign: 'center', fontSize: font.size.xs },
     player: { fontSize: font.size.sm, flexShrink: 1 },
-    label: { fontSize: 10 },
   });
 }

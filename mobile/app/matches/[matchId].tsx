@@ -15,7 +15,7 @@ import { apiRequest, ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Button, Card, Muted, Pill, SectionTitle } from '@/components/ui';
 import { H2HRow } from '@/components/H2HRow';
-import { MatchEventRow } from '@/components/MatchEventRow';
+import { MatchEventRow, mergeMatchEvents } from '@/components/MatchEventRow';
 import { StandingsRow } from '@/components/StandingsRow';
 import { TeamColumn } from '@/components/TeamColumn';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
@@ -365,11 +365,9 @@ export default function MatchPredictionScreen() {
           <Card style={{ gap: spacing.xs }}>
             <SectionTitle>Match Events</SectionTitle>
             <View>
-              {[...matchEvents]
-                .sort((a, b) => a.minute - b.minute)
-                .map((e, i) => (
-                  <MatchEventRow key={i} event={e} />
-                ))}
+              {mergeMatchEvents(matchEvents).map((e, i) => (
+                <MatchEventRow key={i} event={e} />
+              ))}
             </View>
           </Card>
         )}
