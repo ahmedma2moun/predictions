@@ -46,7 +46,9 @@ Other users' predictions for a specific match (used to show group picks before a
 Head-to-head record between the two teams from historical match data.
 
 ### GET /api/matches/[matchId]/live
-Live status/score for a locked match, polled client-side (every 60s while the match is in progress). Calls `fetchFixtureById()` from the football service layer (never the provider's raw API directly) and returns `{ status: 'scheduled'|'live'|'finished'|'postponed'|'cancelled', homeScore, awayScore }`, normalized via `mapFixtureStatus()`. `fetchFixtureById()` caches each fixture lookup for 30s (`src/lib/football/service.ts`) so concurrent viewers of the same live match collapse into one upstream request — free-tier providers cap requests at ~10/min, shared across the whole app. Returns 400 if the match has no `externalId` (custom match), 502 if the upstream fetch fails.
+Live status/score for a locked match, polled client-side (every 60s while the match is in progress). Calls `fetchFixtureById()` from the football service layer (never the provider's raw API directly) and returns `{ status: 'scheduled'|'live'|'finished'|'postponed'|'cancelled', homeScore, awayScore, events }`, normalized via `mapFixtureStatus()`. `fetchFixtureById()` caches each fixture lookup for 30s (`src/lib/football/service.ts`) so concurrent viewers of the same live match collapse into one upstream request — free-tier providers cap requests at ~10/min, shared across the whole app. Returns 400 if the match has no `externalId` (custom match), 502 if the upstream fetch fails.
+
+`events` is `APIMatchEvent[]` (`src/lib/football/types.ts`): `{ type: 'goal'|'card', detail, minute, team: 'home'|'away', player, assistPlayer }`. Populated by the provider only for `finished`/`live` fixtures, empty otherwise or on providers without event data. TheSportsDB (`src/lib/football/providers/thesportsdb.ts`) fetches it from `/lookuptimeline.php`, filtering to `Goal`/`Card` entries; football-data.org and API-Football always return `[]` (no timeline endpoint on the free tier / not wired up). Rendered by `MatchEvents.tsx` (web) and `MatchEventRow.tsx` (mobile) as a goals/cards list on the match page.
 
 ### GET /api/predictions
 User's prediction history (populated with match data), limit 100, sorted newest first.
@@ -160,6 +162,12 @@ Upserts the caller's Champion Bonus pick.
 
 **Errors**: `400` Champion Bonus not enabled / team not in the allowed set, `409` picks are locked.
 
+### GET /api/seasons
+Public season list — `status IN (ACTIVE, ENDED)` only, newest first. `DRAFT` seasons are admin-only (see `/api/admin/seasons`).
+
+### GET /api/seasons/[id]
+A season plus its recorded `SeasonStanding` rows (overall + per group), sorted by `groupId asc, rank asc`. `404` if the season doesn't exist or standings haven't been recorded yet (i.e. season isn't `ENDED`).
+
 ### GET /api/groups
 Returns the authenticated user's groups.
 
@@ -188,6 +196,7 @@ All admin handlers re-verify `role === 'admin'` inline — layout-level checks a
 ### GET/POST /api/admin/matches
 - **GET** (query: `page`) — Paginated match list (50/page)
 - **POST `{action: "fetch", leagueId?}`** — Fetch fixtures for the upcoming week for active leagues
+- **POST `{action: "fetch-next-month", leagueId?}`** — **Temporary**, remove once the TheSportsDB provider switch is verified. Fetches fixtures for next calendar month via `fetchAndInsertMatches()`. Returns `{ inserted, skipped, debug }`.
 
 ### POST /api/admin/results
 Manually set results for multiple finished matches and trigger scoring.
@@ -236,6 +245,26 @@ List registered FCM device tokens for a specific user.
 ### POST /api/admin/calculate-champions
 Award the `group_champion` badge to the all-time top scorer in each group.
 Returns `{ awarded: number, groups: number, winners: [...] }`.
+
+### GET/POST /api/admin/seasons
+- **GET** — All seasons regardless of status, newest first
+- **POST `{name, startDate, description?, oddsEnabled?, oddsMin?, oddsMax?}`** — Create a new season in `DRAFT` status. `name` and `startDate` are required.
+
+### POST /api/admin/seasons/[id]/activate
+Transitions a `DRAFT` season to `ACTIVE` and retro-assigns any unassigned match (`seasonId: null`) with `kickoffTime >= startDate` to it. `400` if the season isn't `DRAFT` or another season is already `ACTIVE` (only one active season at a time).
+Returns `{ season, retroAssigned: number }`.
+
+### POST /api/admin/seasons/[id]/end
+Transitions an `ACTIVE` season to `ENDED`: computes final overall + per-group standings (predictions + Champion Bonus points), writes them to `SeasonStanding` (replacing any prior rows for this season), awards `season_champion` / `season_podium` / `group_season_champion` badges, and notifies all users by email + push. `400` if the season isn't `ACTIVE`.
+Returns the updated season object.
+
+### GET /api/admin/seasons/[id]/preview
+Read-only preview of the same standings computation `end` would record — lets an admin sanity-check rankings before ending the season. No side effects.
+Returns `{ overall: [...], perGroup: [...] }`.
+
+### POST /api/admin/seasons/[id]/retro-assign
+Re-runs the unassigned-match backfill (same logic as `activate`) without changing season status. Useful if matches were fetched or edited after activation. `400` if the season is still `DRAFT`.
+Returns `{ retroAssigned: number }`.
 
 ### GET/POST/PATCH/DELETE /api/admin/seasons/[id]/champion-bonus
 Manage the season's Champion Bonus config (one league per season).
@@ -342,6 +371,12 @@ Same payload as `GET /api/champion-bonus`, mobile bearer auth.
 
 ### POST /api/mobile/champion-bonus/pick
 Same as `POST /api/champion-bonus/pick`, mobile bearer auth.
+
+### GET /api/mobile/seasons
+Same payload as `GET /api/seasons`, mobile bearer auth — trimmed field set (no odds config).
+
+### GET /api/mobile/seasons/[id]
+Same payload as `GET /api/seasons/[id]`, mobile bearer auth — trimmed field set.
 
 ### GET /api/mobile/groups
 Returns the authenticated user's groups.

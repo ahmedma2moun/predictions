@@ -3,7 +3,7 @@ import { auth, isSessionAdmin } from '@/lib/auth';
 import { serializeMatch } from '@/models/Match';
 import { processMatchResults } from '@/lib/results-processor';
 import { fetchAndInsertMatches } from '@/lib/matches-processor';
-import { format, addDays, startOfISOWeek } from 'date-fns';
+import { format, addDays, startOfISOWeek, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { safeParseBody } from '@/lib/request';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { UserRepository } from '@/lib/repositories/user-repository';
@@ -13,6 +13,7 @@ import { sendPushToUsers } from '@/lib/fcm';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { calcMatchOdds, deriveOutcome, ODDS_MIN_DEFAULT, ODDS_MAX_DEFAULT } from '@/lib/odds';
+import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
     const locked = !!m.matchOdds?.lockedAt;
     const odds = locked
       ? { homeWin: Number(m.matchOdds.homeWinOdds), draw: Number(m.matchOdds.drawOdds), awayWin: Number(m.matchOdds.awayWinOdds) }
-      : calcMatchOdds(pool, { oddsEnabled: true, oddsMin, oddsMax });
+      : calcMatchOdds(pool, { oddsEnabled: ODDS_FEATURE_ENABLED, oddsMin, oddsMax });
 
     return {
       ...serializeMatch(m),
@@ -152,6 +153,27 @@ export async function POST(req: NextRequest) {
   if (action === 'fetch-results') {
     const { updated, scored } = await processMatchResults('admin/matches');
     return NextResponse.json({ updated, scored });
+  }
+
+  // ── TEMPORARY: fetch next calendar month's fixtures — remove once the
+  // TheSportsDB provider switch is verified ──────────────────────────────────
+  if (action === 'fetch-next-month') {
+    const fromDate = new Date();
+    fromDate.setUTCHours(0, 0, 0, 0);
+    const nextMonth = addMonths(fromDate, 1);
+    const from = format(startOfMonth(nextMonth), 'yyyy-MM-dd');
+    const to   = format(endOfMonth(nextMonth), 'yyyy-MM-dd');
+
+    const { inserted, skipped, debug } = await fetchAndInsertMatches({
+      from,
+      to,
+      fromDate,
+      leagueId: leagueId ? Number(leagueId) : undefined,
+      filterByTeams: true,
+      logPrefix: 'admin/matches fetch-next-month',
+    });
+
+    return NextResponse.json({ inserted, skipped, debug });
   }
 
   // ── Fetch upcoming fixtures (this week) ─────────────────────────────────────

@@ -29,5 +29,6 @@ export async function GET(
     status: mapFixtureStatus(fixture.fixture.status.short),
     homeScore: fixture.score.fulltime.home ?? fixture.goals.home,
     awayScore: fixture.score.fulltime.away ?? fixture.goals.away,
+    events: fixture.events,
   });
 }

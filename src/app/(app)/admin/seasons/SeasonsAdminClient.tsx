@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { ODDS_FEATURE_ENABLED } from "@/lib/feature-flags";
 import { ChampionBonusAdminPanel } from "./ChampionBonusAdminPanel";
 
 type SeasonStatus = "DRAFT" | "ACTIVE" | "ENDED";
@@ -211,42 +212,44 @@ export function SeasonsAdminClient({ initialSeasons }: { initialSeasons: Season[
                   onChange={e => setDescription(e.target.value)}
                 />
               </div>
-              <div className="border border-border rounded-md p-3 space-y-3">
-                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={oddsEnabled}
-                    onChange={e => setOddsEnabled(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  Enable odds multiplier for this season
-                </label>
-                {oddsEnabled && (
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs text-muted-foreground block mb-1">Min odds</label>
-                      <input
-                        type="number" step="0.1" min="1.0" max="10"
-                        className="w-full border border-border rounded-md px-2 py-1.5 text-sm bg-background"
-                        value={oddsMin}
-                        onChange={e => setOddsMin(e.target.value)}
-                      />
+              {ODDS_FEATURE_ENABLED && (
+                <div className="border border-border rounded-md p-3 space-y-3">
+                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={oddsEnabled}
+                      onChange={e => setOddsEnabled(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    Enable odds multiplier for this season
+                  </label>
+                  {oddsEnabled && (
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="text-xs text-muted-foreground block mb-1">Min odds</label>
+                        <input
+                          type="number" step="0.1" min="1.0" max="10"
+                          className="w-full border border-border rounded-md px-2 py-1.5 text-sm bg-background"
+                          value={oddsMin}
+                          onChange={e => setOddsMin(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-muted-foreground block mb-1">Max odds</label>
+                        <input
+                          type="number" step="0.1" min="1.0" max="20"
+                          className="w-full border border-border rounded-md px-2 py-1.5 text-sm bg-background"
+                          value={oddsMax}
+                          onChange={e => setOddsMax(e.target.value)}
+                        />
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <label className="text-xs text-muted-foreground block mb-1">Max odds</label>
-                      <input
-                        type="number" step="0.1" min="1.0" max="20"
-                        className="w-full border border-border rounded-md px-2 py-1.5 text-sm bg-background"
-                        value={oddsMax}
-                        onChange={e => setOddsMax(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  When enabled, correct predictions for unpopular outcomes earn more points.
-                </p>
-              </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    When enabled, correct predictions for unpopular outcomes earn more points.
+                  </p>
+                </div>
+              )}
               <Button type="submit" disabled={loading === "create"}>
                 {loading === "create" ? "Creating…" : "Create Season"}
               </Button>
@@ -350,7 +353,7 @@ export function SeasonsAdminClient({ initialSeasons }: { initialSeasons: Season[
                     Starts {formatDate(season.startDate)}
                     {season.endedAt && ` · Ended ${formatDate(season.endedAt)}`}
                     {season.startedAt && !season.endedAt && ` · Activated ${formatDate(season.startedAt)}`}
-                    {season.oddsEnabled && ` · Odds ×${season.oddsMin}–×${season.oddsMax}`}
+                    {ODDS_FEATURE_ENABLED && season.oddsEnabled && ` · Odds ×${season.oddsMin}–×${season.oddsMax}`}
                   </p>
                 </div>
                 <div className="flex flex-col gap-1.5 items-end shrink-0">

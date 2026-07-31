@@ -101,6 +101,8 @@ function mapFDMatch(m: FDMatch): APIFixture {
       penalties: m.score.penalties ?? null,
       duration:  m.score.duration ?? null,
     },
+    // football-data.org's free tier has no goal/card timeline endpoint.
+    events: [],
   };
 }
 

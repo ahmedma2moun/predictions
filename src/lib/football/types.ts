@@ -26,6 +26,18 @@ export interface APIFixture {
     penalties?: { home: number | null; away: number | null } | null;
     duration?: string | null;
   };
+  // Goal/card timeline — only populated by fetchFixtureById() for finished/live
+  // matches, and only on providers that support it. Empty otherwise.
+  events: APIMatchEvent[];
+}
+
+export interface APIMatchEvent {
+  type: 'goal' | 'card';
+  detail: string; // e.g. "Normal Goal", "Own Goal", "Yellow Card", "Red Card"
+  minute: number;
+  team: 'home' | 'away';
+  player: string;
+  assistPlayer?: string | null;
 }
 
 export interface APIStandingEntry {

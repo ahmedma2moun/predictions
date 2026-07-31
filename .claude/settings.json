@@ -12,7 +12,6 @@
       "Bash(rm -rf *)",
       "Bash(curl *)",
       "Bash(wget *)",
-      "Read(.env.local)",
       "Read(~/.ssh/*)"
     ]
   }

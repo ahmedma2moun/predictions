@@ -2,9 +2,11 @@ import type {
   IFootballProvider,
   APILeague,
   APIFixture,
+  APIMatchEvent,
   APITeam,
   APIStandingEntry,
 } from '../types';
+import { mapFixtureStatus } from '../types';
 
 // ── TheSportsDB raw response shapes ───────────────────────────────────────────
 // Same data model across v1 and v2 — only the route/auth scheme differs.
@@ -51,6 +53,18 @@ interface TSDBTeam {
   idTeam: string;
   strTeam: string;
   strBadge?: string | null;
+}
+
+// /lookuptimeline.php — goal/card events for a finished or in-progress event.
+// Free-text strTimeline enum: "Goal" | "Card" | "subst" (and others); we only
+// care about the first two here.
+interface TSDBTimelineEntry {
+  strTimeline: string;
+  strTimelineDetail: string;
+  strHome: string; // "Yes" | "No"
+  strPlayer: string;
+  strAssist?: string | null;
+  intTime: string;
 }
 
 interface TSDBTableEntry {
@@ -121,13 +135,40 @@ function mapTSDBEvent(e: TSDBEvent): APIFixture {
       penalties: null,
       duration: null,
     },
+    // Populated separately by fetchFixtureById() — a season/day schedule listing
+    // shouldn't fire one extra timeline request per fixture.
+    events: [],
   };
+}
+
+function mapTSDBTimeline(entries: TSDBTimelineEntry[]): APIMatchEvent[] {
+  return entries
+    .filter(e => e.strTimeline === 'Goal' || e.strTimeline === 'Card')
+    .map(e => ({
+      type: e.strTimeline === 'Goal' ? 'goal' : 'card',
+      detail: e.strTimelineDetail,
+      minute: Number(e.intTime),
+      team: e.strHome === 'Yes' ? 'home' : 'away',
+      player: e.strPlayer,
+      assistPlayer: e.strAssist || null,
+    } as APIMatchEvent));
 }
 
 function parseSeasonYear(season: string): number {
   // TheSportsDB seasons are "2024-2025" or a plain "2024" — take the first year.
   const match = season.match(/\d{4}/);
   return match ? Number(match[0]) : 0;
+}
+
+// /all_leagues.php (used by fetchLeagues()) carries no season field at all —
+// only the per-league /lookupleague.php does, and calling that for every one
+// of the ~670 soccer leagues just to list them would blow the request budget.
+// Heuristic instead: European-style leagues roll over around July, so treat
+// the season as starting in the most recent July.
+function currentEuropeanSeasonYear(): number {
+  const now = new Date();
+  const month = now.getUTCMonth(); // 0-indexed; June = 5
+  return month >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
 }
 
 // v2 wraps results under a resource-named key whose exact spelling isn't
@@ -185,12 +226,20 @@ export class TheSportsDBProvider implements IFootballProvider {
   async fetchLeagues(): Promise<APILeague[]> {
     const data = await this.getV1<Record<string, unknown>>('/all_leagues.php');
     const leagues = firstArray<TSDBLeague>(data);
+    const fallbackSeason = currentEuropeanSeasonYear();
     return leagues
       .filter(l => l.strSport === 'Soccer')
       .map(l => ({
-        league: { id: Number(l.idLeague), name: l.strLeague, country: l.strCountry, logo: l.strBadge ?? '' },
-        country: { name: l.strCountry, flag: '' },
-        seasons: l.strCurrentSeason ? [{ year: parseSeasonYear(l.strCurrentSeason), current: true }] : [],
+        // strCountry isn't present on this bulk endpoint either (only
+        // /lookupleague.php per-league has it) — default to '' rather than
+        // undefined, since League.country is a required, non-nullable column
+        // and PATCH /api/admin/leagues 500s if it's missing from the body.
+        league: { id: Number(l.idLeague), name: l.strLeague, country: l.strCountry ?? '', logo: l.strBadge ?? '' },
+        country: { name: l.strCountry ?? '', flag: '' },
+        // strCurrentSeason isn't present on this bulk endpoint (only on
+        // /lookupleague.php per-league) — fall back to the heuristic season
+        // so the admin "fetch leagues" list isn't empty for every league.
+        seasons: [{ year: l.strCurrentSeason ? parseSeasonYear(l.strCurrentSeason) : fallbackSeason, current: true }],
       }));
   }
 
@@ -231,7 +280,19 @@ export class TheSportsDBProvider implements IFootballProvider {
   async fetchFixtureById(fixtureId: number): Promise<APIFixture | null> {
     const data = await this.getV2<Record<string, unknown>>(`/lookup/event/${fixtureId}`);
     const event = firstArray<TSDBEvent>(data)[0];
-    return event ? mapTSDBEvent(event) : null;
+    if (!event) return null;
+
+    const fixture = mapTSDBEvent(event);
+    const appStatus = mapFixtureStatus(fixture.fixture.status.short);
+    if (appStatus === 'finished' || appStatus === 'live') {
+      fixture.events = await this.fetchMatchEvents(fixtureId);
+    }
+    return fixture;
+  }
+
+  private async fetchMatchEvents(fixtureId: number): Promise<APIMatchEvent[]> {
+    const data = await this.getV1<{ timeline: TSDBTimelineEntry[] | null }>('/lookuptimeline.php', { id: fixtureId });
+    return mapTSDBTimeline(data.timeline ?? []);
   }
 
   // No v2 standings endpoint — stays on v1.

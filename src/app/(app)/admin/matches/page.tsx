@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/client-api";
+import { ODDS_FEATURE_ENABLED } from "@/lib/feature-flags";
 import { KickoffTime } from "@/components/KickoffTime";
 import { Plus, ChevronDown, ChevronUp, Lock } from "lucide-react";
 
@@ -49,6 +50,7 @@ export default function AdminMatchesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
+  const [fetchingNextMonth, setFetchingNextMonth] = useState(false);
   const [fetchingResults, setFetchingResults] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
@@ -86,6 +88,21 @@ export default function AdminMatchesPage() {
       await toastApiError(r, "Failed to fetch matches");
     }
     setFetching(false);
+  }
+
+  // TEMPORARY: fetch next calendar month's fixtures — remove once the
+  // TheSportsDB provider switch is verified.
+  async function fetchNextMonth() {
+    setFetchingNextMonth(true);
+    const r = await fetch("/api/admin/matches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fetch-next-month" }) });
+    if (r.ok) {
+      const data = await r.json();
+      toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
+      await loadMatches();
+    } else {
+      await toastApiError(r, "Failed to fetch next month's matches");
+    }
+    setFetchingNextMonth(false);
   }
 
   async function fetchResults() {
@@ -186,6 +203,10 @@ export default function AdminMatchesPage() {
           </Button>
           <Button onClick={fetchMatches} disabled={fetching}>
             {fetching ? "Fetching..." : "Fetch This Week"}
+          </Button>
+          {/* TEMPORARY: remove once the TheSportsDB provider switch is verified */}
+          <Button variant="outline" onClick={fetchNextMonth} disabled={fetchingNextMonth}>
+            {fetchingNextMonth ? "Fetching..." : "Fetch Next Month"}
           </Button>
         </div>
       </div>
@@ -298,7 +319,7 @@ export default function AdminMatchesPage() {
                     {match.result && (
                       <p className="text-xs text-muted-foreground">Result: {match.result.homeScore}–{match.result.awayScore}</p>
                     )}
-                    {match.odds && (
+                    {ODDS_FEATURE_ENABLED && match.odds && (
                       <div className="mt-1.5 flex items-center gap-3 text-xs">
                         {match.odds.locked && (
                           <Lock className="h-3 w-3 text-muted-foreground shrink-0" />

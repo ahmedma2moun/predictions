@@ -15,11 +15,12 @@ import { apiRequest, ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Button, Card, Muted, Pill, SectionTitle } from '@/components/ui';
 import { H2HRow } from '@/components/H2HRow';
+import { MatchEventRow } from '@/components/MatchEventRow';
 import { StandingsRow } from '@/components/StandingsRow';
 import { TeamColumn } from '@/components/TeamColumn';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
-import type { GroupPredictionEntry, H2HMatch, LeaderboardGroup, LiveGroupStanding, LiveStandingEntry, MatchDetail } from '@/types/api';
+import type { GroupPredictionEntry, H2HMatch, LeaderboardGroup, LiveGroupStanding, LiveStandingEntry, MatchDetail, MatchEvent } from '@/types/api';
 import { formatKickoff, formatMatchStatus, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
 
 export default function MatchPredictionScreen() {
@@ -43,6 +44,7 @@ export default function MatchPredictionScreen() {
   const [groupStanding, setGroupStanding] = useState<LiveGroupStanding | null>(null);
   const [groupPredictionsLoading, setGroupPredictionsLoading] = useState(false);
   const [liveScore, setLiveScore] = useState<{ homeScore: number; awayScore: number } | null>(null);
+  const [matchEvents, setMatchEvents] = useState<MatchEvent[] | null>(null);
 
   const load = useCallback(async () => {
     if (!token || !matchId) return;
@@ -82,7 +84,7 @@ export default function MatchPredictionScreen() {
 
     async function fetchLive() {
       try {
-        const live = await apiRequest<{ status: string; homeScore: number | null; awayScore: number | null }>(
+        const live = await apiRequest<{ status: string; homeScore: number | null; awayScore: number | null; events: MatchEvent[] }>(
           `/api/mobile/matches/${matchId}/live`,
           { token: token! },
         );
@@ -90,6 +92,7 @@ export default function MatchPredictionScreen() {
         if (live.homeScore !== null && live.awayScore !== null) {
           setLiveScore({ homeScore: live.homeScore, awayScore: live.awayScore });
         }
+        if (live.events?.length) setMatchEvents(live.events);
         if (live.status === 'live') {
           timer = setTimeout(fetchLive, 60_000);
         }
@@ -356,6 +359,20 @@ export default function MatchPredictionScreen() {
             </Card>
           );
         })()}
+
+        {/* Match events */}
+        {matchEvents && matchEvents.length > 0 && (
+          <Card style={{ gap: spacing.xs }}>
+            <SectionTitle>Match Events</SectionTitle>
+            <View>
+              {[...matchEvents]
+                .sort((a, b) => a.minute - b.minute)
+                .map((e, i) => (
+                  <MatchEventRow key={i} event={e} />
+                ))}
+            </View>
+          </Card>
+        )}
 
         {/* H2H */}
         {h2hLoading && (

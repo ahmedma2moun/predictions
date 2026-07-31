@@ -87,6 +87,9 @@ function mapAFFixture(f: AFFixture): APIFixture {
       penalties: isPenalty ? { home: penHome, away: penAway } : null,
       duration:  isPenalty ? 'PENALTY_SHOOTOUT' : null,
     },
+    // Not wired up yet — API-Football does support a /fixtures/events endpoint,
+    // but this provider isn't active, so leaving it unimplemented for now.
+    events: [],
   };
 }
 

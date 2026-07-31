@@ -7,6 +7,7 @@ import { GroupRepository } from '@/lib/repositories/group-repository';
 import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
 import { getMaxPointsPerMatch, calculateScore } from '@/lib/scoring-engine';
 import { deriveOutcome, calcFinalScore, getLiveMatchOdds, type OddsConfig } from '@/lib/odds';
+import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 
 export type PredictionWithMatch = Prediction & {
   match: Match & { league: { name: string } | null; matchOdds: MatchOdds | null };
@@ -207,7 +208,7 @@ export async function getGroupPredictionsForMatch(
   const liveWinner = liveResult ? getWinner(liveResult.homeScore, liveResult.awayScore) : null;
 
   const oddsConfig: OddsConfig = {
-    oddsEnabled: match.season?.oddsEnabled ?? false,
+    oddsEnabled: ODDS_FEATURE_ENABLED && (match.season?.oddsEnabled ?? false),
     oddsMin: match.season ? Number(match.season.oddsMin) : 1.1,
     oddsMax: match.season ? Number(match.season.oddsMax) : 5.0,
   };

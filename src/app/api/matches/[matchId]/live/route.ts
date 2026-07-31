@@ -26,5 +26,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     status: mapFixtureStatus(fixture.fixture.status.short),
     homeScore: fixture.score.fulltime.home ?? fixture.goals.home,
     awayScore: fixture.score.fulltime.away ?? fixture.goals.away,
+    events: fixture.events,
   });
 }

@@ -5,6 +5,7 @@ import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { fetchFixtureById, mapFixtureStatus } from '@/lib/football/service';
 import { calculateScore } from '@/lib/scoring-engine';
 import { getLiveMatchOdds, deriveOutcome, calcFinalScore, type OddsConfig } from '@/lib/odds';
+import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { logger } from '@/lib/logger';
 
 export type LiveMovement = 'up' | 'down' | 'same';
@@ -100,7 +101,7 @@ export async function getLiveGroupStanding(filters: LiveStandingFilters): Promis
       homeScore,
       awayScore,
       oddsConfig: {
-        oddsEnabled: s?.oddsEnabled ?? false,
+        oddsEnabled: ODDS_FEATURE_ENABLED && (s?.oddsEnabled ?? false),
         oddsMin: s ? Number(s.oddsMin) : 1.1,
         oddsMax: s ? Number(s.oddsMax) : 5.0,
       },

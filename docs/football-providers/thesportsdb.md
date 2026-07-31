@@ -30,9 +30,13 @@
 | `fetchTeams(leagueId)` | `GET /list/teams/{leagueId}` | v2 (header key) | Numeric league ID directly |
 | `fetchFixtures({league, season, from, to})` | `GET /schedule/league/{league}/{season}` | v2 | Full season, filtered to the `from`/`to` window client-side — no native range param in either API version |
 | `fetchFixtures({league, season, date})` | `GET /eventsday.php?d=&l=` | v1 (path key) | No v2 day-schedule endpoint documented |
-| `fetchFixtureById(id)` | `GET /lookup/event/{id}` | v2 | |
+| `fetchFixtureById(id)` | `GET /lookup/event/{id}` → `GET /lookuptimeline.php?id=` (goal/card events, only for `finished`/`live` fixtures) | v2 + v1 | Timeline call is skipped for `scheduled` fixtures to avoid a wasted request; maps `Goal`/`Card` entries to `APIMatchEvent` (see ADR-14, `SYSTEM_ARCHITECTURE.md`) |
 | `fetchStandings(leagueId)` | `GET /lookupleague.php?id=` (season) → `GET /lookuptable.php?l=&s=` | v1 | No v2 standings endpoint exists |
 | `fetchHeadToHead(matchId, limit)` | `GET /lookup/event/{id}` → `GET /eventslast.php?id={homeTeamId}` filtered to the away team | v2 + v1 | **No native H2H endpoint in either version.** Pulls the home team's recent results and keeps matches against the away team |
+
+**`fetchLeagues()` season/country fallback:** `/all_leagues.php` (the only bulk leagues-list endpoint) carries no `strCountry` or `strCurrentSeason` field — those only exist on the per-league `/lookupleague.php`, and calling that for every one of the ~670 soccer leagues just to list them would blow the request budget. The provider falls back to `country: ''` (required since `League.country` is a non-nullable column — `PATCH /api/admin/leagues` 500s without it) and a heuristic current season: European-style leagues roll over around July, so `currentEuropeanSeasonYear()` treats the season as starting in the most recent July.
+
+**Image domains:** TheSportsDB team badges are served from multiple subdomains (`r2.thesportsdb.com` for CDN-hosted images, `www.thesportsdb.com` for legacy ones). `next.config.ts` wildcards `*.thesportsdb.com` in `images.remotePatterns` rather than allowlisting hosts individually.
 
 **Response shape note:** v1 envelopes were verified against live data during
 implementation (`{ "events": [...] }`, `{ "table": [...] }`, `{ "results": [...] }`,

@@ -12,9 +12,10 @@
 │  └──────────────┘  └──────────┬──────────┘  └──────┬────────────┘  │
 │                               │                     │               │
 │            ┌──────────────────▼─────────────────────▼────────────┐ │
-│            │     lib/services/ (10) → lib/repositories/ (12)       │ │
-│            │  match · prediction · leaderboard · group · league   │ │
-│            │  user · team · scoring-rule · device · streak-badge  │ │
+│            │     lib/services/ (13) → lib/repositories/ (14)       │ │
+│            │  match · prediction · leaderboard · live-standing    │ │
+│            │  group · league · user · team · scoring-rule         │ │
+│            │  device · streak-badge · champion-bonus · season     │ │
 │            └────────────────────────┬─────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────┘
                                       │
@@ -22,7 +23,8 @@
              │           PostgreSQL (Supabase / Neon)              │
              │  users · leagues · teams · matches                  │
              │  predictions · scoringRules                         │
-             │  groups · groupMembers · teamStandings              │
+             │  groups · groupMembers · teamStandings               │
+             │  seasons · seasonStandings · championBonus*          │
              └────────────────────────────────────────────────────┘
                                       │
              ┌────────────────────────▼───────────────────────────┐
@@ -67,6 +69,10 @@ Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → Postgr
 | Champion Bonus data model | 4 separate tables, never `Prediction.pointsAwarded` | Admin `recalculateAllScores()` overwrites `pointsAwarded`; bonus is a read-time additive term instead. Awards are per (team, match), not per (user, match) — N users on one team share the same award rows |
 | Champion Bonus cancel | Cascading delete, no CANCELLED status | Dead configs simply don't exist, so no query path ever needs to filter them out; re-enable is a fresh insert |
 | Champion Bonus scoring | Recompute-from-scratch per team, ordered by kickoff | Deterministic `gameNumber` regardless of result arrival order; double-processing and corrections are idempotent by construction |
+| Season standings | Frozen snapshot in `SeasonStanding`, written once on `endSeason()` | Keeps a season's final results stable even if later admin actions (recalculation, badge changes) touch the underlying data; re-ending is a delete-all + recreate, so it's idempotent |
+| Football provider | TheSportsDB implemented, not yet activated | Ready via `FOOTBALL_PROVIDER=thesportsdb`, but requires a paid `THESPORTSDB_API_KEY` — see `docs/football-providers/thesportsdb.md` |
+| Match events (goals/cards) | Embedded in `APIFixture.events`, fetched inside `fetchFixtureById()` | Reuses the existing live-score call/cache instead of a new provider method/route; TheSportsDB populates via `/lookuptimeline.php` for finished/live fixtures, other providers return `[]` |
+| Odds feature | Disabled app-wide via `ODDS_FEATURE_ENABLED = false` (`lib/feature-flags.ts`) | Single kill switch ANDed into every `OddsConfig` build, without touching persisted `Season`/`MatchOdds` data — flipping it back to `true` fully restores prior behavior |
 
 ## Reading Order by Role
 

@@ -191,5 +191,6 @@ export function buildFinishedFixture(params: {
       penalties: isPenalty ? { home: params.penaltyHomeScore!, away: params.penaltyAwayScore! } : null,
       duration: isPenalty ? 'PENALTY_SHOOTOUT' : 'REGULAR',
     },
+    events: [],
   };
 }

@@ -5,6 +5,7 @@ import { Prisma, MatchStatus, Match } from '@prisma/client';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { getLiveMatchOdds, type OddsConfig } from '@/lib/odds';
+import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 
 export interface MatchFilters {
   leagueId?: number;
@@ -140,12 +141,12 @@ export async function getMatchById(
   const isCustom = match.externalLeagueId === 0;
   const s = (match as any).season;
   const oddsConfig: OddsConfig = {
-    oddsEnabled: s?.oddsEnabled ?? false,
+    oddsEnabled: ODDS_FEATURE_ENABLED && (s?.oddsEnabled ?? false),
     oddsMin: s ? Number(s.oddsMin) : 1.1,
     oddsMax: s ? Number(s.oddsMax) : 5.0,
   };
 
-  const adminOddsConfig: OddsConfig = { ...oddsConfig, oddsEnabled: true };
+  const adminOddsConfig: OddsConfig = { ...oddsConfig, oddsEnabled: ODDS_FEATURE_ENABLED };
 
   const [prediction, standingMap, odds] = await Promise.all([
     opts.isAdmin

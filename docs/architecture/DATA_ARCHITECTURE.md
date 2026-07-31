@@ -20,6 +20,8 @@ PostgreSQL database
 ├── GroupMember     — many-to-many User ↔ Group
 ├── TeamStanding    — cached league standings from football-data.org
 ├── DeviceToken     — FCM push tokens for mobile notifications
+├── Season          — season lifecycle (DRAFT → ACTIVE → ENDED), optional odds config
+├── SeasonStanding  — frozen final standings (overall + per-group) recorded when a season ends
 ├── ChampionBonus       — per-season Champion Bonus config (one league per season)
 ├── ChampionBonusTeam   — admin-selected allowed team subset
 ├── ChampionBonusPick   — one user pick per config
@@ -88,7 +90,7 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 | Field | Type | Constraint | Notes |
 |---|---|---|---|
 | id | Int | PK autoincrement | |
-| externalId | Int | **unique** | API fixture ID — prevents duplicates |
+| externalId | Int? | **unique** | API fixture ID — prevents duplicates; null for manually-created matches |
 | leagueId | Int? | FK → League (set null on delete) | |
 | externalLeagueId | Int | | denormalized |
 | homeTeamExtId | Int | | |
@@ -110,6 +112,7 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 | resultWinner | Winner? | | home/away/draw |
 | scoresProcessed | Boolean | default false | true after predictions scored |
 | weekStart | DateTime | | Thursday UTC of fetch week |
+| seasonId | Int? | FK → Season (set null on delete) | assigned on fetch when a season is ACTIVE; backfilled by `retro-assign` |
 
 ### `Prediction`
 | Field | Type | Constraint | Notes |
@@ -192,6 +195,39 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 | createdAt / updatedAt | DateTime | | auto-managed |
 | | | **@@index([userId])** | |
 
+### `Season`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| name | String | | e.g. "2025/26" |
+| description | String? | | |
+| status | SeasonStatus enum | default 'DRAFT' | DRAFT → ACTIVE → ENDED |
+| startDate | DateTime | | matches with `kickoffTime >= startDate` are assigned to this season once ACTIVE |
+| startedAt | DateTime? | | set by `activateSeason()` |
+| endedAt | DateTime? | | set by `endSeason()` |
+| oddsEnabled | Boolean | default false | whether prediction odds apply for this season |
+| oddsMin / oddsMax | Decimal(4,2) | default 1.1 / 5.0 | bounds `MatchOdds` are normalised to |
+| createdAt / updatedAt | DateTime | | auto-managed |
+
+Only one `Season` may be `ACTIVE` at a time — enforced in `season-service.ts`, not at the schema level.
+
+### `SeasonStanding`
+| Field | Type | Constraint | Notes |
+|---|---|---|---|
+| id | Int | PK autoincrement | |
+| seasonId | Int | FK → Season (cascade) | |
+| groupId | Int? | FK → Group (set null on delete) | null row = overall (all users), non-null = per-group standing |
+| userId | Int | FK → User (cascade) | |
+| rank | Int | | 1-based, computed at season end |
+| totalPoints | Int | | prediction points + Champion Bonus, folded together before ranking |
+| totalPredictions | Int | | |
+| exactScores | Int | | count of exact-score predictions |
+| recordedAt | DateTime | default now() | |
+| | | **@@index([seasonId, groupId])** | |
+| | | **@@index([userId])** | |
+
+A season's final standings are computed once, on `endSeason()`, from live `Prediction`/`ChampionBonusAward` data and written here — this table is a frozen snapshot, not a live view. Re-ending a season deletes and recomputes its rows (`deleteMany` + `createMany`), so recomputation is idempotent. Recording standings also awards `season_champion` (overall rank 1), `season_podium` (overall rank ≤ 3), and `group_season_champion` (rank 1 within a group) badges.
+
 ### `ChampionBonus`
 | Field | Type | Constraint | Notes |
 |---|---|---|---|
@@ -243,7 +279,8 @@ Ledger is rebuilt from scratch per team on every relevant finished/corrected mat
 | Enum | Values |
 |---|---|
 | `Role` | `admin`, `user` |
-| `BadgeKey` | `first_exact_score`, `on_a_roll`, `perfect_week`, `group_champion` |
+| `BadgeKey` | `first_exact_score`, `on_a_roll`, `perfect_week`, `group_champion`, `season_champion`, `season_podium`, `group_season_champion` |
+| `SeasonStatus` | `DRAFT`, `ACTIVE`, `ENDED` |
 | `MatchStatus` | `scheduled`, `live`, `finished`, `postponed`, `cancelled` |
 | `Winner` | `home`, `away`, `draw` |
 | `ChampionBonusStatus` | `OPEN` (picks editable), `LOCKED` (picks frozen, awards accruing) |
@@ -266,6 +303,7 @@ Ledger is rebuilt from scratch per team on every relevant finished/corrected mat
 | `scoring-rule-repository.ts` | ScoringRule |
 | `team-standing-repository.ts` | TeamStanding |
 | `system-repository.ts` | Cross-model utilities (e.g. raw SQL helpers) |
+| `season-repository.ts` | Season |
 | `champion-bonus-repository.ts` | ChampionBonus, ChampionBonusTeam, ChampionBonusPick, ChampionBonusAward |
 
 Route handlers and higher-level lib files should **not** import repositories directly — they use services, which call repositories.

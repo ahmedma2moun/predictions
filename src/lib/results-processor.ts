@@ -8,6 +8,7 @@ import { sendPushToUsers } from './fcm';
 import { getStandingsMap } from '@/lib/standings';
 import { calculateScore } from '@/lib/scoring-engine';
 import { lockMatchOdds, deriveOutcome, calcFinalScore, type OddsConfig } from '@/lib/odds';
+import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { sendResultsEmail, sendResultCorrectionEmail, type ResultMatchForEmail } from '@/lib/email';
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format } from 'date-fns';
@@ -88,7 +89,7 @@ export async function correctMatchResult(
   if (preds.length > 0) {
     const s = (match as any).season;
     const oddsConfig: OddsConfig = {
-      oddsEnabled: s?.oddsEnabled ?? false,
+      oddsEnabled: ODDS_FEATURE_ENABLED && (s?.oddsEnabled ?? false),
       oddsMin: s ? Number(s.oddsMin) : 1.1,
       oddsMax: s ? Number(s.oddsMax) : 5.0,
     };
@@ -434,7 +435,7 @@ export async function batchScorePredictions(
   });
   const s = matchWithSeason?.season;
   const oddsConfig: OddsConfig = {
-    oddsEnabled: s?.oddsEnabled ?? false,
+    oddsEnabled: ODDS_FEATURE_ENABLED && (s?.oddsEnabled ?? false),
     oddsMin: s ? Number(s.oddsMin) : 1.1,
     oddsMax: s ? Number(s.oddsMax) : 5.0,
   };

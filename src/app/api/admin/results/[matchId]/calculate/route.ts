@@ -5,6 +5,7 @@ import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
 import { calculateScore } from '@/lib/scoring-engine';
 import { lockMatchOdds, deriveOutcome, calcFinalScore, type OddsConfig } from '@/lib/odds';
+import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { updateUserStreaks } from '@/lib/services/streak-badge-service';
 import { logger } from '@/lib/logger';
 
@@ -35,7 +36,7 @@ export async function POST(
 
   const s = (match as any).season;
   const oddsConfig: OddsConfig = {
-    oddsEnabled: s?.oddsEnabled ?? false,
+    oddsEnabled: ODDS_FEATURE_ENABLED && (s?.oddsEnabled ?? false),
     oddsMin: s ? Number(s.oddsMin) : 1.1,
     oddsMax: s ? Number(s.oddsMax) : 5.0,
   };

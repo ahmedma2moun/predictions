@@ -13,6 +13,8 @@ import type { H2HMatch } from "./MatchH2H";
 import { MatchStandings } from "./MatchStandings";
 import type { Standing } from "./MatchStandings";
 import { GroupPredictions } from "./GroupPredictions";
+import { MatchEvents } from "./MatchEvents";
+import type { MatchEvent } from "./MatchEvents";
 
 function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
   return (
@@ -56,6 +58,7 @@ export default function MatchPredictionPage() {
   const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
   const [h2hLoading, setH2hLoading] = useState(false);
   const [liveScore, setLiveScore] = useState<{ homeScore: number | null; awayScore: number | null } | null>(null);
+  const [matchEvents, setMatchEvents] = useState<MatchEvent[] | null>(null);
 
   const isCustom = match?.externalId === null || match?.externalId === undefined && match?.externalLeagueId === 0;
 
@@ -97,6 +100,7 @@ export default function MatchPredictionPage() {
       if (data.homeScore !== null && data.awayScore !== null) {
         setLiveScore({ homeScore: data.homeScore, awayScore: data.awayScore });
       }
+      if (data.events?.length) setMatchEvents(data.events);
       // Keep polling while the match is actually in progress.
       if (data.status === 'live') {
         timer = setTimeout(fetchLive, 60_000);
@@ -416,6 +420,12 @@ export default function MatchPredictionPage() {
           )}
         </div>
       </div>
+
+      <MatchEvents
+        events={matchEvents}
+        homeTeamName={match.homeTeam?.name}
+        awayTeamName={match.awayTeam?.name}
+      />
 
       {!isCustom && (
         <MatchH2H

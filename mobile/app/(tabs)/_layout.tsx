@@ -8,6 +8,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { OddsExplainerModal } from '@/components/OddsExplainerModal';
+import { ODDS_FEATURE_ENABLED } from '@/constants/featureFlags';
 
 export default function TabsLayout() {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ export default function TabsLayout() {
 
   return (
     <>
-    <OddsExplainerModal />
+    {ODDS_FEATURE_ENABLED && <OddsExplainerModal />}
     <Tabs
       screenOptions={{
         headerShown: false,

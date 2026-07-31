@@ -84,6 +84,15 @@ export interface H2HMatch {
   status: string;
 }
 
+export interface MatchEvent {
+  type: 'goal' | 'card';
+  detail: string;
+  minute: number;
+  team: 'home' | 'away';
+  player: string;
+  assistPlayer: string | null;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
