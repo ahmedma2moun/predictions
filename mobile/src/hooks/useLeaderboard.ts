@@ -93,7 +93,7 @@ export function useLeaderboard() {
   const offSeason = !!seasons && !seasons.some(s => s.status === 'ACTIVE');
 
   // Board entries via useRemoteData
-  const { data: rawEntries, loading, refreshing, refresh: onRefresh } = useRemoteData<LeaderboardEntry[]>(
+  const { data: rawEntries, loading, refreshing, error, refresh: onRefresh } = useRemoteData<LeaderboardEntry[]>(
     (signal) => {
       let url = '/api/mobile/leaderboard?_=1';
       if (dateRange) {
@@ -172,6 +172,7 @@ export function useLeaderboard() {
     entries,
     loading,
     refreshing,
+    error,
     onRefresh,
     expandedUserId,
     expandedLoading,

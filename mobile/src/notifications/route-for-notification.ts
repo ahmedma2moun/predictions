@@ -1,3 +1,4 @@
+import type { Href } from 'expo-router';
 import { ROUTES } from '@/constants/routes';
 
 /**
@@ -13,7 +14,7 @@ import { ROUTES } from '@/constants/routes';
  *  - `daily_reminder`     — daily nudge                                  → Matches
  *  - anything else / missing                                            → Matches
  */
-export function routeForNotification(data: unknown): string {
+export function routeForNotification(data: unknown): Href {
   const type = (data as { type?: string } | null | undefined)?.type;
 
   switch (type) {

@@ -25,7 +25,7 @@ export default function ChampionScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
 
-  const { state, loading, refreshing, onRefresh, picking, pickError, pick } = useChampionBonus();
+  const { state, loading, refreshing, error, onRefresh, picking, pickError, pick } = useChampionBonus();
   const { user } = useAuth();
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [confirmTeam, setConfirmTeam] = useState<ChampionBonusAllowedTeam | null>(null);
@@ -34,6 +34,19 @@ export default function ChampionScreen() {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <AppHeader title="Champion" />
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyEmoji}>⚠️</Text>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Failed to load</Text>
+          <Muted style={{ textAlign: 'center' }}>{error}</Muted>
+        </View>
       </View>
     );
   }

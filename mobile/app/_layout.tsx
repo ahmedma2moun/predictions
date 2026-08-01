@@ -1,10 +1,10 @@
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useRef } from 'react';
-import { View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Pressable, Text, View } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useFonts,
   JetBrainsMono_400Regular,
@@ -12,11 +12,34 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { ROUTES } from '@/constants/routes';
+import { colors, font, radius, spacing } from '@/theme/colors';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 import { registerForPushNotifications } from '@/notifications/push';
 import { routeForNotification } from '@/notifications/route-for-notification';
 
 SplashScreen.preventAutoHideAsync();
+
+// Falls back to the static dark palette rather than useTheme() — if the crash happened
+// above ThemeProvider in the tree, that context won't be available here either.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, paddingTop: insets.top }}>
+      <Text style={{ fontSize: font.size.lg, fontWeight: font.weight.bold, color: colors.foreground, textAlign: 'center' }}>
+        Something went wrong
+      </Text>
+      <Text style={{ fontSize: font.size.sm, color: colors.mutedForeground, textAlign: 'center', marginTop: spacing.sm, marginBottom: spacing.lg }}>
+        {error.message}
+      </Text>
+      <Pressable
+        onPress={retry}
+        style={{ backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm }}
+      >
+        <Text style={{ color: colors.primaryForeground, fontWeight: font.weight.semibold }}>Try Again</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { token, loading } = useAuth();
@@ -27,9 +50,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (loading) return;
     const inAuthGroup = segments[0] === 'login';
     if (!token && !inAuthGroup) {
-      router.replace(ROUTES.login as any);
+      router.replace(ROUTES.login);
     } else if (token && inAuthGroup) {
-      router.replace(ROUTES.matches as any);
+      router.replace(ROUTES.matches);
     }
   }, [token, loading, segments, router]);
 
@@ -55,7 +78,7 @@ function PushRegistrar() {
     if (!token) return;
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
-      router.push(routeForNotification(data) as any);
+      router.push(routeForNotification(data));
     });
     return () => sub.remove();
   }, [token, router]);
@@ -70,7 +93,7 @@ function PushRegistrar() {
       .then(response => {
         if (!response) return;
         const data = response.notification.request.content.data;
-        router.push(routeForNotification(data) as any);
+        router.push(routeForNotification(data));
       })
       .catch(() => {});
   }, [token, router]);

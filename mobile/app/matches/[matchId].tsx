@@ -14,13 +14,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiRequest, ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Button, Card, Muted, Pill, SectionTitle } from '@/components/ui';
+import { GroupComparisonCard } from '@/components/GroupComparisonCard';
 import { H2HRow } from '@/components/H2HRow';
 import { MatchEventRow, mergeMatchEvents } from '@/components/MatchEventRow';
 import { StandingsRow } from '@/components/StandingsRow';
 import { TeamColumn } from '@/components/TeamColumn';
+import { useRemoteData } from '@/hooks/useRemoteData';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
-import type { GroupPredictionEntry, H2HMatch, LeaderboardGroup, LiveGroupStanding, LiveStandingEntry, MatchDetail, MatchEvent } from '@/types/api';
+import type { H2HMatch, MatchDetail, MatchEvent } from '@/types/api';
 import { formatKickoff, formatMatchStatus, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
 
 export default function MatchPredictionScreen() {
@@ -31,51 +33,37 @@ export default function MatchPredictionScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
 
-  const [match, setMatch]         = useState<MatchDetail | null>(null);
   const [home, setHome]           = useState(0);
   const [away, setAway]           = useState(0);
-  const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
-  const [h2h, setH2h]             = useState<H2HMatch[] | null>(null);
-  const [h2hLoading, setH2hLoading] = useState(true);
-  const [groups, setGroups]       = useState<LeaderboardGroup[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [groupPredictions, setGroupPredictions] = useState<GroupPredictionEntry[] | null>(null);
-  const [groupStanding, setGroupStanding] = useState<LiveGroupStanding | null>(null);
-  const [groupPredictionsLoading, setGroupPredictionsLoading] = useState(false);
   const [liveScore, setLiveScore] = useState<{ homeScore: number; awayScore: number } | null>(null);
   const [matchEvents, setMatchEvents] = useState<MatchEvent[] | null>(null);
 
-  const load = useCallback(async () => {
-    if (!token || !matchId) return;
-    setH2hLoading(true);
-    try {
-      const [data, h2hData, groupsData] = await Promise.all([
-        apiRequest<MatchDetail>(`/api/mobile/matches/${matchId}`, { token }),
-        apiRequest<H2HMatch[]>(`/api/mobile/matches/${matchId}/h2h`, { token }).catch(() => null),
-        apiRequest<LeaderboardGroup[]>(`/api/mobile/groups`, { token }).catch(() => []),
+  const loadMatch = useCallback(
+    async (signal: AbortSignal) => {
+      const [data, h2hData] = await Promise.all([
+        apiRequest<MatchDetail>(`/api/mobile/matches/${matchId}`, { token: token!, signal }),
+        apiRequest<H2HMatch[]>(`/api/mobile/matches/${matchId}/h2h`, { token: token!, signal }).catch(() => null),
       ]);
-      setMatch(data);
-      if (data.prediction) {
-        setHome(data.prediction.homeScore);
-        setAway(data.prediction.awayScore);
-      }
-      setH2h(h2hData);
-      const sortedGroups = [...(groupsData ?? [])].sort((a, b) => {
-        if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
-      setGroups(sortedGroups);
-      if (sortedGroups.length > 0) setSelectedGroupId(sortedGroups[0].id);
-    } catch (e: any) {
-      Alert.alert('Failed to load match', e?.message ?? 'Unknown error');
-    } finally {
-      setLoading(false);
-      setH2hLoading(false);
-    }
-  }, [token, matchId]);
+      return { match: data, h2h: h2hData };
+    },
+    [token, matchId],
+  );
+  const { data, loading, error } = useRemoteData(loadMatch, [token, matchId], { enabled: !!token && !!matchId });
+  const match = data?.match ?? null;
+  const h2h = data?.h2h ?? null;
+  const h2hLoading = loading;
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (error) Alert.alert('Failed to load match', error);
+  }, [error]);
+
+  useEffect(() => {
+    if (match?.prediction) {
+      setHome(match.prediction.homeScore);
+      setAway(match.prediction.awayScore);
+    }
+  }, [match?.prediction]);
 
   useEffect(() => {
     if (!token || !matchId || !match?.externalId || !isMatchLocked(match.kickoffTime)) return;
@@ -104,35 +92,6 @@ export default function MatchPredictionScreen() {
     fetchLive();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [token, matchId, match?.externalId, match?.kickoffTime]);
-
-  useEffect(() => {
-    if (!token || !matchId || !selectedGroupId || !match) return;
-    const locked = isMatchLocked(match.kickoffTime);
-    if (!locked && !match.isAdmin) return;
-    setGroupPredictionsLoading(true);
-    setGroupPredictions(null);
-    setGroupStanding(null);
-    const params = new URLSearchParams({ groupId: selectedGroupId });
-    if (!match.result && liveScore) {
-      params.set('liveHomeScore', String(liveScore.homeScore));
-      params.set('liveAwayScore', String(liveScore.awayScore));
-    }
-    Promise.all([
-      apiRequest<GroupPredictionEntry[]>(
-        `/api/mobile/matches/${matchId}/group-predictions?${params.toString()}`,
-        { token },
-      ).catch(() => null),
-      apiRequest<LiveGroupStanding>(
-        `/api/mobile/leaderboard/live?groupId=${encodeURIComponent(selectedGroupId)}`,
-        { token },
-      ).catch(() => null),
-    ])
-      .then(([preds, standing]) => {
-        setGroupPredictions(preds);
-        setGroupStanding(standing);
-      })
-      .finally(() => setGroupPredictionsLoading(false));
-  }, [token, matchId, selectedGroupId, match, liveScore]);
 
   if (loading) {
     return (
@@ -448,143 +407,18 @@ export default function MatchPredictionScreen() {
         )}
 
         {/* Group comparison */}
-        {(locked || match.isAdmin) && groups.length > 0 && (
-          <Card style={{ gap: spacing.sm }}>
-            <View style={styles.groupHeader}>
-              <SectionTitle>Group Comparison</SectionTitle>
-              {groups.length > 1 && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: spacing.xs }}
-                >
-                  {groups.map(g => (
-                    <Pressable
-                      key={g.id}
-                      onPress={() => setSelectedGroupId(g.id)}
-                      style={[
-                        styles.groupTab,
-                        { borderColor: colors.border },
-                        selectedGroupId === g.id && { backgroundColor: colors.primary, borderColor: colors.primary },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.groupTabText,
-                          { color: colors.mutedForeground },
-                          selectedGroupId === g.id && { color: colors.primaryForeground },
-                        ]}
-                      >
-                        {g.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-            {groupPredictionsLoading ? (
-              <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.sm }} />
-            ) : !groupPredictions || groupPredictions.filter(p => p.predicted).length === 0 ? (
-              <Muted style={{ textAlign: 'center', paddingVertical: spacing.md }}>
-                No predictions in this group.
-              </Muted>
-            ) : (
-              <View>
-                {sortByStanding(groupPredictions.filter(p => p.predicted), groupStanding).map((p, i) => {
-                  const s = standingFor(groupStanding, p.userId);
-                  return (
-                    <View
-                      key={p.userId}
-                      style={[
-                        styles.predRow,
-                        { borderTopColor: colors.border },
-                        i === 0 && { borderTopWidth: 0 },
-                      ]}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-                        {s && (
-                          <>
-                            <Text style={{ width: 24, color: colors.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.bold, fontFamily: 'JetBrainsMono' }}>
-                              #{s.rank}
-                            </Text>
-                            <View style={{ width: 26, alignItems: 'center' }}>
-                              <StandingMovement entry={s} />
-                            </View>
-                          </>
-                        )}
-                        <Text style={[styles.predName, { color: colors.foreground, flexShrink: 1 }]} numberOfLines={1}>
-                          {p.userName ?? 'Unknown'}
-                        </Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                        <Text style={[styles.predScore, { color: colors.foreground, fontFamily: 'JetBrainsMono' }]}>
-                          {p.homeScore} – {p.awayScore}
-                        </Text>
-                        {p.isLive && (
-                          <Text style={{ color: colors.live, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
-                            {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded} live` : '0 live'}
-                          </Text>
-                        )}
-                        {!knockout && !p.isLive && match.result && (
-                          <Text style={{ color: (p.pointsAwarded ?? 0) > 0 ? colors.warning : colors.mutedForeground, fontSize: font.size.xs, fontWeight: font.weight.semibold }}>
-                            {(p.pointsAwarded ?? 0) > 0 ? `+${p.pointsAwarded}` : '0'}
-                          </Text>
-                        )}
-                        {s && (
-                          <Text style={{ color: colors.foreground, fontSize: font.size.sm, fontWeight: font.weight.bold, fontFamily: 'JetBrainsMono' }}>
-                            {s.liveTotalPoints} pts
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </Card>
-        )}
+        <GroupComparisonCard
+          matchId={String(matchId)}
+          isAdmin={match.isAdmin}
+          locked={locked}
+          hasResult={!!match.result}
+          isKnockout={knockout}
+          liveScore={liveScore}
+        />
 
       </ScrollView>
     </View>
   );
-}
-
-function StandingMovement({ entry }: { entry: LiveStandingEntry }) {
-  const { colors } = useTheme();
-  if (entry.movement === 'up') {
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Ionicons name="arrow-up" size={13} color={colors.success} />
-        <Text style={{ color: colors.success, fontSize: 10, fontWeight: '700', fontFamily: 'JetBrainsMono' }}>
-          {entry.previousRank - entry.rank}
-        </Text>
-      </View>
-    );
-  }
-  if (entry.movement === 'down') {
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Ionicons name="arrow-down" size={13} color={colors.destructive} />
-        <Text style={{ color: colors.destructive, fontSize: 10, fontWeight: '700', fontFamily: 'JetBrainsMono' }}>
-          {entry.rank - entry.previousRank}
-        </Text>
-      </View>
-    );
-  }
-  return <Ionicons name="remove" size={13} color={colors.mutedForeground} />;
-}
-
-function standingFor(standing: LiveGroupStanding | null, userId: string): LiveStandingEntry | undefined {
-  return standing?.standings.find(s => s.userId === userId);
-}
-
-function sortByStanding(entries: GroupPredictionEntry[], standing: LiveGroupStanding | null): GroupPredictionEntry[] {
-  if (!standing) return entries;
-  return [...entries].sort((a, b) => {
-    const ra = standingFor(standing, a.userId)?.rank ?? Number.MAX_SAFE_INTEGER;
-    const rb = standingFor(standing, b.userId)?.rank ?? Number.MAX_SAFE_INTEGER;
-    return ra - rb;
-  });
 }
 
 function teamsMatch(h2hName: string, upcomingName: string): boolean {
@@ -720,22 +554,5 @@ function makeStyles(c: Palette) {
     },
     h2hBarFill: { height: 6 },
     h2hDivider: { borderTopWidth: StyleSheet.hairlineWidth },
-    groupHeader: { gap: spacing.xs },
-    groupTab: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: radius.pill,
-      borderWidth: 1,
-    },
-    groupTabText: { fontSize: font.size.xs, fontWeight: font.weight.medium },
-    predRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: spacing.sm,
-      borderTopWidth: StyleSheet.hairlineWidth,
-    },
-    predName: { fontSize: font.size.sm, fontWeight: font.weight.medium },
-    predScore: { fontSize: font.size.sm, fontVariant: ['tabular-nums'] },
   });
 }

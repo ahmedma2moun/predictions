@@ -35,6 +35,7 @@ export default function LeaderboardScreen() {
     entries,
     loading,
     refreshing, onRefresh,
+    error,
     expandedUserId,
     expandedLoading,
     expandedData,
@@ -115,7 +116,13 @@ export default function LeaderboardScreen() {
           </View>
         }
         ListEmptyComponent={
-          offSeason ? (
+          error ? (
+            <View style={{ alignItems: 'center', gap: spacing.sm, marginTop: spacing.xxl }}>
+              <Ionicons name="alert-circle-outline" size={36} color={colors.mutedForeground} />
+              <Text style={[{ fontSize: 15, fontWeight: '600', color: colors.foreground }]}>Failed to load</Text>
+              <Muted style={{ textAlign: 'center', paddingHorizontal: spacing.xl }}>{error}</Muted>
+            </View>
+          ) : offSeason ? (
             <View style={{ alignItems: 'center', gap: spacing.sm, marginTop: spacing.xxl }}>
               <Ionicons name="trophy-outline" size={36} color={colors.mutedForeground} />
               <Text style={[{ fontSize: 15, fontWeight: '600', color: colors.foreground }]}>

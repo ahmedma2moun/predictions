@@ -45,7 +45,7 @@ export default function MatchesScreen() {
     : undefined;
 
   const renderMatchItem = useCallback(({ item }: { item: MatchListItem }) => (
-    <MatchCard match={item} onPress={() => router.push(ROUTES.matchDetail(item._id) as any)} />
+    <MatchCard match={item} onPress={() => router.push(ROUTES.matchDetail(item._id))} />
   ), [router]);
 
   if (loading) {

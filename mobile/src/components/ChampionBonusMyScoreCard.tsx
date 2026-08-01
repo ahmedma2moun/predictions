@@ -17,7 +17,7 @@ export function ChampionBonusMyScoreCard() {
   if (state.status === 'OPEN') {
     return (
       <Pressable
-        onPress={() => router.push(ROUTES.champion as any)}
+        onPress={() => router.push(ROUTES.champion)}
         style={({ pressed }) => [styles.card, { backgroundColor: 'rgba(242,181,68,0.10)', borderColor: colors.warning, opacity: pressed ? 0.85 : 1 }]}
       >
         <Text style={[styles.title, { color: colors.foreground }]}>👑 Champion Bonus</Text>
@@ -32,7 +32,7 @@ export function ChampionBonusMyScoreCard() {
   if (!myTeam) {
     return (
       <Pressable
-        onPress={() => router.push(ROUTES.champion as any)}
+        onPress={() => router.push(ROUTES.champion)}
         style={({ pressed }) => [styles.card, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
       >
         <Muted style={{ fontSize: font.size.sm }}>👑 Champion Bonus — you didn&apos;t pick a champion this round</Muted>
@@ -44,7 +44,7 @@ export function ChampionBonusMyScoreCard() {
 
   return (
     <Pressable
-      onPress={() => router.push(ROUTES.champion as any)}
+      onPress={() => router.push(ROUTES.champion)}
       style={({ pressed }) => [styles.card, { backgroundColor: 'rgba(242,181,68,0.10)', borderColor: colors.warning, opacity: pressed ? 0.85 : 1 }]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
