@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/client-api";
+import { useApiResource } from "@/hooks/useApiResource";
 
 type LeagueOption = {
   _id: string;
@@ -24,25 +25,19 @@ type Team = {
 };
 
 export default function AdminTeamsPage() {
-  const [leagues, setLeagues] = useState<LeagueOption[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedLeagueId, setSelectedLeagueId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
-  const [leaguesLoading, setLeaguesLoading] = useState(true);
-  const [leaguesError, setLeaguesError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/admin/leagues")
-      .then(async r => {
-        if (!r.ok) throw new Error("Failed to load leagues");
-        return r.json();
-      })
-      .then(data => { setLeagues(data); setLeaguesLoading(false); })
-      .catch(() => { setLeaguesError("Failed to load leagues. Please refresh."); setLeaguesLoading(false); });
+  const loadLeagues = useCallback(async () => {
+    const r = await fetch("/api/admin/leagues");
+    if (!r.ok) throw new Error("Failed to load leagues");
+    return r.json() as Promise<LeagueOption[]>;
   }, []);
+  const { data: leagues, loading: leaguesLoading, error: leaguesError } = useApiResource(loadLeagues, [] as LeagueOption[], "Failed to load leagues. Please refresh.");
 
   async function loadTeams(leagueId: string) {
     setLoading(true);

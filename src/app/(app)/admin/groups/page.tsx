@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/client-api";
+import { useApiResource } from "@/hooks/useApiResource";
 
 type Group = {
   _id: string;
@@ -17,19 +19,16 @@ type Group = {
 };
 
 export default function AdminGroupsPage() {
-  const [groups, setGroups]   = useState<Group[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen]       = useState(false);
   const [name, setName]       = useState("");
   const [saving, setSaving]   = useState(false);
 
-  async function loadGroups() {
+  const loadGroups = useCallback(async () => {
     const r = await fetch("/api/admin/groups");
-    setGroups(await r.json());
-    setLoading(false);
-  }
-
-  useEffect(() => { loadGroups(); }, []);
+    if (!r.ok) throw new Error("Failed to load groups");
+    return r.json() as Promise<Group[]>;
+  }, []);
+  const { data: groups, loading, reload: reloadGroups } = useApiResource(loadGroups, [] as Group[], "Failed to load groups. Please refresh.");
 
   async function createGroup(e: React.FormEvent) {
     e.preventDefault();
@@ -44,10 +43,9 @@ export default function AdminGroupsPage() {
       toast.success("Group created");
       setOpen(false);
       setName("");
-      await loadGroups();
+      await reloadGroups();
     } else {
-      const err = await r.json();
-      toast.error(err.error || "Failed");
+      await toastApiError(r, "Failed to create group");
     }
   }
 
@@ -56,10 +54,9 @@ export default function AdminGroupsPage() {
     const r = await fetch(`/api/admin/groups/${id}`, { method: "DELETE" });
     if (r.ok) {
       toast.success("Group deleted");
-      await loadGroups();
+      await reloadGroups();
     } else {
-      const err = await r.json();
-      toast.error(err.error || "Failed");
+      await toastApiError(r, "Failed to delete group");
     }
   }
 

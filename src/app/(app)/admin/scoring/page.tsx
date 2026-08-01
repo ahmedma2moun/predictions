@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useApiResource } from "@/hooks/useApiResource";
 
 type ScoringRule = {
   _id: string;
@@ -18,14 +19,15 @@ type ScoringRule = {
 };
 
 export default function AdminScoringPage() {
-  const [rules, setRules] = useState<ScoringRule[]>([]);
-  const [loading, setLoading] = useState(true);
   const [recalcOpen, setRecalcOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/admin/scoring-rules").then(r => r.json()).then(setRules).finally(() => setLoading(false));
+  const loadRules = useCallback(async () => {
+    const r = await fetch("/api/admin/scoring-rules");
+    if (!r.ok) throw new Error("Failed to load scoring rules");
+    return r.json() as Promise<ScoringRule[]>;
   }, []);
+  const { data: rules, setData: setRules, loading } = useApiResource(loadRules, [] as ScoringRule[], "Failed to load scoring rules.");
 
   async function updateRule(id: string, update: Partial<Pick<ScoringRule, 'points' | 'isActive'>>) {
     const r = await fetch("/api/admin/scoring-rules", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...update }) });

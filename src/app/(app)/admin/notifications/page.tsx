@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { useApiResource } from "@/hooks/useApiResource";
 
 type AdminUser = {
   id: number;
@@ -22,39 +23,27 @@ type DeviceInfo = {
 };
 
 export default function AdminNotificationsPage() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-
   const [selectedUserId, setSelectedUserId] = useState<number | "all">("all");
   const [title, setTitle] = useState("Test Notification");
   const [body, setBody] = useState("This is a test push notification from the admin.");
   const [type, setType] = useState("new_matches");
 
-  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
-  const [loadingDevices, setLoadingDevices] = useState(false);
-
   const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/admin/users")
-      .then(r => r.json())
-      .then(setUsers)
-      .catch(() => toast.error("Failed to load users"))
-      .finally(() => setLoadingUsers(false));
+  const loadUsers = useCallback(async () => {
+    const r = await fetch("/api/admin/users");
+    if (!r.ok) throw new Error("Failed to load users");
+    return r.json() as Promise<AdminUser[]>;
   }, []);
+  const { data: users, loading: loadingUsers } = useApiResource(loadUsers, [] as AdminUser[], "Failed to load users.");
 
-  useEffect(() => {
-    if (selectedUserId === "all") {
-      setDeviceInfo(null);
-      return;
-    }
-    setLoadingDevices(true);
-    fetch(`/api/admin/notifications/devices?userId=${selectedUserId}`)
-      .then(r => r.json())
-      .then(setDeviceInfo)
-      .catch(() => setDeviceInfo(null))
-      .finally(() => setLoadingDevices(false));
+  const loadDeviceInfo = useCallback(async () => {
+    if (selectedUserId === "all") return null;
+    const r = await fetch(`/api/admin/notifications/devices?userId=${selectedUserId}`);
+    if (!r.ok) throw new Error("Failed to load device info");
+    return r.json() as Promise<DeviceInfo>;
   }, [selectedUserId]);
+  const { data: deviceInfo, loading: loadingDevices } = useApiResource(loadDeviceInfo, null as DeviceInfo | null);
 
   async function sendNotification() {
     setSending(true);

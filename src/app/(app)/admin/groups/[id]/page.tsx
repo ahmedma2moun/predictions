@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, use } from "react";
+import { useCallback, useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { useApiResource } from "@/hooks/useApiResource";
 
 type User = { id: number; _id: string; name: string; email: string; avatarUrl?: string };
 
@@ -19,36 +20,36 @@ type GroupDetail = {
   members: User[];
 };
 
+type GroupPageData = { group: GroupDetail | null; allUsers: User[] };
+
+const EMPTY_DATA: GroupPageData = { group: null, allUsers: [] };
+
 export default function AdminGroupDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
 
-  const [group, setGroup]       = useState<GroupDetail | null>(null);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [loading, setLoading]   = useState(true);
   const [nameEdit, setNameEdit] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [busy, setBusy]         = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState("");
 
   // Load group + all users once on mount — never re-fetches all users on member changes
-  useEffect(() => {
-    Promise.all([
+  const loadInitial = useCallback(async () => {
+    const [grp, users] = await Promise.all([
       fetch(`/api/admin/groups/${id}`).then(r => r.json()),
       fetch("/api/admin/users").then(r => r.json()),
-    ]).then(([grp, users]) => {
-      setGroup(grp);
-      setNameEdit(grp.name ?? "");
-      setAllUsers(users);
-      setLoading(false);
-    });
+    ]);
+    return { group: grp as GroupDetail, allUsers: users as User[] };
   }, [id]);
+  const { data, setData, loading } = useApiResource(loadInitial, EMPTY_DATA, "Failed to load group.");
+  const { group, allUsers } = data;
+
+  useEffect(() => { setNameEdit(group?.name ?? ""); }, [group?.name]);
 
   // Re-fetches only the group (members list) after a mutation — not all users
   async function reloadGroup() {
     const grp = await fetch(`/api/admin/groups/${id}`).then(r => r.json());
-    setGroup(grp);
-    setNameEdit(grp.name ?? "");
+    setData(prev => ({ ...prev, group: grp }));
   }
 
   async function patch(body: object, busyKey: string) {

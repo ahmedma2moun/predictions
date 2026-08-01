@@ -59,6 +59,33 @@ export function serializeMatchForMobile(m: IMatch & { leagueName?: string | null
   };
 }
 
+/** The shape serializeMatch() produces, as it actually arrives client-side after JSON serialization (Dates become ISO strings). */
+export interface SerializedMatch {
+  _id: string;
+  externalId: number | null;
+  leagueId: string;
+  externalLeagueId: number;
+  homeTeam: { externalId: number; name: string; logo?: string };
+  awayTeam: { externalId: number; name: string; logo?: string };
+  kickoffTime: string;
+  status: 'scheduled' | 'live' | 'finished' | 'postponed' | 'cancelled';
+  matchday: number | null;
+  stage: string | null;
+  leg: number | null;
+  venue: string | null;
+  result?: {
+    homeScore: number;
+    awayScore: number;
+    winner: 'home' | 'away' | 'draw';
+    penaltyHomeScore: number | null;
+    penaltyAwayScore: number | null;
+  };
+  scoresProcessed: boolean;
+  weekStart: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Converts a flat Prisma match row to the nested shape expected by the frontend. */
 export function serializeMatch(m: IMatch) {
   return {

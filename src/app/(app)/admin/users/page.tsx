@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/client-api";
+import { useApiResource } from "@/hooks/useApiResource";
 
 type AdminUser = {
   _id: string;
@@ -20,9 +21,6 @@ type AdminUser = {
 };
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "user" });
   const [saving, setSaving] = useState(false);
@@ -31,19 +29,12 @@ export default function AdminUsersPage() {
   const [editForm, setEditForm] = useState({ name: "", role: "user", password: "", notificationEmail: "" });
   const [editSaving, setEditSaving] = useState(false);
 
-  async function loadUsers() {
-    try {
-      const r = await fetch("/api/admin/users");
-      if (!r.ok) throw new Error("Failed to load users");
-      setUsers(await r.json());
-    } catch {
-      setError("Failed to load users. Please refresh.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { loadUsers(); }, []);
+  const loadUsers = useCallback(async () => {
+    const r = await fetch("/api/admin/users");
+    if (!r.ok) throw new Error("Failed to load users");
+    return r.json() as Promise<AdminUser[]>;
+  }, []);
+  const { data: users, loading, error, reload: reloadUsers } = useApiResource(loadUsers, [] as AdminUser[], "Failed to load users. Please refresh.");
 
   async function createUser(e: React.FormEvent) {
     e.preventDefault();
@@ -58,7 +49,7 @@ export default function AdminUsersPage() {
       toast.success("User created");
       setOpen(false);
       setForm({ name: "", email: "", password: "", role: "user" });
-      await loadUsers();
+      await reloadUsers();
     } else {
       await toastApiError(r, "Failed to create user");
     }
@@ -89,7 +80,7 @@ export default function AdminUsersPage() {
     if (r.ok) {
       toast.success("User updated");
       setEditUser(null);
-      await loadUsers();
+      await reloadUsers();
     } else {
       await toastApiError(r, "Failed to update user");
     }

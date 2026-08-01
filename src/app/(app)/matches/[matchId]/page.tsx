@@ -3,11 +3,10 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { isMatchLocked, formatStage, isKnockoutStage, ordinal } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
-import { ChevronLeft, Minus, Plus, Lock, Pencil, Check, X, Calculator, Loader2 } from "lucide-react";
+import { ChevronLeft, Minus, Plus, Lock, Pencil, Loader2 } from "lucide-react";
 import { MatchH2H } from "./MatchH2H";
 import type { H2HMatch } from "./MatchH2H";
 import { MatchStandings } from "./MatchStandings";
@@ -15,6 +14,18 @@ import type { Standing } from "./MatchStandings";
 import { GroupPredictions } from "./GroupPredictions";
 import { MatchEvents } from "./MatchEvents";
 import type { MatchEvent } from "./MatchEvents";
+import { AdminResultEditForm, CalculateScoresButton } from "./AdminResultEditor";
+import type { MatchResult } from "./AdminResultEditor";
+import type { SerializedMatch } from "@/models/Match";
+import type { MatchOddsData, PredictionData } from "@/lib/services/match-service";
+
+type MatchDetailData = SerializedMatch & {
+  leagueName: string | null;
+  isAdmin: boolean;
+  standings: { home: Standing | null; away: Standing | null };
+  prediction: PredictionData | null;
+  odds: MatchOddsData | null;
+};
 
 function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
   return (
@@ -43,29 +54,25 @@ function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v
 export default function MatchPredictionPage() {
   const { matchId } = useParams();
   const router = useRouter();
-  const [match, setMatch] = useState<any>(null);
+  const [match, setMatch] = useState<MatchDetailData | null>(null);
   const [homeScore, setHomeScore] = useState(0);
   const [awayScore, setAwayScore] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingResult, setEditingResult] = useState(false);
   const [addingResult, setAddingResult] = useState(false);
-  const [editHome, setEditHome] = useState("");
-  const [editAway, setEditAway] = useState("");
-  const [savingResult, setSavingResult] = useState(false);
-  const [calculatingScores, setCalculatingScores] = useState(false);
   const [locked, setLocked] = useState(false);
   const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
   const [h2hLoading, setH2hLoading] = useState(false);
   const [liveScore, setLiveScore] = useState<{ homeScore: number | null; awayScore: number | null } | null>(null);
   const [matchEvents, setMatchEvents] = useState<MatchEvent[] | null>(null);
 
-  const isCustom = match?.externalId === null || match?.externalId === undefined && match?.externalLeagueId === 0;
+  const isCustom = match?.externalId === null || (match?.externalId === undefined && match?.externalLeagueId === 0);
 
   useEffect(() => {
     setH2hLoading(true);
     Promise.all([
-      fetch(`/api/matches/${matchId}`).then(r => r.json()),
+      fetch(`/api/matches/${matchId}`).then(r => r.json() as Promise<MatchDetailData>),
       fetch(`/api/matches/${matchId}/h2h`).then(r => r.ok ? r.json() : { matches: null }).catch(() => ({ matches: null })),
     ]).then(([matchData, h2hData]) => {
       setMatch(matchData);
@@ -114,9 +121,9 @@ export default function MatchPredictionPage() {
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   if (!match) return <div className="p-4">Match not found</div>;
 
-  const isAdmin = match.isAdmin as boolean;
+  const isAdmin = match.isAdmin;
   const isKnockout = isKnockoutStage(match.stage);
-  const standings: { home: Standing; away: Standing } = match.standings ?? { home: null, away: null };
+  const standings: { home: Standing | null; away: Standing | null } = match.standings ?? { home: null, away: null };
 
   const winner = homeScore > awayScore
     ? match.homeTeam.name
@@ -128,59 +135,13 @@ export default function MatchPredictionPage() {
   const compLabel = match.matchday
     ? `MD ${match.matchday}${match.leagueName ? ` · ${match.leagueName.toUpperCase()}` : ''}`
     : isKnockoutStage(match.stage)
-    ? `${formatStage(match.stage)}${match.leg ? ` · LEG ${match.leg}` : ''}`
+    ? `${formatStage(match.stage!)}${match.leg ? ` · LEG ${match.leg}` : ''}`
     : 'MATCH';
 
-  async function handleSaveResult() {
-    const h = parseInt(editHome, 10);
-    const a = parseInt(editAway, 10);
-    if (isNaN(h) || isNaN(a) || h < 0 || a < 0) {
-      toast.error("Invalid scores");
-      return;
-    }
-    setSavingResult(true);
-    try {
-      const res = await fetch(`/api/admin/results/${matchId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ homeScore: h, awayScore: a }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to update");
-      }
-      const data = await res.json();
-      setMatch((prev: any) => ({
-        ...prev,
-        result: { homeScore: h, awayScore: a },
-        resultHomeScore: h,
-        resultAwayScore: a,
-      }));
-      toast.success(`Result saved — ${data.emailsSent} correction email${data.emailsSent !== 1 ? "s" : ""} sent`);
-      setEditingResult(false);
-      setAddingResult(false);
-    } catch (e: any) {
-      toast.error(e.message ?? "Failed to update result");
-    } finally {
-      setSavingResult(false);
-    }
-  }
-
-  async function handleCalculateScores() {
-    setCalculatingScores(true);
-    try {
-      const res = await fetch(`/api/admin/results/${matchId}/calculate`, { method: "POST" });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to calculate");
-      }
-      const data = await res.json();
-      toast.success(`Scores calculated — ${data.scored} prediction${data.scored !== 1 ? "s" : ""} scored`);
-    } catch (e: any) {
-      toast.error(e.message ?? "Failed to calculate scores");
-    } finally {
-      setCalculatingScores(false);
-    }
+  function handleResultSaved(result: MatchResult) {
+    setMatch(prev => prev && { ...prev, result });
+    setEditingResult(false);
+    setAddingResult(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -301,7 +262,7 @@ export default function MatchPredictionPage() {
             <div className="bg-card-elevated rounded-lg p-3 text-center relative">
               {isAdmin && !editingResult && (
                 <button
-                  onClick={() => { setEditHome(String(match.result.homeScore)); setEditAway(String(match.result.awayScore)); setEditingResult(true); }}
+                  onClick={() => setEditingResult(true)}
                   className="absolute top-2 right-2 p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                   aria-label="Edit result"
                 >
@@ -310,13 +271,13 @@ export default function MatchPredictionPage() {
               )}
               <p className="text-xs text-muted-foreground mb-1">Final Result</p>
               {editingResult ? (
-                <div className="flex items-center justify-center gap-2 my-1">
-                  <Input type="number" min={0} value={editHome} onChange={(e) => setEditHome(e.target.value)} className="w-16 h-9 text-center text-lg font-bold font-mono-nums px-1" />
-                  <span className="text-xl font-bold text-muted-foreground">–</span>
-                  <Input type="number" min={0} value={editAway} onChange={(e) => setEditAway(e.target.value)} className="w-16 h-9 text-center text-lg font-bold font-mono-nums px-1" />
-                  <Button size="icon" variant="default" className="h-8 w-8" onClick={handleSaveResult} disabled={savingResult}><Check className="h-3.5 w-3.5" /></Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingResult(false)} disabled={savingResult}><X className="h-3.5 w-3.5" /></Button>
-                </div>
+                <AdminResultEditForm
+                  matchId={String(matchId)}
+                  initialHome={match.result.homeScore}
+                  initialAway={match.result.awayScore}
+                  onSaved={handleResultSaved}
+                  onCancel={() => setEditingResult(false)}
+                />
               ) : (
                 <p className="text-2xl font-bold font-mono-nums">{match.result.homeScore} – {match.result.awayScore}</p>
               )}
@@ -337,19 +298,19 @@ export default function MatchPredictionPage() {
           {isAdmin && !match.result && (
             <div className="border border-dashed border-border rounded-lg p-3">
               {!addingResult ? (
-                <Button variant="outline" size="sm" className="w-full" onClick={() => { setEditHome("0"); setEditAway("0"); setAddingResult(true); }}>
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setAddingResult(true)}>
                   <Plus className="h-3.5 w-3.5 mr-1" /> Add Result
                 </Button>
               ) : (
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground text-center">Enter Result</p>
-                  <div className="flex items-center justify-center gap-2">
-                    <Input type="number" min={0} value={editHome} onChange={(e) => setEditHome(e.target.value)} className="w-16 h-9 text-center text-lg font-bold font-mono-nums px-1" placeholder="0" />
-                    <span className="text-xl font-bold text-muted-foreground">–</span>
-                    <Input type="number" min={0} value={editAway} onChange={(e) => setEditAway(e.target.value)} className="w-16 h-9 text-center text-lg font-bold font-mono-nums px-1" placeholder="0" />
-                    <Button size="icon" variant="default" className="h-8 w-8" onClick={handleSaveResult} disabled={savingResult}><Check className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAddingResult(false)} disabled={savingResult}><X className="h-3.5 w-3.5" /></Button>
-                  </div>
+                  <AdminResultEditForm
+                    matchId={String(matchId)}
+                    initialHome={0}
+                    initialAway={0}
+                    onSaved={handleResultSaved}
+                    onCancel={() => setAddingResult(false)}
+                  />
                 </div>
               )}
             </div>
@@ -357,10 +318,7 @@ export default function MatchPredictionPage() {
 
           {/* Admin: calculate scores */}
           {isAdmin && match.result && !editingResult && (
-            <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleCalculateScores} disabled={calculatingScores}>
-              <Calculator className="h-3.5 w-3.5" />
-              {calculatingScores ? "Calculating..." : "Calculate Scores"}
-            </Button>
+            <CalculateScoresButton matchId={String(matchId)} />
           )}
 
           {/* Prediction odds — visible to everyone once the match is locked (admins always) */}

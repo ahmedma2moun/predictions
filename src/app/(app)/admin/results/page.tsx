@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { KickoffTime } from "@/components/KickoffTime";
 import { Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import type { RuleBreakdown } from "@/components/ScoringBreakdown";
+import { useApiResource } from "@/hooks/useApiResource";
 
 type PredictionRow = {
   id: string;
@@ -41,20 +42,17 @@ type EditState = {
 };
 
 export default function AdminResultsPage() {
-  const [matches, setMatches] = useState<MatchRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/admin/results")
-      .then((r) => r.json())
-      .then((data) => {
-        setMatches(data.matches || []);
-        setLoading(false);
-      });
+  const loadResults = useCallback(async () => {
+    const r = await fetch("/api/admin/results");
+    if (!r.ok) throw new Error("Failed to load results");
+    const data = await r.json();
+    return (data.matches ?? []) as MatchRow[];
   }, []);
+  const { data: matches, setData: setMatches, loading } = useApiResource(loadResults, [] as MatchRow[], "Failed to load results.");
 
   function toggleExpand(id: string) {
     setExpanded((prev) => {
