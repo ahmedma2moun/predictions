@@ -1,5 +1,5 @@
 
-import { getWinner } from '@/lib/utils';
+import { getWinner, isMatchLocked } from '@/lib/utils';
 import { Prisma, Match, MatchOdds, Prediction } from '@prisma/client';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
@@ -44,7 +44,7 @@ export async function upsertPrediction(
     select: { id: true, kickoffTime: true },
   });
   if (!match) return { error: 'Match not found', status: 404 };
-  if (new Date() >= match.kickoffTime) return { error: 'Match has already started', status: 400 };
+  if (isMatchLocked(match.kickoffTime)) return { error: 'Match has already started', status: 400 };
 
   const predictedWinner = getWinner(homeScore, awayScore);
   const prediction = await PredictionRepository.upsert({

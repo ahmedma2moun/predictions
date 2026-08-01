@@ -90,8 +90,11 @@ src/
 │   ├── odds.ts             # calcMatchOdds(), calcFinalScore(), lockMatchOdds(), getLiveMatchOdds()
 │   ├── feature-flags.ts    # ODDS_FEATURE_ENABLED — global kill switch, no server-only imports (safe for client components too)
 │   ├── utils.ts            # formatKickoff(), isMatchLocked(), getWinner()
+│   ├── validation.ts       # ValidationError + requireString()/requireDate()/requireOneOf() — thrown, caught by withErrorHandling()
+│   ├── api-handler.ts      # withErrorHandling() — shared route try/catch: ValidationError → 400, else logged + generic 500
+│   ├── query-params.ts     # parseLeaderboardQuery() — shared leagueId/groupId/from/to searchParams parsing
 │   ├── leaderboard.ts      # Leaderboard aggregation logic
-│   ├── matches-processor.ts  # Fixture upsert (fetch-matches cron)
+│   ├── matches-processor.ts  # fetchAndInsertMatches(), fetchThisWeekFixtures(), fetchNextMonthFixtures(), createCustomMatch(), notifyUsersOfNewMatches() (fetch-matches cron + admin/matches)
 │   ├── results-processor.ts  # Result update + scoring (fetch-results cron + admin)
 │   ├── standings.ts        # TeamStanding cache + football-data.org standings fetch
 │   ├── client-api.ts       # Typed fetch helpers for client components
@@ -167,7 +170,7 @@ All DB query logic lives in `src/lib/services/`. Route handlers (both `/api/*` a
 
 | Service | Key Methods | Used by |
 |---|---|---|
-| `match-service.ts` | `getMatches()`, `getMatchById()` | `/api/matches`, `/api/mobile/matches` |
+| `match-service.ts` | `getMatches()`, `getMatchById()`, `getAdminMatches()` (paginated list + computed odds/vote pool, no raw Prisma in the route) | `/api/matches`, `/api/mobile/matches`, `/api/admin/matches` |
 | `prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` (supports `seasonId` filter; returns `baseScore`, `outcomeOdds`, locked `matchOdds`) | `/api/predictions`, `/api/mobile/predictions`, leaderboard routes |
 | `leaderboard-service.ts` | `getLeaderboard()` | `/api/leaderboard`, `/api/mobile/leaderboard` |
 | `live-standing-service.ts` | `getLiveGroupStanding()` — base leaderboard + provisional points from in-play matches (live scores via `fetchFixtureById` 30s cache), rank movement `up`/`down`/`same` | `/api/leaderboard/live`, `/api/mobile/leaderboard/live` |

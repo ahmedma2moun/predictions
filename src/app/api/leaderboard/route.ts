@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getLeaderboard } from '@/lib/services/leaderboard-service';
 import { SeasonService } from '@/lib/services/season-service';
+import { parseLeaderboardQuery } from '@/lib/query-params';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const leagueIds = searchParams.getAll('leagueId').map(Number).filter(Boolean);
-  const groupId   = searchParams.get('groupId');
-  const from      = searchParams.get('from') ?? undefined;
-  const to        = searchParams.get('to') ?? undefined;
+  const { leagueIds, groupId, from, to } = parseLeaderboardQuery(req);
 
   const activeSeason = await SeasonService.getActiveSeason();
 
@@ -29,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   const entries = await getLeaderboard({
     leagueIds,
-    groupId: groupId ? Number(groupId) : undefined,
+    groupId,
     from,
     to,
     seasonId: activeSeason.id,

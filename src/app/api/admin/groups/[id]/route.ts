@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { GroupService } from '@/lib/services/group-service';
+import { withErrorHandling } from '@/lib/api-handler';
+import { requireOneOf } from '@/lib/validation';
 
 type Params = { params: Promise<{ id: string }> };
 
 // GET /api/admin/groups/[id] — full group detail with members
-export async function GET(_req: NextRequest, { params }: Params) {
+export const GET = withErrorHandling('admin/groups/[id] GET', async (_req: NextRequest, { params }: Params) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -25,13 +27,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     members: group.members.map(m => ({ ...m.user, _id: m.user.id.toString() })),
     createdAt: group.createdAt,
   });
-}
+});
 
 // PATCH /api/admin/groups/[id]
 // Body options:
 //   { name: string }
 //   { action: 'add-member' | 'remove-member', userId: number }
-export async function PATCH(req: NextRequest, { params }: Params) {
+export const PATCH = withErrorHandling('admin/groups/[id] PATCH', async (req: NextRequest, { params }: Params) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -50,18 +52,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     await GroupService.updateGroupName(groupId, name.trim());
   }
 
-  if (action === 'add-member') {
-    await GroupService.addGroupMember(groupId, Number(userId));
-  } else if (action === 'remove-member') {
-    if (group.isDefault) return NextResponse.json({ error: 'Cannot remove members from the default group' }, { status: 400 });
-    await GroupService.removeGroupMember(groupId, Number(userId));
+  if (action !== undefined) {
+    const memberAction = requireOneOf(action, ['add-member', 'remove-member'] as const, 'action');
+    if (memberAction === 'add-member') {
+      await GroupService.addGroupMember(groupId, Number(userId));
+    } else {
+      if (group.isDefault) return NextResponse.json({ error: 'Cannot remove members from the default group' }, { status: 400 });
+      await GroupService.removeGroupMember(groupId, Number(userId));
+    }
   }
 
   return NextResponse.json({ ok: true });
-}
+});
 
 // DELETE /api/admin/groups/[id] — delete a non-default group
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export const DELETE = withErrorHandling('admin/groups/[id] DELETE', async (_req: NextRequest, { params }: Params) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -75,4 +80,4 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   await GroupService.deleteGroup(groupId);
   return NextResponse.json({ ok: true });
-}
+});

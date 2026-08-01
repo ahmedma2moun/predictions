@@ -4,7 +4,7 @@ import { getStandingsMap, standingKey } from '@/lib/standings';
 import { Prisma, MatchStatus, Match } from '@prisma/client';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
-import { getLiveMatchOdds, type OddsConfig } from '@/lib/odds';
+import { getLiveMatchOdds, calcMatchOdds, deriveOutcome, ODDS_MIN_DEFAULT, ODDS_MAX_DEFAULT, type OddsConfig, type PredictionPool } from '@/lib/odds';
 import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 
 export interface MatchFilters {
@@ -193,6 +193,81 @@ export async function getMatchById(
     awayStanding: awayStanding ? toStandingData(awayStanding) : null,
     odds,
   };
+}
+
+export interface AdminMatchOdds {
+  homeWinVotes: number;
+  drawVotes: number;
+  awayWinVotes: number;
+  totalVotes: number;
+  homeWinOdds: number;
+  drawOdds: number;
+  awayWinOdds: number;
+  locked: boolean;
+}
+
+export interface AdminMatchListItem {
+  match: Match & {
+    season: { oddsEnabled: boolean; oddsMin: Prisma.Decimal; oddsMax: Prisma.Decimal } | null;
+    matchOdds: { homeWinOdds: Prisma.Decimal; drawOdds: Prisma.Decimal; awayWinOdds: Prisma.Decimal; lockedAt: Date | null } | null;
+  };
+  odds: AdminMatchOdds;
+}
+
+export async function getAdminMatches(page: number, limit: number): Promise<{ items: AdminMatchListItem[]; total: number }> {
+  const [matches, total] = await Promise.all([
+    MatchRepository.findMany({
+      orderBy: { kickoffTime: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+      include: {
+        season: { select: { oddsEnabled: true, oddsMin: true, oddsMax: true } },
+        matchOdds: true,
+      },
+    }),
+    MatchRepository.count(),
+  ]) as [AdminMatchListItem['match'][], number];
+
+  const matchIds = matches.map(m => m.id);
+  const allPredictions = matchIds.length > 0
+    ? await PredictionRepository.findMany({
+        where: { matchId: { in: matchIds } },
+        select: { matchId: true, homeScore: true, awayScore: true },
+      })
+    : [];
+
+  const poolByMatch = new Map<number, PredictionPool>();
+  for (const p of allPredictions) {
+    const pool = poolByMatch.get(p.matchId) ?? { homeWin: 0, draw: 0, awayWin: 0 };
+    pool[deriveOutcome(p.homeScore, p.awayScore)]++;
+    poolByMatch.set(p.matchId, pool);
+  }
+
+  const items = matches.map(m => {
+    const pool = poolByMatch.get(m.id) ?? { homeWin: 0, draw: 0, awayWin: 0 };
+    const oddsMin = m.season ? Number(m.season.oddsMin) : ODDS_MIN_DEFAULT;
+    const oddsMax = m.season ? Number(m.season.oddsMax) : ODDS_MAX_DEFAULT;
+    const locked = !!m.matchOdds?.lockedAt;
+    const odds = locked
+      ? { homeWin: Number(m.matchOdds!.homeWinOdds), draw: Number(m.matchOdds!.drawOdds), awayWin: Number(m.matchOdds!.awayWinOdds) }
+      : calcMatchOdds(pool, { oddsEnabled: ODDS_FEATURE_ENABLED, oddsMin, oddsMax });
+
+    return {
+      match: m,
+      odds: {
+        homeWinVotes: pool.homeWin,
+        drawVotes: pool.draw,
+        awayWinVotes: pool.awayWin,
+        totalVotes: pool.homeWin + pool.draw + pool.awayWin,
+        homeWinOdds: odds.homeWin,
+        drawOdds: odds.draw,
+        awayWinOdds: odds.awayWin,
+        locked,
+      },
+    };
+  });
+
+  return { items, total };
 }
 
 function toStandingData(s: unknown): StandingData {

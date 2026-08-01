@@ -193,10 +193,13 @@ All admin handlers re-verify `role === 'admin'` inline — layout-level checks a
 - **POST `{leagueId}`** — Sync teams from football-data.org for that league
 - **PATCH `{id, isActive}`** — Toggle team active state in a league
 
-### GET/POST /api/admin/matches
-- **GET** (query: `page`) — Paginated match list (50/page)
-- **POST `{action: "fetch", leagueId?}`** — Fetch fixtures for the upcoming week for active leagues
-- **POST `{action: "fetch-next-month", leagueId?}`** — **Temporary**, remove once the TheSportsDB provider switch is verified. Fetches fixtures for next calendar month via `fetchAndInsertMatches()`. Returns `{ inserted, skipped, debug }`.
+### GET/POST/DELETE /api/admin/matches
+- **GET** (query: `page`) — Paginated match list (50/page), each row includes computed odds (`match-service.ts` → `getAdminMatches()`)
+- **POST `{action: "fetch", leagueId?}`** — Fetch fixtures for the upcoming week for active leagues, via `matches-processor.ts` → `fetchThisWeekFixtures()`
+- **POST `{action: "fetch-next-month", leagueId?}`** — Fetch fixtures for next calendar month, via `fetchNextMonthFixtures()`. Returns `{ inserted, skipped, debug }`.
+- **POST `{action: "create-custom", homeTeamName, awayTeamName, kickoffTime}`** — Insert a non-external match and notify users, via `createCustomMatch()`. Returns `{ match }`, 201.
+- **POST `{action: "fetch-results"}`** — Trigger `processMatchResults()` for past matches without results. Returns `{ updated, scored }`.
+- **DELETE `{ids: number[]}`** — Bulk-delete matches by id. Returns `{ deleted }`.
 
 ### POST /api/admin/results
 Manually set results for multiple finished matches and trigger scoring.

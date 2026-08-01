@@ -8,6 +8,8 @@ import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
 import { sendPushToUsers } from './fcm';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { SeasonService } from '@/lib/services/season-service';
+import { requireString, requireDate } from '@/lib/validation';
+import { format, addDays, addMonths, startOfMonth, endOfMonth, startOfISOWeek } from 'date-fns';
 
 // Stages that are always single-leg (no leg numbers shown)
 const SINGLE_LEG_STAGES = new Set(['FINAL', 'THIRD_PLACE', 'THIRD_PLACE_PLAY_OFF']);
@@ -185,25 +187,35 @@ export async function fetchAndInsertMatches(params: {
 
 export async function sendNewMatchNotifications(fromDate: Date, insertedCount: number, logPrefix: string) {
   if (insertedCount === 0) return;
+  const newMatches = await MatchRepository.findMany({
+    where: { weekStart: fromDate, status: 'scheduled' },
+    include: { league: { select: { name: true } } },
+    orderBy: { kickoffTime: 'asc' },
+  });
+  const matchesForEmail: MatchForEmail[] = newMatches.map(m => ({
+    homeTeamName: m.homeTeamName,
+    awayTeamName: m.awayTeamName,
+    kickoffTime: m.kickoffTime,
+    leagueName: m.externalLeagueId === 0 ? 'Others' : (m.league?.name ?? 'Unknown League'),
+  }));
+  await notifyUsersOfNewMatches(
+    matchesForEmail,
+    `${insertedCount} match${insertedCount > 1 ? 'es' : ''} added — place your predictions!`,
+    logPrefix,
+  );
+}
+
+/** Emails + pushes every user about newly added matches. Never throws — failures are logged, not surfaced, since this always runs alongside a match-creation flow that must not fail because a notification did. */
+export async function notifyUsersOfNewMatches(matches: MatchForEmail[], pushBody: string, logPrefix: string) {
+  if (matches.length === 0) return;
   try {
-    const newMatches = await MatchRepository.findMany({
-      where: { weekStart: fromDate, status: 'scheduled' },
-      include: { league: { select: { name: true } } },
-      orderBy: { kickoffTime: 'asc' },
-    });
-    const matchesForEmail: MatchForEmail[] = newMatches.map(m => ({
-      homeTeamName: m.homeTeamName,
-      awayTeamName: m.awayTeamName,
-      kickoffTime: m.kickoffTime,
-      leagueName: m.externalLeagueId === 0 ? 'Others' : (m.league?.name ?? 'Unknown League'),
-    }));
     const recipients = await UserRepository.findMany({
       where: { notificationEmail: { not: null } },
       select: { notificationEmail: true },
     });
     for (const user of recipients) {
       if (user.notificationEmail) {
-        await sendNewMatchesEmail(user.notificationEmail, matchesForEmail);
+        await sendNewMatchesEmail(user.notificationEmail, matches);
         logger.info(`[${logPrefix}] Notification sent to ${user.notificationEmail}`);
       }
     }
@@ -215,8 +227,8 @@ export async function sendNewMatchNotifications(fromDate: Date, insertedCount: n
     const pushUserIds = mobileUserIds.map(d => d.userId);
     try {
       await sendPushToUsers(pushUserIds, {
-        title: 'New matches this week',
-        body: `${insertedCount} match${insertedCount > 1 ? 'es' : ''} added — place your predictions!`,
+        title: matches.length > 1 ? 'New matches this week' : 'New match added',
+        body: pushBody,
         data: { type: 'new_matches' },
       });
     } catch (e) {
@@ -225,6 +237,62 @@ export async function sendNewMatchNotifications(fromDate: Date, insertedCount: n
   } catch (e) {
     logger.error(`[${logPrefix}] Failed to send new matches emails:`, { error: e instanceof Error ? e.message : String(e) });
   }
+}
+
+export async function fetchThisWeekFixtures(leagueId?: number): Promise<FetchMatchesSummary> {
+  const fromDate = new Date();
+  fromDate.setUTCHours(0, 0, 0, 0);
+  const from = format(fromDate, 'yyyy-MM-dd');
+  const to = format(addDays(fromDate, 6), 'yyyy-MM-dd');
+  return fetchAndInsertMatches({ from, to, fromDate, leagueId, filterByTeams: true, logPrefix: 'admin/matches fetch' });
+}
+
+export async function fetchNextMonthFixtures(leagueId?: number): Promise<FetchMatchesSummary> {
+  const fromDate = new Date();
+  fromDate.setUTCHours(0, 0, 0, 0);
+  const nextMonth = addMonths(fromDate, 1);
+  const from = format(startOfMonth(nextMonth), 'yyyy-MM-dd');
+  const to = format(endOfMonth(nextMonth), 'yyyy-MM-dd');
+  return fetchAndInsertMatches({ from, to, fromDate, leagueId, filterByTeams: true, logPrefix: 'admin/matches fetch-next-month' });
+}
+
+export interface CreateCustomMatchInput {
+  homeTeamName: unknown;
+  awayTeamName: unknown;
+  kickoffTime: unknown;
+}
+
+export async function createCustomMatch(input: CreateCustomMatchInput) {
+  const homeTeamName = requireString(input.homeTeamName, 'homeTeamName');
+  const awayTeamName = requireString(input.awayTeamName, 'awayTeamName');
+  const kickoff = requireDate(input.kickoffTime, 'kickoffTime');
+
+  const weekStart = startOfISOWeek(kickoff);
+  weekStart.setUTCHours(0, 0, 0, 0);
+
+  const match = await MatchRepository.create({
+    data: {
+      externalId: null,
+      externalLeagueId: 0,
+      homeTeamExtId: 0,
+      homeTeamName,
+      awayTeamExtId: 0,
+      awayTeamName,
+      kickoffTime: kickoff,
+      weekStart,
+      status: 'scheduled',
+      scoresProcessed: false,
+    },
+  });
+
+  // Fire-and-forget: a notification failure must not fail match creation.
+  notifyUsersOfNewMatches(
+    [{ homeTeamName: match.homeTeamName, awayTeamName: match.awayTeamName, kickoffTime: match.kickoffTime, leagueName: 'Others' }],
+    `${match.homeTeamName} vs ${match.awayTeamName} — place your prediction!`,
+    'admin/matches create-custom',
+  );
+
+  return match;
 }
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
