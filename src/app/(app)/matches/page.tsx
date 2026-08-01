@@ -68,7 +68,7 @@ export default async function MatchesPage() {
             <Link key={serialized._id} href={`/matches/${serialized._id}`}>
               <div
                 className={cn(
-                  "rounded-[14px] border border-border bg-card overflow-hidden transition-colors hover:border-primary/40",
+                  "rounded-md border border-border bg-card overflow-hidden transition-colors hover:border-primary/40",
                   "mb-1"
                 )}
               >
@@ -76,7 +76,7 @@ export default async function MatchesPage() {
                 <div
                   className={cn(
                     "flex items-center justify-between px-4 py-[10px]",
-                    isLive && "bg-[rgba(255,77,109,0.06)]"
+                    isLive && "bg-live/[0.06]"
                   )}
                 >
                   <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted-foreground truncate">
@@ -84,16 +84,16 @@ export default async function MatchesPage() {
                   </span>
                   <div className="shrink-0 ml-2">
                     {isLive ? (
-                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[rgba(255,77,109,0.12)] border border-[rgba(255,77,109,0.30)] text-live text-[10px] font-bold uppercase">
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-live/10 border border-live/30 text-live text-[10px] font-bold uppercase tracking-[0.04em]">
                         <span className="animate-live inline-block h-1.5 w-1.5 rounded-full bg-live" />
                         LIVE
                       </span>
                     ) : locked ? (
-                      <span className="px-2.5 py-1 rounded-full border border-border text-muted-foreground text-[10px] font-bold uppercase">
+                      <span className="px-2.5 py-1 rounded-sm border border-border text-muted-foreground text-[10px] font-bold uppercase tracking-[0.04em]">
                         LOCKED
                       </span>
                     ) : prediction ? (
-                      <span className="px-2.5 py-1 rounded-full bg-primary-soft border border-primary-soft-border text-primary text-[10px] font-bold uppercase">
+                      <span className="px-2.5 py-1 rounded-sm bg-primary-soft border border-primary-soft-border text-primary text-[10px] font-bold uppercase tracking-[0.04em]">
                         PICKED
                       </span>
                     ) : null}
@@ -126,7 +126,7 @@ export default async function MatchesPage() {
                   {/* Score chip */}
                   <div className="flex flex-col items-center justify-center">
                     {prediction ? (
-                      <div className="min-w-[70px] px-[14px] py-1 rounded-md text-center bg-primary-soft border border-primary-soft-border text-primary font-mono-nums text-[19px] font-bold">
+                      <div className="min-w-[70px] px-[14px] py-1 rounded-md text-center bg-primary-soft border border-primary-soft-border text-primary font-mono-nums score-glow text-[19px] font-bold">
                         {prediction.homeScore}–{prediction.awayScore}
                       </div>
                     ) : isLive ? (

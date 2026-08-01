@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMemo, useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 
@@ -8,17 +9,17 @@ const STORAGE_KEY = 'odds_explainer_v1_seen';
 
 const STEPS = [
   {
-    emoji: '🔮',
+    icon: 'locate-outline' as const,
     title: 'Pick your outcome',
     desc: 'Choose who wins (or a draw) like you always have — nothing changes here.',
   },
   {
-    emoji: '⚡',
+    icon: 'flash-outline' as const,
     title: 'Bold picks earn bonus points',
     desc: 'Once the match is done, your score is multiplied based on how many people made the same pick. Rare correct predictions earn more.',
   },
   {
-    emoji: '🏆',
+    icon: 'trophy-outline' as const,
     title: 'Multiplier revealed after the match',
     desc: "You won't see the odds until the match is locked and results are in — everyone finds out at the same time.",
   },
@@ -51,7 +52,7 @@ export function OddsExplainerModal() {
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.headerEmoji}>🎯</Text>
+            <Ionicons name="sparkles-outline" size={26} color={colors.primary} style={{ marginBottom: spacing.xs }} />
             <Text style={styles.title}>Predictions just got more exciting</Text>
             <Text style={styles.intro}>
               Your predictions now earn{' '}
@@ -62,7 +63,7 @@ export function OddsExplainerModal() {
           <View style={styles.steps}>
             {STEPS.map((step) => (
               <View key={step.title} style={styles.step}>
-                <Text style={styles.stepEmoji}>{step.emoji}</Text>
+                <Ionicons name={step.icon} size={18} color={colors.primary} style={{ marginTop: 1 }} />
                 <View style={styles.stepBody}>
                   <Text style={styles.stepTitle}>{step.title}</Text>
                   <Text style={styles.stepDesc}>{step.desc}</Text>
@@ -76,7 +77,7 @@ export function OddsExplainerModal() {
             <Text style={styles.exampleText}>
               8 out of 10 players picked a home win — only you and one friend picked the away
               team. The away team wins. Your base score of 10 pts becomes{' '}
-              <Text style={styles.bold}>25 pts</Text> with a 2.5× multiplier. 🎉
+              <Text style={styles.bold}>25 pts</Text> with a 2.5× multiplier.
             </Text>
           </View>
 
@@ -119,10 +120,6 @@ function makeStyles(c: Palette) {
     header: {
       gap: spacing.xs,
     },
-    headerEmoji: {
-      fontSize: 28,
-      marginBottom: spacing.xs,
-    },
     title: {
       color: c.foreground,
       fontSize: font.size.md,
@@ -145,11 +142,6 @@ function makeStyles(c: Palette) {
       flexDirection: 'row',
       gap: spacing.sm,
       alignItems: 'flex-start',
-    },
-    stepEmoji: {
-      fontSize: 18,
-      lineHeight: 22,
-      marginTop: 1,
     },
     stepBody: {
       flex: 1,

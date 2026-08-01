@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -291,7 +291,7 @@ export default function SeasonsPage() {
 
       {seasonsLoaded && !activeSeason && endedStandings.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
-          <p className="text-4xl mb-3">🏆</p>
+          <Trophy className="h-9 w-9 mx-auto mb-3" />
           <p className="text-base font-medium">No seasons yet</p>
           <p className="text-sm mt-1">Check back when a season is started by the admin.</p>
         </div>

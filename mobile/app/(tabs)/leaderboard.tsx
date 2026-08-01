@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LeaderboardFilters } from '@/components/LeaderboardFilters';
 import { LeaderboardRow, Podium } from '@/components/LeaderboardRow';
@@ -116,7 +117,7 @@ export default function LeaderboardScreen() {
         ListEmptyComponent={
           offSeason ? (
             <View style={{ alignItems: 'center', gap: spacing.sm, marginTop: spacing.xxl }}>
-              <Text style={{ fontSize: 36 }}>🏆</Text>
+              <Ionicons name="trophy-outline" size={36} color={colors.mutedForeground} />
               <Text style={[{ fontSize: 15, fontWeight: '600', color: colors.foreground }]}>
                 Season has ended
               </Text>

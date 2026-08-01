@@ -53,8 +53,8 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Logo tile */}
-        <View style={[styles.logoTile, { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder }]}>
-          <Text style={{ fontSize: 28 }}>⚽</Text>
+        <View style={[styles.logoTile, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+          <Text style={{ fontSize: 24, fontWeight: font.weight.heavy, color: colors.primaryForeground }}>P</Text>
         </View>
 
         {/* Hero copy */}
@@ -123,7 +123,7 @@ function makeStyles(c: Palette) {
     logoTile: {
       width: 56,
       height: 56,
-      borderRadius: 16,
+      borderRadius: radius.md,
       borderWidth: 1,
       alignItems: 'center',
       justifyContent: 'center',

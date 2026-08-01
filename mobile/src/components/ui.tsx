@@ -16,6 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 
+function hexToRgba(hex: string, alpha: number) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function makeStyles(c: Palette) {
   return StyleSheet.create({
     card: {
@@ -53,7 +61,7 @@ function makeStyles(c: Palette) {
     badge: {
       paddingHorizontal: spacing.sm,
       paddingVertical: 2,
-      borderRadius: radius.pill,
+      borderRadius: radius.sm,
       borderWidth: 1,
       flexDirection: 'row',
       alignItems: 'center',
@@ -158,9 +166,9 @@ interface PillProps {
 export function Pill({ tone = 'neutral', children, icon }: PillProps) {
   const { colors } = useTheme();
   const toneStyle = {
-    brand:   { bg: colors.primarySoft,            fg: colors.primary,         border: colors.primarySoftBorder },
-    live:    { bg: 'rgba(255,77,109,0.14)',        fg: colors.live,            border: 'rgba(255,77,109,0.35)' },
-    amber:   { bg: 'rgba(242,181,68,0.14)',        fg: colors.warning,         border: 'rgba(242,181,68,0.35)' },
+    brand:   { bg: colors.primarySoft,             fg: colors.primary,         border: colors.primarySoftBorder },
+    live:    { bg: hexToRgba(colors.live, 0.14),   fg: colors.live,            border: hexToRgba(colors.live, 0.35) },
+    amber:   { bg: hexToRgba(colors.warning, 0.14),fg: colors.warning,         border: hexToRgba(colors.warning, 0.35) },
     neutral: { bg: colors.cardElevated,            fg: colors.mutedForeground, border: colors.border },
     ghost:   { bg: 'transparent',                  fg: colors.mutedForeground, border: colors.border },
   }[tone];
@@ -173,7 +181,7 @@ export function Pill({ tone = 'neutral', children, icon }: PillProps) {
         alignSelf: 'flex-start',
         paddingHorizontal: 8,
         paddingVertical: 3,
-        borderRadius: radius.pill,
+        borderRadius: radius.sm,
         borderWidth: 1,
         backgroundColor: toneStyle.bg,
         borderColor: toneStyle.border,

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Award } from "lucide-react";
+import { Award, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type AnchorPos = { x: number; top?: number; bottom?: number };
@@ -264,7 +264,7 @@ export default function LeaderboardPage() {
         </div>
       ) : offSeason ? (
         <div className="rounded-[14px] border border-border bg-card px-6 py-10 text-center space-y-3">
-          <p className="text-3xl">🏆</p>
+          <Trophy className="h-8 w-8 mx-auto text-muted-foreground" />
           <p className="font-semibold text-base">Season has ended</p>
           <p className="text-sm text-muted-foreground">The leaderboard is cleared. A new season will start soon.</p>
           <Link
@@ -327,7 +327,11 @@ export default function LeaderboardPage() {
                   <div className="flex-1 min-w-0 flex items-center gap-1.5 truncate">
                     <p className="text-[13px] font-semibold truncate">{entry.name}</p>
                     {isMe && <span className="text-[10px] font-bold uppercase text-primary shrink-0">YOU</span>}
-                    {entry.isGroupChampion && <span title="Group Champion" className="text-sm leading-none shrink-0">🏆</span>}
+                    {entry.isGroupChampion && (
+                      <span title="Group Champion" className="shrink-0">
+                        <Trophy className="h-3 w-3 text-gold" />
+                      </span>
+                    )}
                     {isCurrentPeriod && (
                       <BadgesPopover
                         badges={entry.badges ?? []}

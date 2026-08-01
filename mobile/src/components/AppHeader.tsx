@@ -1,12 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
 import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme/theme';
 import { font, radius, spacing } from '@/theme/colors';
-
-const wcTrophy = require('../../assets/wc-trophy.png');
 
 interface Props {
   title: string;
@@ -38,11 +35,9 @@ export function AppHeader({ title, subtitle }: Props) {
     >
       <View style={styles.titleBlock}>
         <View style={styles.titleRow}>
-          <Image
-            source={wcTrophy}
-            style={{ width: 32, height: 32 }}
-            contentFit="contain"
-          />
+          <View style={[styles.mark, { backgroundColor: colors.primary }]}>
+            <Text style={{ color: colors.primaryForeground, fontSize: 15, fontWeight: font.weight.heavy }}>P</Text>
+          </View>
           <Text
             style={{
               color: colors.foreground,
@@ -100,6 +95,13 @@ const styles = StyleSheet.create({
   },
   titleBlock: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  mark: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 0 },
   iconBtn: {
     width: 34,

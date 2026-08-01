@@ -1,7 +1,4 @@
-// Theme palettes — World Cup 2026 seasonal edition.
-// `dark` = trophy gold on midnight navy. `light` = trophy gold on warm parchment.
-// To restore the original Pitch Premium palettes after the World Cup, uncomment
-// the "Original Pitch Premium" blocks below and remove the seasonal ones.
+// Theme palettes — Scoreboard edition: graphite stadium panels + amber LED accent.
 // Components pull the active palette via `useTheme()` from `@/theme/theme`.
 
 export type Palette = {
@@ -29,99 +26,51 @@ export type Palette = {
 export type ThemeMode = 'light' | 'dark';
 
 export const palettes: Record<ThemeMode, Palette> = {
-  // ── Dark — World Cup 2026 (trophy gold + midnight navy) ──────────────────
+  // ── Dark — Scoreboard (graphite panels + electric-cyan LED accent) ───────
   dark: {
-    background: '#07090E',
-    backgroundElevated: '#0C1220',
-    card: '#101828',
-    cardElevated: '#182035',
-    foreground: '#F2F5FA',
-    mutedForeground: '#8A95A8',
-    border: 'rgba(255,255,255,0.06)',
-    input: 'rgba(255,255,255,0.10)',
-    primary: '#F2A900',
-    primaryForeground: '#1A0E00',
-    primarySoft: 'rgba(242,169,0,0.12)',
-    primarySoftBorder: 'rgba(242,169,0,0.30)',
-    destructive: '#FF4D6D',
-    accent: '#182035',
-    accentHover: '#1F2B45',
-    success: '#22c55e',
-    warning: '#F2B544',
-    live: '#FF4D6D',
-    gold: '#F2C744',
+    background: '#17191B',
+    backgroundElevated: '#1D2023',
+    card: '#212528',
+    cardElevated: '#262B2F',
+    foreground: '#ECEEEF',
+    mutedForeground: '#8B9096',
+    border: 'rgba(255,255,255,0.10)',
+    input: 'rgba(255,255,255,0.12)',
+    primary: '#2FD9E8',
+    primaryForeground: '#062024',
+    primarySoft: 'rgba(47,217,232,0.14)',
+    primarySoftBorder: 'rgba(47,217,232,0.32)',
+    destructive: '#FF3B30',
+    accent: '#262B2F',
+    accentHover: '#2E3438',
+    success: '#3DDC84',
+    warning: '#F2B23D',
+    live: '#FF3B30',
+    gold: '#F2A93D',
   },
-  // ── Light — World Cup 2026 (trophy gold + warm parchment) ────────────────
+  // ── Light — Scoreboard (poured concrete + amber LED accent) ──────────────
   light: {
-    background: '#F5F0E8',
-    backgroundElevated: '#FFFFFF',
+    background: '#EDEEEF',
+    backgroundElevated: '#F5F6F6',
     card: '#FFFFFF',
-    cardElevated: '#FBF7EF',
-    foreground: '#17202E',
-    mutedForeground: '#5D6B7E',
-    border: 'rgba(0,0,0,0.08)',
-    input: 'rgba(0,0,0,0.08)',
-    primary: '#C8820A',
+    cardElevated: '#F5F6F6',
+    foreground: '#1A1D20',
+    mutedForeground: '#5C6167',
+    border: 'rgba(20,22,24,0.14)',
+    input: 'rgba(20,22,24,0.10)',
+    primary: '#D9600A',
     primaryForeground: '#FFFFFF',
-    primarySoft: 'rgba(200,130,10,0.10)',
-    primarySoftBorder: 'rgba(200,130,10,0.30)',
-    destructive: '#E11D48',
-    accent: '#EDE8DF',
-    accentHover: '#E0D9CE',
-    success: '#16a34a',
-    warning: '#CA8A04',
-    live: '#E11D48',
-    gold: '#B45309',
+    primarySoft: 'rgba(217,96,10,0.12)',
+    primarySoftBorder: 'rgba(217,96,10,0.32)',
+    destructive: '#C81E1E',
+    accent: '#E4E5E6',
+    accentHover: '#D9DADB',
+    success: '#1E8A4C',
+    warning: '#B8860B',
+    live: '#C81E1E',
+    gold: '#B8720A',
   },
 };
-
-/*
-── Original Pitch Premium dark (restore after World Cup) ──────────────────────
-  dark: {
-    background: '#07090E',
-    backgroundElevated: '#0E121B',
-    card: '#141925',
-    cardElevated: '#1B2230',
-    foreground: '#F2F5FA',
-    mutedForeground: '#8A95A8',
-    border: 'rgba(255,255,255,0.06)',
-    input: 'rgba(255,255,255,0.10)',
-    primary: '#10E089',
-    primaryForeground: '#031A11',
-    primarySoft: 'rgba(16,224,137,0.12)',
-    primarySoftBorder: 'rgba(16,224,137,0.30)',
-    destructive: '#FF4D6D',
-    accent: '#1B2230',
-    accentHover: '#232C3D',
-    success: '#22c55e',
-    warning: '#F2B544',
-    live: '#FF4D6D',
-    gold: '#F2C744',
-  },
-
-── Original Pitch Premium light (restore after World Cup) ─────────────────────
-  light: {
-    background: '#F4F6FA',
-    backgroundElevated: '#FFFFFF',
-    card: '#FFFFFF',
-    cardElevated: '#F5F7FA',
-    foreground: '#17202E',
-    mutedForeground: '#5D6B7E',
-    border: 'rgba(0,0,0,0.08)',
-    input: 'rgba(0,0,0,0.08)',
-    primary: '#0DB87A',
-    primaryForeground: '#FFFFFF',
-    primarySoft: 'rgba(13,184,122,0.10)',
-    primarySoftBorder: 'rgba(13,184,122,0.30)',
-    destructive: '#E11D48',
-    accent: '#E8ECF2',
-    accentHover: '#D6DCE6',
-    success: '#16a34a',
-    warning: '#CA8A04',
-    live: '#E11D48',
-    gold: '#D97706',
-  },
-*/
 
 // Back-compat export: the dark palette is the default for consumers that still
 // import `colors` directly (e.g. splash pre-theme-provider).
@@ -137,10 +86,10 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: 8,
-  md: 14,
-  lg: 20,
-  xl: 28,
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
   pill: 999,
 };
 

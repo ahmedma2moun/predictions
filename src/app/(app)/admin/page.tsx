@@ -51,7 +51,7 @@ export default async function AdminDashboardPage() {
         <CardHeader><CardTitle>Badges</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Award the 🏆 group_champion badge to the top scorer in each group across all finished predictions.
+            Award the group_champion badge to the top scorer in each group across all finished predictions.
             Past-week and past-month champions show up automatically on the leaderboard — this is for the all-time winner.
           </p>
           <ChampionsButton />

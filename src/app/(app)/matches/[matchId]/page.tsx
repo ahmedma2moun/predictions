@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { isMatchLocked, formatStage, isKnockoutStage, ordinal } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
-import { ChevronLeft, Minus, Plus, Lock, Pencil, Check, X, Calculator } from "lucide-react";
+import { ChevronLeft, Minus, Plus, Lock, Pencil, Check, X, Calculator, Loader2 } from "lucide-react";
 import { MatchH2H } from "./MatchH2H";
 import type { H2HMatch } from "./MatchH2H";
 import { MatchStandings } from "./MatchStandings";
@@ -111,7 +111,7 @@ export default function MatchPredictionPage() {
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [match, matchId, locked]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin text-4xl">⚽</div></div>;
+  if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   if (!match) return <div className="p-4">Match not found</div>;
 
   const isAdmin = match.isAdmin as boolean;
@@ -220,7 +220,7 @@ export default function MatchPredictionPage() {
       </div>
 
       {/* Hero predict card */}
-      <div className="relative rounded-[20px] border border-border bg-card overflow-hidden p-0">
+      <div className="relative rounded-lg border border-border bg-card overflow-hidden p-0">
         {/* Radial tint */}
         <div className="pointer-events-none absolute inset-x-[10%] top-0 h-20 rounded-full bg-primary/[0.08] blur-xl" />
 
@@ -231,17 +231,17 @@ export default function MatchPredictionPage() {
               <KickoffTime date={match.kickoffTime} />
             </span>
             {match.status === "live" ? (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[rgba(255,77,109,0.12)] border border-[rgba(255,77,109,0.30)] text-live text-[10px] font-bold uppercase">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-live/10 border border-live/30 text-live text-[10px] font-bold uppercase tracking-[0.04em]">
                 <span className="animate-live inline-block h-1.5 w-1.5 rounded-full bg-live" />
                 LIVE
               </span>
             ) : locked ? (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border text-muted-foreground text-[10px] font-bold uppercase">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-border text-muted-foreground text-[10px] font-bold uppercase tracking-[0.04em]">
                 <Lock className="h-2.5 w-2.5" />
                 LOCKED
               </span>
             ) : (
-              <span className="px-2.5 py-1 rounded-full border border-primary-soft-border bg-primary-soft text-primary text-[10px] font-bold uppercase">
+              <span className="px-2.5 py-1 rounded-sm border border-primary-soft-border bg-primary-soft text-primary text-[10px] font-bold uppercase tracking-[0.04em]">
                 OPEN
               </span>
             )}
@@ -285,12 +285,12 @@ export default function MatchPredictionPage() {
 
           {/* Live score */}
           {liveScore && (
-            <div className="bg-[rgba(255,77,109,0.08)] border border-[rgba(255,77,109,0.25)] rounded-lg p-3 text-center">
+            <div className="bg-live/10 border border-live/25 rounded-md p-3 text-center">
               <p className="text-[10px] font-bold uppercase tracking-wider text-live mb-1 flex items-center justify-center gap-1.5">
                 <span className="animate-live inline-block h-1.5 w-1.5 rounded-full bg-live" />
                 Live Score
               </p>
-              <p className="text-2xl font-bold font-mono-nums">
+              <p className="text-2xl font-bold font-mono-nums score-glow">
                 {liveScore.homeScore} – {liveScore.awayScore}
               </p>
             </div>

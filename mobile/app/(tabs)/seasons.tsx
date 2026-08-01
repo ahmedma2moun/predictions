@@ -369,7 +369,7 @@ export default function SeasonsScreen() {
         {/* Empty state */}
         {!activeSeason && endedSeasons.length === 0 && (
           <View style={styles.empty}>
-            <Text style={{ fontSize: 40 }}>🏆</Text>
+            <Ionicons name="trophy-outline" size={40} color={colors.mutedForeground} />
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No seasons yet</Text>
             <Muted style={{ textAlign: 'center' }}>
               Check back when a season is started by the admin.

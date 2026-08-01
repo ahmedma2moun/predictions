@@ -51,194 +51,100 @@
   --font-mono: var(--font-mono);
 
   /* Radius — fixed pixel scale */
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
-  --radius-2xl: 32px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
   --radius-full: 9999px;
 }
 
-/* ── Dark — World Cup 2026 seasonal (trophy gold + midnight navy) ───────────
-   To restore the original Pitch Premium dark palette after the World Cup,
-   replace the values below with the commented-out block that follows.
-────────────────────────────────────────────────────────────────────────────── */
+/* ── Dark — Scoreboard (graphite panels + electric-cyan LED accent) ────────── */
 :root,
 .dark {
-  --background: #07090E;
-  --background-elevated: #0C1220;
-  --card: #101828;
-  --card-elevated: #182035;
-  --card-foreground: #F2F5FA;
-  --foreground: #F2F5FA;
-  --popover: #101828;
-  --popover-foreground: #F2F5FA;
-  --primary: #F2A900;
-  --primary-foreground: #1A0E00;
-  --primary-soft: rgba(242, 169, 0, 0.12);
-  --primary-soft-border: rgba(242, 169, 0, 0.30);
-  --secondary: #182035;
-  --secondary-foreground: #F2F5FA;
-  --muted: #182035;
-  --muted-foreground: #8A95A8;
-  --accent: #182035;
-  --accent-foreground: #F2F5FA;
-  --destructive: #FF4D6D;
-  --live: #FF4D6D;
-  --warning: #F2B544;
-  --gold: #F2C744;
-  --border: rgba(255, 255, 255, 0.06);
-  --input: rgba(255, 255, 255, 0.09);
-  --ring: #F2A900;
-  --sidebar: #0C1220;
-  --sidebar-foreground: #F2F5FA;
-  --sidebar-primary: #F2A900;
-  --sidebar-primary-foreground: #1A0E00;
-  --sidebar-accent: #182035;
-  --sidebar-accent-foreground: #F2F5FA;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #F2A900;
-  --chart-1: #F2A900;
-  --chart-2: #D4920A;
-  --chart-3: #B67B0A;
-  --chart-4: #F2B544;
-  --chart-5: #F2C744;
+  --background: #17191B;
+  --background-elevated: #1D2023;
+  --card: #212528;
+  --card-elevated: #262B2F;
+  --card-foreground: #ECEEEF;
+  --foreground: #ECEEEF;
+  --popover: #212528;
+  --popover-foreground: #ECEEEF;
+  --primary: #2FD9E8;
+  --primary-foreground: #062024;
+  --primary-soft: rgba(47, 217, 232, 0.14);
+  --primary-soft-border: rgba(47, 217, 232, 0.32);
+  --secondary: #262B2F;
+  --secondary-foreground: #ECEEEF;
+  --muted: #262B2F;
+  --muted-foreground: #8B9096;
+  --accent: #262B2F;
+  --accent-foreground: #ECEEEF;
+  --destructive: #FF3B30;
+  --live: #FF3B30;
+  --warning: #F2B23D;
+  --gold: #F2A93D;
+  --border: rgba(255, 255, 255, 0.10);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #2FD9E8;
+  --sidebar: #1D2023;
+  --sidebar-foreground: #ECEEEF;
+  --sidebar-primary: #2FD9E8;
+  --sidebar-primary-foreground: #062024;
+  --sidebar-accent: #262B2F;
+  --sidebar-accent-foreground: #ECEEEF;
+  --sidebar-border: rgba(255, 255, 255, 0.10);
+  --sidebar-ring: #2FD9E8;
+  --chart-1: #2FD9E8;
+  --chart-2: #1CB8C7;
+  --chart-3: #14939F;
+  --chart-4: #F2B23D;
+  --chart-5: #3DDC84;
 }
 
-/*
-── Original Pitch Premium dark (restore after World Cup) ──────────────────────
-:root,
-.dark {
-  --background: #07090E;
-  --background-elevated: #0E121B;
-  --card: #141925;
-  --card-elevated: #1B2230;
-  --card-foreground: #F2F5FA;
-  --foreground: #F2F5FA;
-  --popover: #141925;
-  --popover-foreground: #F2F5FA;
-  --primary: #10E089;
-  --primary-foreground: #031A11;
-  --primary-soft: rgba(16, 224, 137, 0.12);
-  --primary-soft-border: rgba(16, 224, 137, 0.30);
-  --secondary: #1B2230;
-  --secondary-foreground: #F2F5FA;
-  --muted: #1B2230;
-  --muted-foreground: #8A95A8;
-  --accent: #1B2230;
-  --accent-foreground: #F2F5FA;
-  --destructive: #FF4D6D;
-  --live: #FF4D6D;
-  --warning: #F2B544;
-  --gold: #F2C744;
-  --border: rgba(255, 255, 255, 0.06);
-  --input: rgba(255, 255, 255, 0.09);
-  --ring: #10E089;
-  --sidebar: #0E121B;
-  --sidebar-foreground: #F2F5FA;
-  --sidebar-primary: #10E089;
-  --sidebar-primary-foreground: #031A11;
-  --sidebar-accent: #1B2230;
-  --sidebar-accent-foreground: #F2F5FA;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #10E089;
-  --chart-1: #10E089;
-  --chart-2: #0DB87A;
-  --chart-3: #0A9060;
-  --chart-4: #F2B544;
-  --chart-5: #F2C744;
-}
-*/
-
-/* ── Light — World Cup 2026 seasonal (trophy gold + warm parchment) ─────────
+/* ── Light — Scoreboard (poured concrete + amber LED accent) ────────────────
    html.light has specificity 0-1-1, beats .dark (0-1-0) regardless of order.
-   To restore the original Pitch Premium light palette after the World Cup,
-   replace the values below with the commented-out block that follows.
 ────────────────────────────────────────────────────────────────────────────── */
 html.light {
-  --background: #F5F0E8;
-  --background-elevated: #FFFFFF;
+  --background: #EDEEEF;
+  --background-elevated: #F5F6F6;
   --card: #FFFFFF;
-  --card-elevated: #FBF7EF;
-  --card-foreground: #17202E;
-  --foreground: #17202E;
+  --card-elevated: #F5F6F6;
+  --card-foreground: #1A1D20;
+  --foreground: #1A1D20;
   --popover: #FFFFFF;
-  --popover-foreground: #17202E;
-  --primary: #C8820A;
+  --popover-foreground: #1A1D20;
+  --primary: #D9600A;
   --primary-foreground: #FFFFFF;
-  --primary-soft: rgba(200, 130, 10, 0.10);
-  --primary-soft-border: rgba(200, 130, 10, 0.30);
-  --secondary: #F5F0E8;
-  --secondary-foreground: #17202E;
-  --muted: #F5F0E8;
-  --muted-foreground: #5D6B7E;
-  --accent: #EDE8DF;
-  --accent-foreground: #17202E;
-  --destructive: #E11D48;
-  --live: #E11D48;
-  --warning: #CA8A04;
-  --gold: #B45309;
-  --border: rgba(0, 0, 0, 0.08);
-  --input: rgba(0, 0, 0, 0.07);
-  --ring: #C8820A;
+  --primary-soft: rgba(217, 96, 10, 0.12);
+  --primary-soft-border: rgba(217, 96, 10, 0.32);
+  --secondary: #EDEEEF;
+  --secondary-foreground: #1A1D20;
+  --muted: #EDEEEF;
+  --muted-foreground: #5C6167;
+  --accent: #E4E5E6;
+  --accent-foreground: #1A1D20;
+  --destructive: #C81E1E;
+  --live: #C81E1E;
+  --warning: #B8860B;
+  --gold: #B8720A;
+  --border: rgba(20, 22, 24, 0.14);
+  --input: rgba(20, 22, 24, 0.10);
+  --ring: #D9600A;
   --sidebar: #FFFFFF;
-  --sidebar-foreground: #17202E;
-  --sidebar-primary: #C8820A;
+  --sidebar-foreground: #1A1D20;
+  --sidebar-primary: #D9600A;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #F5F0E8;
-  --sidebar-accent-foreground: #17202E;
-  --sidebar-border: rgba(0, 0, 0, 0.08);
-  --sidebar-ring: #C8820A;
-  --chart-1: #C8820A;
-  --chart-2: #A86D08;
-  --chart-3: #8A5806;
-  --chart-4: #CA8A04;
-  --chart-5: #B45309;
+  --sidebar-accent: #EDEEEF;
+  --sidebar-accent-foreground: #1A1D20;
+  --sidebar-border: rgba(20, 22, 24, 0.14);
+  --sidebar-ring: #D9600A;
+  --chart-1: #D9600A;
+  --chart-2: #B84E00;
+  --chart-3: #8F3D00;
+  --chart-4: #B8860B;
+  --chart-5: #1E8A4C;
 }
-
-/*
-── Original Pitch Premium light (restore after World Cup) ─────────────────────
-html.light {
-  --background: #F4F6FA;
-  --background-elevated: #FFFFFF;
-  --card: #FFFFFF;
-  --card-elevated: #F5F7FA;
-  --card-foreground: #17202E;
-  --foreground: #17202E;
-  --popover: #FFFFFF;
-  --popover-foreground: #17202E;
-  --primary: #0DB87A;
-  --primary-foreground: #FFFFFF;
-  --primary-soft: rgba(13, 184, 122, 0.10);
-  --primary-soft-border: rgba(13, 184, 122, 0.30);
-  --secondary: #F5F7FA;
-  --secondary-foreground: #17202E;
-  --muted: #F5F7FA;
-  --muted-foreground: #5D6B7E;
-  --accent: #F5F7FA;
-  --accent-foreground: #17202E;
-  --destructive: #E11D48;
-  --live: #E11D48;
-  --warning: #CA8A04;
-  --gold: #D97706;
-  --border: rgba(0, 0, 0, 0.08);
-  --input: rgba(0, 0, 0, 0.07);
-  --ring: #0DB87A;
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #17202E;
-  --sidebar-primary: #0DB87A;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #F5F7FA;
-  --sidebar-accent-foreground: #17202E;
-  --sidebar-border: rgba(0, 0, 0, 0.08);
-  --sidebar-ring: #0DB87A;
-  --chart-1: #0DB87A;
-  --chart-2: #0A9060;
-  --chart-3: #076644;
-  --chart-4: #CA8A04;
-  --chart-5: #D97706;
-}
-*/
 
 /* ── Animations ────────────────────────────────────────────────────────────── */
 @keyframes live-pulse {
@@ -255,6 +161,10 @@ html.light {
 
   .animate-live {
     animation: live-pulse 1.6s ease-out infinite;
+  }
+
+  .dark .score-glow {
+    text-shadow: 0 0 10px currentColor;
   }
 }
 

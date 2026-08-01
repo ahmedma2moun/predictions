@@ -338,6 +338,7 @@ function BadgeStrip({
   longestStreak: number;
   isCurrentPeriod: boolean;
 }) {
+  const { colors } = useTheme();
   const hasExact = badges.includes('first_exact_score');
   const hasRoll  = badges.includes('on_a_roll');
   const showPopover = isCurrentPeriod && (hasExact || hasRoll);
@@ -346,7 +347,7 @@ function BadgeStrip({
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 1 }}>
-      {isGroupChampion && <Text style={{ fontSize: 12, lineHeight: 16 }}>🏆</Text>}
+      {isGroupChampion && <Ionicons name="trophy" size={12} color={colors.gold} />}
       {showPopover && (
         <BadgesPopover badges={badges} exactScoreCount={exactScoreCount} longestStreak={longestStreak} />
       )}
