@@ -54,7 +54,7 @@ export default function LoginScreen() {
       >
         {/* Logo tile */}
         <View style={[styles.logoTile, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-          <Text style={{ fontSize: 24, fontWeight: font.weight.heavy, color: colors.primaryForeground }}>P</Text>
+          <Text style={{ fontSize: 28, lineHeight: 32 }}>⚽</Text>
         </View>
 
         {/* Hero copy */}

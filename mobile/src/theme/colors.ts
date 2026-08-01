@@ -26,7 +26,7 @@ export type Palette = {
 export type ThemeMode = 'light' | 'dark';
 
 export const palettes: Record<ThemeMode, Palette> = {
-  // ── Dark — Scoreboard (graphite panels + electric-cyan LED accent) ───────
+  // ── Dark — Scoreboard (graphite panels + amber LED accent) ───────────────
   dark: {
     background: '#17191B',
     backgroundElevated: '#1D2023',
@@ -36,10 +36,10 @@ export const palettes: Record<ThemeMode, Palette> = {
     mutedForeground: '#8B9096',
     border: 'rgba(255,255,255,0.10)',
     input: 'rgba(255,255,255,0.12)',
-    primary: '#2FD9E8',
-    primaryForeground: '#062024',
-    primarySoft: 'rgba(47,217,232,0.14)',
-    primarySoftBorder: 'rgba(47,217,232,0.32)',
+    primary: '#FF8A1E',
+    primaryForeground: '#1A1200',
+    primarySoft: 'rgba(255,138,30,0.14)',
+    primarySoftBorder: 'rgba(255,138,30,0.32)',
     destructive: '#FF3B30',
     accent: '#262B2F',
     accentHover: '#2E3438',

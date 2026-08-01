@@ -36,7 +36,7 @@ export function AppHeader({ title, subtitle }: Props) {
       <View style={styles.titleBlock}>
         <View style={styles.titleRow}>
           <View style={[styles.mark, { backgroundColor: colors.primary }]}>
-            <Text style={{ color: colors.primaryForeground, fontSize: 15, fontWeight: font.weight.heavy }}>P</Text>
+            <Text style={{ fontSize: 16, lineHeight: 18 }}>⚽</Text>
           </View>
           <Text
             style={{

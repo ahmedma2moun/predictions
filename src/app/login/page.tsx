@@ -27,8 +27,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col px-6">
       {/* Logo tile */}
-      <div className="mt-8 w-14 h-14 rounded-md bg-primary flex items-center justify-center">
-        <span className="font-mono font-extrabold text-2xl text-primary-foreground">P</span>
+      <div className="mt-8 w-14 h-14 rounded-md bg-primary flex items-center justify-center text-3xl leading-none">
+        ⚽
       </div>
 
       {/* Hero */}
