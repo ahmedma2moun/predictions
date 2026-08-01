@@ -94,9 +94,16 @@ export async function fetchAndInsertMatches(params: {
 
   for (const league of leagues) {
     try {
+      const activeTeamIds = activeTeamsByLeague.get(league.externalId);
+      if (filterByTeams && !activeTeamIds?.size) {
+        logger.info(`[${logPrefix}] ${league.name}: skipped — no active teams`);
+        debug.push({ league: league.name, externalId: league.externalId, skippedReason: 'no active teams' });
+        continue;
+      }
+
       const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
       const fixtures = filterByTeams
-        ? filterByActiveTeams(allFixtures, activeTeamsByLeague.get(league.externalId))
+        ? filterByActiveTeams(allFixtures, activeTeamIds!)
         : allFixtures;
 
       debug.push({
@@ -226,8 +233,7 @@ async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
   return TeamService.getActiveTeamsByLeagueMap();
 }
 
-function filterByActiveTeams(fixtures: APIFixture[], activeTeamIds: Set<number> | undefined) {
-  if (!activeTeamIds || activeTeamIds.size === 0) return fixtures;
+function filterByActiveTeams(fixtures: APIFixture[], activeTeamIds: Set<number>) {
   return fixtures.filter(f =>
     activeTeamIds.has(f.teams.home.id) || activeTeamIds.has(f.teams.away.id)
   );
