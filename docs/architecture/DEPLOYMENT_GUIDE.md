@@ -3,10 +3,10 @@
 ## CI/CD Pipeline
 
 ```
-git push → Vercel auto-detect → Build (next build) → Deploy → CDN propagation
+git push → Vercel auto-detect → Build (prisma migrate deploy && next build) → Deploy → CDN propagation
 ```
 
-No formal CI/CD pipeline configured. Vercel auto-deploys on push to the main branch.
+No formal CI/CD pipeline configured. Vercel auto-deploys on push to the main branch. The build script runs `prisma migrate deploy` (against `DIRECT_URL`) before `next build`, so every deploy applies any pending migrations automatically — this was previously a manual step and got missed once in practice (a new `Match` migration shipped in code while the production DB stayed on the old schema, causing runtime `column does not exist` errors), which is why it's now baked into `build` instead of documented as a thing to remember. `prisma migrate deploy` is a no-op when there's nothing pending, so this adds no cost to deploys with no schema change.
 
 ## First-Time Setup
 
@@ -26,7 +26,9 @@ Use any PostgreSQL provider with a free tier (Supabase or Neon recommended):
 
 Both `DATABASE_URL` and `DIRECT_URL` are required. Prisma uses `DIRECT_URL` for migrations and `DATABASE_URL` for all runtime queries.
 
-### 2. Run Migrations
+### 2. Migrations
+
+Handled automatically by the `build` script (`prisma migrate deploy && next build`) on every Vercel deploy — no manual step, as long as `DIRECT_URL` is set in Vercel's environment variables (§6 below). To apply a migration ahead of a deploy (e.g. while testing locally against prod), run it manually:
 
 ```bash
 # Run against your production database via DIRECT_URL
@@ -198,7 +200,9 @@ curl https://your-app.vercel.app/api/cron/db-export \
 # Local dev — creates migration file and applies it
 npx prisma migrate dev --name describe_the_change
 
-# Production — applies pending migrations (no file creation)
+# Production — applies pending migrations (no file creation).
+# Runs automatically as part of `npm run build` on every Vercel deploy —
+# this manual form is only needed to apply a migration ahead of a deploy.
 npx prisma migrate deploy
 
 # View/edit data
