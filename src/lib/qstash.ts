@@ -26,9 +26,18 @@ export function getQStashReceiver(): Receiver {
   return _receiver;
 }
 
-/** Absolute URL QStash calls back into — reuses the app's canonical deployed URL. */
-export function liveGoalsWebhookUrl(): string {
+function absoluteWebhookUrl(path: string): string {
   const base = process.env.NEXTAUTH_URL;
   if (!base) throw new Error('NEXTAUTH_URL environment variable is not set');
-  return `${base.replace(/\/$/, '')}/api/webhooks/qstash/live-goals`;
+  return `${base.replace(/\/$/, '')}${path}`;
+}
+
+/** Absolute URL QStash calls back into for the live-goal polling chain. */
+export function liveGoalsWebhookUrl(): string {
+  return absoluteWebhookUrl('/api/webhooks/qstash/live-goals');
+}
+
+/** Absolute URL QStash calls back into for the standalone pipeline test (unrelated to match state). */
+export function testNotificationWebhookUrl(): string {
+  return absoluteWebhookUrl('/api/webhooks/qstash/test-notification');
 }

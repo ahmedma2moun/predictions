@@ -42,6 +42,9 @@ export default function AdminNotificationsPage() {
   const [selectedMatchId, setSelectedMatchId] = useState<string>("");
   const [triggering, setTriggering] = useState(false);
 
+  const [qstashTestUserId, setQstashTestUserId] = useState<string>("");
+  const [qstashTesting, setQstashTesting] = useState(false);
+
   const loadMatches = useCallback(async () => {
     const r = await fetch("/api/admin/live-goals/matches");
     if (!r.ok) throw new Error("Failed to load matches");
@@ -69,6 +72,28 @@ export default function AdminNotificationsPage() {
       toast.error("Network error");
     } finally {
       setTriggering(false);
+    }
+  }
+
+  async function triggerQStashTest() {
+    if (!qstashTestUserId) return;
+    setQstashTesting(true);
+    try {
+      const r = await fetch("/api/admin/qstash-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: Number(qstashTestUserId) }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error ?? "Failed to schedule test");
+      } else {
+        toast.success(data.message ?? "Scheduled");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setQstashTesting(false);
     }
   }
 
@@ -243,6 +268,43 @@ export default function AdminNotificationsPage() {
             disabled={triggering || !selectedMatchId}
           >
             {triggering ? "Publishing..." : "Trigger Test Tick"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">QStash Pipeline Test — Delayed Push</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Schedules a push to the selected user 60 seconds from now via QStash. Fully independent of
+            match/live-goal state — this only proves the round trip (publish → wait → webhook → signature
+            verify → push) works, without needing a live match or predictors to observe it.
+          </p>
+
+          <div className="space-y-2">
+            <Label>Recipient</Label>
+            {loadingUsers ? (
+              <Skeleton className="h-9 w-full rounded-md" />
+            ) : (
+              <select
+                value={qstashTestUserId}
+                onChange={e => setQstashTestUserId(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select a user…</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <Button
+            className="w-full"
+            onClick={triggerQStashTest}
+            disabled={qstashTesting || !qstashTestUserId}
+          >
+            {qstashTesting ? "Scheduling..." : "Send Test Push (fires in 60s)"}
           </Button>
         </CardContent>
       </Card>
