@@ -6,11 +6,22 @@
       "Bash(npx tsx *)",
       "Bash(git status)",
       "Bash(git diff *)",
-      "Bash(git log *)"
+      "Bash(git log *)",
+      "Bash(curl -s -D - -o /dev/null -w \"TTFB:%{time_starttransfer}s Total:%{time_total}s\\n\" https://predictions-virid.vercel.app*)",
+      "Bash(curl -sI https://predictions-virid.vercel.app*)",
+      "Bash(curl -s -o /dev/null -w \"Connect:%{time_connect}s TTFB:%{time_starttransfer}s Total:%{time_total}s\\n\" https://aws-0-eu-west-1.pooler.supabase.com*)"
     ],
     "deny": [
       "Bash(rm -rf *)",
-      "Bash(curl *)",
+      "Bash(curl * -d *)",
+      "Bash(curl * --data*)",
+      "Bash(curl * -X POST*)",
+      "Bash(curl * -X PUT*)",
+      "Bash(curl * -X DELETE*)",
+      "Bash(curl * -X PATCH*)",
+      "Bash(curl * -T *)",
+      "Bash(curl * -F *)",
+      "Bash(curl * --upload-file*)",
       "Bash(wget *)",
       "Read(~/.ssh/*)"
     ]

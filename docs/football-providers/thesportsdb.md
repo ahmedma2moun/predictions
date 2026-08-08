@@ -28,11 +28,13 @@
 |---|---|---|---|
 | `fetchLeagues()` | `GET /all_leagues.php` | v1 (path key) | No v2 leagues-list endpoint exists |
 | `fetchTeams(leagueId)` | `GET /list/teams/{leagueId}` | v2 (header key) | Numeric league ID directly |
-| `fetchFixtures({league, season, from, to})` | `GET /schedule/league/{league}/{season}` | v2 | Full season, filtered to the `from`/`to` window client-side — no native range param in either API version |
+| `fetchFixtures({league, season, from, to})` | `GET /lookupleague.php?id=` (real season string) → `GET /schedule/league/{league}/{season}` | v1 + v2 | Full season, filtered to the `from`/`to` window client-side — no native range param in either API version |
 | `fetchFixtures({league, season, date})` | `GET /eventsday.php?d=&l=` | v1 (path key) | No v2 day-schedule endpoint documented |
 | `fetchFixtureById(id)` | `GET /lookup/event/{id}` → `GET /lookuptimeline.php?id=` (goal/card events, only for `finished`/`live` fixtures) | v2 + v1 | Timeline call is skipped for `scheduled` fixtures to avoid a wasted request; maps `Goal`/`Card` entries to `APIMatchEvent` (see ADR-14, `SYSTEM_ARCHITECTURE.md`) |
 | `fetchStandings(leagueId)` | `GET /lookupleague.php?id=` (season) → `GET /lookuptable.php?l=&s=` | v1 | No v2 standings endpoint exists |
 | `fetchHeadToHead(matchId, limit)` | `GET /lookup/event/{id}` → `GET /eventslast.php?id={homeTeamId}` filtered to the away team | v2 + v1 | **No native H2H endpoint in either version.** Pulls the home team's recent results and keeps matches against the away team |
+
+**`fetchFixtures()` season string resolution:** the `season` param passed in is always a bare year (e.g. `2026`), but TheSportsDB's actual season string on the v2 schedule endpoint varies by competition — multi-year leagues use `"2026-2027"`, while single-match/cup competitions (UEFA Super Cup, World Cup, Euro, ...) use a bare `"2026"`. Guessing the two-year format for every league silently returns zero fixtures for the single-year ones. `fetchFixtures()` resolves the real string via the same `lookupleague.php` call `fetchStandings()` already uses (`currentSeasonFor()`), falling back to the guessed `${season}-${season + 1}` only if that lookup comes back empty.
 
 **`fetchLeagues()` season/country fallback:** `/all_leagues.php` (the only bulk leagues-list endpoint) carries no `strCountry` or `strCurrentSeason` field — those only exist on the per-league `/lookupleague.php`, and calling that for every one of the ~670 soccer leagues just to list them would blow the request budget. The provider falls back to `country: ''` (required since `League.country` is a non-nullable column — `PATCH /api/admin/leagues` 500s without it) and a heuristic current season: European-style leagues roll over around July, so `currentEuropeanSeasonYear()` treats the season as starting in the most recent July.
 

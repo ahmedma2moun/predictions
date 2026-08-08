@@ -269,7 +269,11 @@ export class TheSportsDBProvider implements IFootballProvider {
     }
 
     // v2 full-season schedule — no per-call truncation on a premium key.
-    const seasonStr = `${season}-${season + 1}`;
+    // Season format varies by competition: multi-year leagues use "2026-2027",
+    // but single-match/cup competitions (UEFA Super Cup, World Cup, Euro, ...)
+    // use a bare year like "2026". Ask TheSportsDB for the real string instead
+    // of assuming the two-year format, or single-season competitions 404/empty.
+    const seasonStr = (await this.currentSeasonFor(league)) || `${season}-${season + 1}`;
     const data = await this.getV2<Record<string, unknown>>(`/schedule/league/${league}/${seasonStr}`);
     let events = firstArray<TSDBEvent>(data);
     if (from) events = events.filter(e => (e.dateEvent ?? '') >= from);
