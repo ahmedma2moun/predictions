@@ -23,7 +23,14 @@ export const POST = withErrorHandling('admin/live-goals/test POST', async (req: 
     return NextResponse.json({ error: 'This match has no externalId — nothing for the live-goal poller to fetch' }, { status: 400 });
   }
 
-  await triggerLiveGoalTestTick(match.externalId);
+  // This is an admin-only diagnostic button — its entire purpose is surfacing
+  // what's wrong with the QStash wiring, so (unlike public routes) it returns
+  // the real error instead of a generic 500.
+  try {
+    await triggerLiveGoalTestTick(match.externalId);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 502 });
+  }
 
   return NextResponse.json({
     ok: true,
