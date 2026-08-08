@@ -34,7 +34,10 @@ export async function registerLiveGoalChain(match: { externalId: number; kickoff
  */
 export async function processLiveGoalTick(externalId: number, tick: number): Promise<{ outcome: string }> {
   const match = await MatchRepository.findUnique({ where: { externalId } });
-  if (!match) return { outcome: 'match_not_found' };
+  if (!match) {
+    logger.info('[live-goals] tick: no Match row for this externalId — chain dies here', { externalId });
+    return { outcome: 'match_not_found' };
+  }
 
   const fixture = await fetchFixtureById(externalId).catch(e => {
     logger.warn('[live-goals] fetchFixtureById failed, will retry next tick', {
@@ -56,11 +59,13 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
     if (match.status !== appStatus) {
       await MatchRepository.update({ where: { id: match.id }, data: { status: appStatus } });
     }
+    logger.info('[live-goals] tick: terminal status, chain stops', { matchId: match.id, externalId, appStatus });
     return { outcome: `terminal_${appStatus}` };
   }
 
   if (appStatus === 'scheduled') {
     await rearm(match, tick, PRE_KICKOFF_POLL_SECONDS);
+    logger.info('[live-goals] tick: not started yet, rearmed', { matchId: match.id, externalId, rawStatus, rearmInSeconds: PRE_KICKOFF_POLL_SECONDS });
     return { outcome: 'not_started_rearmed' };
   }
 
@@ -78,7 +83,8 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
     data: { liveHomeScore: homeGoals, liveAwayScore: awayGoals, status: 'live' },
   });
 
-  if (claim.count === 1 && (homeGoals > prevHome || awayGoals > prevAway)) {
+  const goalDetected = claim.count === 1 && (homeGoals > prevHome || awayGoals > prevAway);
+  if (goalDetected) {
     await notifyGoal(match, fixture, { prevHome, prevAway, homeGoals, awayGoals }).catch(e =>
       logger.error('[live-goals] notifyGoal failed:', { matchId: match.id, error: e instanceof Error ? e.message : String(e) }),
     );
@@ -86,6 +92,11 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
 
   const delaySeconds = rawStatus === 'HT' ? HALF_TIME_POLL_SECONDS : LIVE_POLL_INTERVAL_SECONDS;
   await rearm(match, tick, delaySeconds);
+  logger.info('[live-goals] tick: live, rearmed', {
+    matchId: match.id, externalId, rawStatus,
+    score: `${homeGoals}-${awayGoals}`, prevScore: `${prevHome}-${prevAway}`,
+    goalDetected, rearmInSeconds: delaySeconds,
+  });
   return { outcome: 'ticked' };
 }
 
@@ -152,7 +163,7 @@ async function publishTick(externalId: number, tick: number): Promise<void> {
     url: liveGoalsWebhookUrl(),
     body: { matchId: externalId, tick },
     notBefore,
-    deduplicationId: `live-goal:${externalId}:${tick}`,
+    deduplicationId: `live-goal-${externalId}-${tick}`,
     flowControl: { key: FLOW_CONTROL_KEY, parallelism: FLOW_CONTROL_PARALLELISM },
   });
 }
