@@ -253,6 +253,11 @@ Publishes one immediate QStash tick for a match's live-goal chain — exercises 
 
 **Response**: `{ ok: true, message: string }`
 
+### GET /api/admin/live-goals/matches
+Matches eligible for the live-goal test-tick picker — server-side filtered to `externalId != null`, ordered by `kickoffTime desc`, capped at 100. Deliberately separate from `GET /api/admin/matches` (paginated 50/page, unfiltered) so the picker isn't at the mercy of custom (`externalId`-less) matches crowding the first page.
+
+**Response**: `{ matches: [{ id, externalId, homeTeamName, awayTeamName, status, kickoffTime }] }`
+
 ### POST /api/admin/calculate-champions
 Award the `group_champion` badge to the all-time top scorer in each group.
 Returns `{ awarded: number, groups: number, winners: [...] }`.

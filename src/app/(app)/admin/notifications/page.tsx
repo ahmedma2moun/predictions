@@ -22,13 +22,13 @@ type DeviceInfo = {
   tokens: { id: number; platform: string; createdAt: string }[];
 };
 
-type AdminMatch = {
-  _id: string;
-  externalId: number | null;
+type LiveGoalMatch = {
+  id: string;
+  externalId: number;
   status: string;
   kickoffTime: string;
-  homeTeam: { name: string };
-  awayTeam: { name: string };
+  homeTeamName: string;
+  awayTeamName: string;
 };
 
 export default function AdminNotificationsPage() {
@@ -43,12 +43,12 @@ export default function AdminNotificationsPage() {
   const [triggering, setTriggering] = useState(false);
 
   const loadMatches = useCallback(async () => {
-    const r = await fetch("/api/admin/matches?page=1");
+    const r = await fetch("/api/admin/live-goals/matches");
     if (!r.ok) throw new Error("Failed to load matches");
-    const data = await r.json() as { matches: AdminMatch[] };
-    return data.matches.filter(m => m.externalId != null);
+    const data = await r.json() as { matches: LiveGoalMatch[] };
+    return data.matches;
   }, []);
-  const { data: liveGoalMatches, loading: loadingMatches } = useApiResource(loadMatches, [] as AdminMatch[], "Failed to load matches.");
+  const { data: liveGoalMatches, loading: loadingMatches, error: matchesError } = useApiResource(loadMatches, [] as LiveGoalMatch[], "Failed to load matches.");
 
   async function triggerLiveGoalTest() {
     if (!selectedMatchId) return;
@@ -225,14 +225,15 @@ export default function AdminNotificationsPage() {
               >
                 <option value="">Select a match with an externalId…</option>
                 {liveGoalMatches.map(m => (
-                  <option key={m._id} value={m._id}>
-                    {m.homeTeam.name} vs {m.awayTeam.name} — {m.status} — {new Date(m.kickoffTime).toLocaleString()}
+                  <option key={m.id} value={m.id}>
+                    {m.homeTeamName} vs {m.awayTeamName} — {m.status} — {new Date(m.kickoffTime).toLocaleString()}
                   </option>
                 ))}
               </select>
             )}
-            {!loadingMatches && liveGoalMatches.length === 0 && (
-              <Badge variant="destructive">No matches with an externalId found on page 1 of admin/matches</Badge>
+            {matchesError && <Badge variant="destructive">{matchesError}</Badge>}
+            {!loadingMatches && !matchesError && liveGoalMatches.length === 0 && (
+              <Badge variant="destructive">No matches with an externalId in the database — fetch some fixtures first (Admin → Matches)</Badge>
             )}
           </div>
 
