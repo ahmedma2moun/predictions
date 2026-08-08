@@ -22,6 +22,15 @@ type DeviceInfo = {
   tokens: { id: number; platform: string; createdAt: string }[];
 };
 
+type AdminMatch = {
+  _id: string;
+  externalId: number | null;
+  status: string;
+  kickoffTime: string;
+  homeTeam: { name: string };
+  awayTeam: { name: string };
+};
+
 export default function AdminNotificationsPage() {
   const [selectedUserId, setSelectedUserId] = useState<number | "all">("all");
   const [title, setTitle] = useState("Test Notification");
@@ -29,6 +38,39 @@ export default function AdminNotificationsPage() {
   const [type, setType] = useState("new_matches");
 
   const [sending, setSending] = useState(false);
+
+  const [selectedMatchId, setSelectedMatchId] = useState<string>("");
+  const [triggering, setTriggering] = useState(false);
+
+  const loadMatches = useCallback(async () => {
+    const r = await fetch("/api/admin/matches?page=1");
+    if (!r.ok) throw new Error("Failed to load matches");
+    const data = await r.json() as { matches: AdminMatch[] };
+    return data.matches.filter(m => m.externalId != null);
+  }, []);
+  const { data: liveGoalMatches, loading: loadingMatches } = useApiResource(loadMatches, [] as AdminMatch[], "Failed to load matches.");
+
+  async function triggerLiveGoalTest() {
+    if (!selectedMatchId) return;
+    setTriggering(true);
+    try {
+      const r = await fetch("/api/admin/live-goals/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId: Number(selectedMatchId) }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error ?? "Failed to trigger tick");
+      } else {
+        toast.success(data.message ?? "Tick published");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setTriggering(false);
+    }
+  }
 
   const loadUsers = useCallback(async () => {
     const r = await fetch("/api/admin/users");
@@ -158,6 +200,49 @@ export default function AdminNotificationsPage() {
               {selectedUser?.name} has no registered Android devices.
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Live Goal Polling — Test Tick</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Publishes one immediate QStash tick for the selected match — exercises the real pipeline
+            (QStash → signature verify → fetch fixture → diff/notify → rearm) without waiting for kickoff.
+            Predictors on the match get a push only if the fetched score has actually advanced since the
+            last tick.
+          </p>
+
+          <div className="space-y-2">
+            <Label>Match</Label>
+            {loadingMatches ? (
+              <Skeleton className="h-9 w-full rounded-md" />
+            ) : (
+              <select
+                value={selectedMatchId}
+                onChange={e => setSelectedMatchId(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select a match with an externalId…</option>
+                {liveGoalMatches.map(m => (
+                  <option key={m._id} value={m._id}>
+                    {m.homeTeam.name} vs {m.awayTeam.name} — {m.status} — {new Date(m.kickoffTime).toLocaleString()}
+                  </option>
+                ))}
+              </select>
+            )}
+            {!loadingMatches && liveGoalMatches.length === 0 && (
+              <Badge variant="destructive">No matches with an externalId found on page 1 of admin/matches</Badge>
+            )}
+          </div>
+
+          <Button
+            className="w-full"
+            onClick={triggerLiveGoalTest}
+            disabled={triggering || !selectedMatchId}
+          >
+            {triggering ? "Publishing..." : "Trigger Test Tick"}
+          </Button>
         </CardContent>
       </Card>
     </div>

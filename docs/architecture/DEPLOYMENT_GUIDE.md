@@ -79,6 +79,15 @@ TRIGGER_SECRET=<32+ char random string — used by cron-job.org to authenticate 
 # Football provider — set FOOTBALL_PROVIDER + the matching key (see §3 above)
 FOOTBALL_PROVIDER=api-football
 API_FOOTBALL_KEY=<your-api-football-key>
+
+# QStash — schedules the per-match live-goal polling chain (see "Live Goal
+# Notifications" in SYSTEM_ARCHITECTURE.md). Get these from
+# console.upstash.com/qstash, or install the "Upstash QStash" Vercel
+# Marketplace integration to have them injected automatically.
+QSTASH_URL=https://qstash.upstash.io
+QSTASH_TOKEN=<from Upstash console>
+QSTASH_CURRENT_SIGNING_KEY=<from Upstash console>
+QSTASH_NEXT_SIGNING_KEY=<from Upstash console>
 ```
 
 ### 7. Seed the Database
@@ -151,6 +160,21 @@ The `fetch-results` handler accepts three sources:
 | Vercel internal cron | `x-vercel-cron-schedule` header (set automatically) |
 | Manual / internal scripts | `Authorization: Bearer CRON_SECRET` |
 | cron-job.org | `Authorization: Bearer TRIGGER_SECRET` |
+
+## Live Goal Notifications (Upstash QStash)
+
+Not a `vercel.json` cron entry — no static schedule to add. `/api/webhooks/qstash/live-goals` is called dynamically by QStash's own delayed-message scheduling, registered per-match at insert time. See "Live Goal Notifications" in `SYSTEM_ARCHITECTURE.md` for the full design.
+
+### Setup
+1. Create a QStash instance at [console.upstash.com/qstash](https://console.upstash.com/qstash) (or install the "Upstash QStash" integration from the Vercel Marketplace, which provisions the env vars automatically).
+2. Add `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` to Vercel env vars (see §6 above).
+3. No further action — new matches inserted via `fetch-matches` (cron or admin "Fetch") automatically register their own chain.
+
+### Quota watch
+Free tier: 1,000 messages/day, 10 max concurrent in-flight requests account-wide. At the app's 3-minute base poll interval, a ~2h match costs ~40 messages — comfortable for normal match volume, but a packed fixture day across many tracked leagues is worth watching via the Upstash console (`parallelismMax`/`parallelismCount`, and daily message count). If usage regularly approaches the cap, either widen `LIVE_POLL_INTERVAL_SECONDS` in `src/lib/live-goal-config.ts` or move to QStash's pay-as-you-go tier ($1/100K messages, no daily cap).
+
+### Local development
+QStash calls a public HTTPS URL, so `localhost` isn't directly reachable. Run `npx @upstash/qstash-cli dev` for a local QStash-compatible server (point `QSTASH_URL` at `http://127.0.0.1:8080`), or tunnel your dev server (ngrok/cloudflared) and use the real cloud service against the tunnel URL.
 
 Add `TRIGGER_SECRET` to the environment variables table above and to your Vercel dashboard.
 

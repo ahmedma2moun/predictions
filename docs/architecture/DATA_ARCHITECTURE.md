@@ -110,6 +110,8 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 | resultPenaltyHomeScore | Int? | | set for matches decided by penalties |
 | resultPenaltyAwayScore | Int? | | set for matches decided by penalties |
 | resultWinner | Winner? | | home/away/draw |
+| liveHomeScore | Int? | | last score the live-goal QStash poller has seen/notified on — used to diff for new goals, not a user-facing field. See [Live Goal Notifications](SYSTEM_ARCHITECTURE.md) |
+| liveAwayScore | Int? | | same, away team |
 | scoresProcessed | Boolean | default false | true after predictions scored |
 | weekStart | DateTime | | Thursday UTC of fetch week |
 | seasonId | Int? | FK → Season (set null on delete) | assigned on fetch when a season is ACTIVE; backfilled by `retro-assign` |

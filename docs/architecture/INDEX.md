@@ -73,6 +73,7 @@ Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → Postgr
 | Football provider | TheSportsDB implemented, not yet activated | Ready via `FOOTBALL_PROVIDER=thesportsdb`, but requires a paid `THESPORTSDB_API_KEY` — see `docs/football-providers/thesportsdb.md` |
 | Match events (goals/cards) | Embedded in `APIFixture.events`, fetched inside `fetchFixtureById()` | Reuses the existing live-score call/cache instead of a new provider method/route; TheSportsDB populates via `/lookuptimeline.php` for finished/live fixtures, other providers return `[]` |
 | Odds feature | Disabled app-wide via `ODDS_FEATURE_ENABLED = false` (`lib/feature-flags.ts`) | Single kill switch ANDed into every `OddsConfig` build, without touching persisted `Season`/`MatchOdds` data — flipping it back to `true` fully restores prior behavior |
+| Live goal notifications | Self-chaining Upstash QStash messages per match, not a global cron | Vercel Cron can't register per-resource dynamic schedules at runtime; a per-match chain only polls while that match is actually live instead of continuously — see ADR-16, `SYSTEM_ARCHITECTURE.md` |
 
 ## Reading Order by Role
 

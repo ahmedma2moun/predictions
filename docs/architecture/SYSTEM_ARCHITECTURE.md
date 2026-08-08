@@ -297,6 +297,43 @@ fetch-matches cron runs
 2. Gzip if over threshold
 3. Email export file to configured recipients (admin)
 
+## Live Goal Notifications
+
+Vercel cron can't run per-resource dynamic schedules (jobs are static, declared in `vercel.json` at deploy time, and Hobby caps invocation frequency). Instead, each match gets its own **self-chaining QStash schedule**, registered when the match row is inserted:
+
+```
+fetchAndInsertMatches() inserts new fixtures
+    │
+    └─ registerLiveGoalChain() — publishes one QStash message,
+       notBefore = kickoffTime, body = { matchId: externalId, tick: kickoffTimeUnix }
+                        │
+                        ▼
+   QStash delivers → POST /api/webhooks/qstash/live-goals
+   (Upstash-Signature verified against QSTASH_CURRENT/NEXT_SIGNING_KEY)
+                        │
+                        ▼
+              processLiveGoalTick(externalId, tick)
+    │
+    ├─ fetchFixtureById() (30s-cached, ADR-11)
+    │
+    ├─ status finished/postponed/cancelled → update Match.status, stop (no rearm)
+    ├─ status scheduled (delayed kickoff)   → rearm in PRE_KICKOFF_POLL_SECONDS
+    └─ status live:
+         ├─ compare-and-swap Match.liveHomeScore/liveAwayScore against the
+         │  fetched goals (guards against QStash's at-least-once delivery
+         │  double-firing the same tick and sending a duplicate push)
+         ├─ if score advanced → sendPushToUsers() to that match's predictors,
+         │  scorer name/minute pulled from fixture.events when available
+         └─ rearm: LIVE_POLL_INTERVAL_SECONDS (3 min), or
+                   HALF_TIME_POLL_SECONDS (8 min) during HT
+```
+
+Each rearm publishes a new QStash message with a deterministic `deduplicationId` derived from the *canonical* schedule tick (not wall-clock time), so a QStash retry of the same invocation can't fork a duplicate parallel chain. A per-match jitter (`externalId % 30` seconds) is applied only to the delivery time, not the canonical schedule, to spread matches that kick off simultaneously across QStash's parallelism pool without the offset compounding over the chain's lifetime. A hard cap (`MAX_CHAIN_HOURS`, config in `src/lib/live-goal-config.ts`) stops the chain if a match never reports `finished`.
+
+Admin test hook: `POST /api/admin/live-goals/test` (Admin → Notifications page) publishes one immediate tick for a chosen match, exercising the full pipeline without waiting for kickoff.
+
+Key files: `src/lib/live-goal-config.ts` (tunable constants), `src/lib/qstash.ts` (Client/Receiver singletons), `src/lib/live-goal-service.ts` (tick logic + chain registration), `src/app/api/webhooks/qstash/live-goals/route.ts`.
+
 ## Technology Stack
 
 | Component | Package | Version | Purpose |
@@ -376,3 +413,7 @@ fetch-matches cron runs
 ### ADR-15: `ODDS_FEATURE_ENABLED` as a single kill switch for the odds multiplier
 **Decision**: `src/lib/feature-flags.ts` (mirrored at `mobile/src/constants/featureFlags.ts`) exports `ODDS_FEATURE_ENABLED = false`. Every call site that builds an `OddsConfig` — `match-service.ts`, `prediction-service.ts`, `live-standing-service.ts`, `results-processor.ts`, `/api/admin/matches`, `/api/admin/results/[matchId]/calculate` — ANDs this flag against the per-season `Season.oddsEnabled` value instead of using `Season.oddsEnabled` directly. Admin UI (`admin/matches`, `SeasonsAdminClient`) and the mobile odds onboarding modal (`(tabs)/_layout.tsx`) gate their odds-related UI on the same flag.
 **Rationale**: The odds feature needed to be turned off app-wide without touching per-season data (`Season.oddsEnabled`/`oddsMin`/`oddsMax`) or `MatchOdds`/`Prediction.outcomeOdds` rows already persisted — flipping the constant back to `true` fully restores prior behavior with no migration or backfill. A single flag file (no server-only imports, safe for both server code and `"use client"` components) was simpler than threading an env var through every layer, and keeps web/mobile in sync by convention (mobile mirrors the constant since it has no access to the web `lib/` tree). This is a temporary kill switch, not a permanent feature-flag system — there's no admin toggle or per-environment override, just the constant.
+
+### ADR-16: Self-chaining QStash messages for per-match live-goal polling, not a global cron
+**Decision**: Live-goal detection uses Upstash QStash's delayed-message API, not Vercel Cron: `registerLiveGoalChain()` publishes one message per newly-inserted match, scheduled for its `kickoffTime`; the webhook handler (`/api/webhooks/qstash/live-goals`) re-publishes itself every `LIVE_POLL_INTERVAL_SECONDS` (3 min, longer during HT) until the match reaches a terminal status, at which point it simply stops re-arming.
+**Rationale**: Vercel Cron Jobs are static (declared in `vercel.json` at deploy time) — there is no API to register a new one at runtime per match, and Hobby further restricts invocation frequency. A single global cron polling all live matches every N minutes was considered and rejected: it would run continuously regardless of whether anything is live, whereas a per-match chain only exists for the ~2h a given match is actually in play. QStash's free tier caps at 1,000 messages/day and 10 concurrent in-flight requests account-wide — the 3-minute cadence (vs. 1-minute) and a per-match jitter (`externalId % 30`s, applied to delivery time only, never compounded into the canonical schedule) keep both comfortably under those ceilings for this app's match volume. Idempotency against QStash's at-least-once delivery is handled two ways: a compare-and-swap on `Match.liveHomeScore`/`liveAwayScore` before notifying (so a duplicate tick can't double-push), and a `deduplicationId` derived from the canonical schedule tick rather than wall-clock time (so a retry of the same invocation can't fork a second parallel chain).

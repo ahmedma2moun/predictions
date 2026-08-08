@@ -146,6 +146,8 @@ model Match {
   resultPenaltyHomeScore Int?
   resultPenaltyAwayScore Int?
   resultWinner           Winner?
+  liveHomeScore    Int?
+  liveAwayScore    Int?
   scoresProcessed  Boolean      @default(false)
   weekStart        DateTime
   createdAt        DateTime     @default(now())

@@ -6,6 +6,7 @@ import { DeviceTokenRepository } from '@/lib/repositories/device-repository';
 import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football/service';
 import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
 import { sendPushToUsers } from './fcm';
+import { registerLiveGoalChain } from '@/lib/live-goal-service';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { SeasonService } from '@/lib/services/season-service';
 import { requireString, requireDate } from '@/lib/validation';
@@ -172,6 +173,7 @@ export async function fetchAndInsertMatches(params: {
         logger.info(`[${logPrefix}] ${league.name}: inserted=${toCreate.length}, skipped=${alreadyExisting.length}`);
 
         await assignKnockoutLegs(league.externalId);
+        await registerLiveGoalChains(toCreate, logPrefix);
       }
     } catch (e: unknown) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${league.externalId}):`, { error: e instanceof Error ? e.message : String(e) });
@@ -296,6 +298,21 @@ export async function createCustomMatch(input: CreateCustomMatchInput) {
 }
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
+
+/** Registers the live-goal QStash chain for each newly-inserted future fixture. Never throws — a scheduling failure must not fail match insertion. */
+async function registerLiveGoalChains(fixtures: APIFixture[], logPrefix: string): Promise<void> {
+  const now = new Date();
+  const upcoming = fixtures.filter(f => new Date(f.fixture.date) > now);
+  await Promise.all(
+    upcoming.map(f =>
+      registerLiveGoalChain({ externalId: f.fixture.id, kickoffTime: new Date(f.fixture.date) }).catch(e =>
+        logger.error(`[${logPrefix}] Failed to register live-goal chain for fixture ${f.fixture.id}:`, {
+          error: e instanceof Error ? e.message : String(e),
+        }),
+      ),
+    ),
+  );
+}
 
 async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
   return TeamService.getActiveTeamsByLeagueMap();

@@ -8,6 +8,7 @@
 | `/api/*` (public) | Valid NextAuth session cookie |
 | `/api/admin/*` | Session + `role === 'admin'` |
 | `/api/cron/*` | `Authorization: Bearer {CRON_SECRET}` **or** `Authorization: Bearer {TRIGGER_SECRET}` **or** `x-vercel-cron-schedule` header |
+| `/api/webhooks/qstash/*` | `Upstash-Signature` header, verified against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` |
 | `/api/mobile/*` | `Authorization: Bearer {signed JWT}` (issued by `/api/mobile/auth/login`) |
 | `/api/health` | None |
 
@@ -245,6 +246,13 @@ List registered FCM device tokens for a specific user.
 
 **Response**: `{ count: number, tokens: [{ id, platform, createdAt }] }`
 
+### POST /api/admin/live-goals/test
+Publishes one immediate QStash tick for a match's live-goal chain — exercises the real pipeline (QStash → signature verify → `/api/webhooks/qstash/live-goals` → fetch fixture → diff/notify → rearm) without waiting for kickoff. `400` if the match has no `externalId`. See [Live Goal Notifications](SYSTEM_ARCHITECTURE.md).
+
+**Body**: `{ matchId: number }` (DB id)
+
+**Response**: `{ ok: true, message: string }`
+
 ### POST /api/admin/calculate-champions
 Award the `group_champion` badge to the all-time top scorer in each group.
 Returns `{ awarded: number, groups: number, winners: [...] }`.
@@ -307,6 +315,19 @@ Runs daily 09:00 UTC (11:00 CLT).
 ### GET /api/cron/db-export
 Serializes all Prisma tables to JSON, gzips the payload, and emails it to configured admin recipients.
 Runs daily 09:00 UTC (11:00 CLT).
+
+---
+
+## Webhook API (QStash signature auth)
+
+Not part of `/api/cron/*` — auth here is the `Upstash-Signature` header QStash attaches to every delivery, verified via `@upstash/qstash`'s `Receiver` against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY`, not a bearer token.
+
+### POST /api/webhooks/qstash/live-goals
+One tick of a match's live-goal polling chain. See [Live Goal Notifications](SYSTEM_ARCHITECTURE.md) for the full design (self-chaining schedule, score diffing, half-time backoff, safety cap).
+
+**Body** (set by the publisher, not the caller): `{ matchId: number (externalId), tick: number (unix seconds, canonical schedule) }`
+
+**Response**: `{ ok: true, outcome: string }` where `outcome` is one of `ticked`, `not_started_rearmed`, `terminal_finished`, `terminal_postponed`, `terminal_cancelled`, `fetch_failed_rearmed`, `match_not_found`. Returns `401` on an invalid signature, `500` on a processing failure (QStash retries automatically per its retry policy).
 
 ---
 

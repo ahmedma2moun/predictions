@@ -58,6 +58,7 @@ HttpOnly cookie set (secure in production)
 | POST /api/predictions | ✗ | ✓ | ✓ |
 | /api/admin/* | ✗ | ✗ | ✓ |
 | /api/cron/* | ✗ | ✗ | Bearer `CRON_SECRET` or `TRIGGER_SECRET` |
+| /api/webhooks/qstash/* | ✗ | ✗ | `Upstash-Signature` header (verified, not a bearer token) |
 | /api/health | ✓ | ✓ | ✓ |
 | POST /api/mobile/auth/login | ✓ | ✓ | ✓ |
 | /api/mobile/* (all other) | ✗ | JWT Bearer | JWT Bearer |
@@ -74,6 +75,10 @@ HttpOnly cookie set (secure in production)
 | FOOTBALL_API_KEY | football-data.org v4 API key | .env.local / Vercel env |
 | CRON_SECRET | Bearer token for cron endpoint auth (Vercel + manual) | .env.local / Vercel env |
 | TRIGGER_SECRET | Bearer token for cron-job.org to call `/api/cron/fetch-results` | .env.local / Vercel env |
+| QSTASH_URL | QStash API base URL (`https://qstash.upstash.io` in prod, local dev server URL otherwise) — not secret, but kept alongside the others | .env.local / Vercel env |
+| QSTASH_TOKEN | Publishes messages to QStash (live-goal chain scheduling) | .env.local / Vercel env |
+| QSTASH_CURRENT_SIGNING_KEY | Verifies `Upstash-Signature` on inbound `/api/webhooks/qstash/*` requests | .env.local / Vercel env |
+| QSTASH_NEXT_SIGNING_KEY | Same, for the rotated key during a signing-key rotation window | .env.local / Vercel env |
 | GMAIL_USER | Gmail sender address | .env.local / Vercel env |
 | GMAIL_APP_PASSWORD | Gmail App Password (not account password) | .env.local / Vercel env |
 
@@ -88,6 +93,7 @@ All secrets injected at build/runtime via environment variables. Never committed
 - **matchId**: validated as integer; Prisma throws on invalid format
 - **Admin role**: `(session.user as any).role === 'admin'` checked inline in **every** admin API handler — layout-level checks alone are not sufficient
 - **Cron auth**: all cron handlers verify `Authorization: Bearer ${CRON_SECRET}` before any work
+- **QStash webhook auth**: `/api/webhooks/qstash/live-goals` verifies the `Upstash-Signature` header via `Receiver.verify()` against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` before parsing the body — signature check happens on the raw request text, not the parsed JSON
 
 ## Known Limitations
 
