@@ -3,7 +3,7 @@ import { LeagueService } from '@/lib/services/league-service';
 import { updateStreaksAndBadges, updateUserStreaks } from '@/lib/services/streak-badge-service';
 import { logger } from '@/lib/logger';
 import { UserRepository } from '@/lib/repositories/user-repository';
-import { fetchFixtures, mapFixtureStatus } from '@/lib/football/service';
+import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football/service';
 import { sendPushToUsers } from './fcm';
 import { getStandingsMap } from '@/lib/standings';
 import { calculateScore } from '@/lib/scoring-engine';
@@ -12,7 +12,7 @@ import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { sendResultsEmail, sendResultCorrectionEmail, type ResultMatchForEmail } from '@/lib/email';
 import { getUserGroupLeaderboards } from '@/lib/leaderboard';
 import { format } from 'date-fns';
-import { type ScoringRule, type Prediction } from '@prisma/client';
+import { type ScoringRule, type Prediction, type Match } from '@prisma/client';
 import { NotFoundError } from '@/lib/errors';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
@@ -229,6 +229,107 @@ export interface ProcessResultsSummary {
   errors: number;
 }
 
+export interface ApplyMatchResultOutcome {
+  updatedMatch: Match;
+  scoredDetails: Array<{ userId: number; predictionHomeScore: number; predictionAwayScore: number; pointsAwarded: number; scoringBreakdown: Array<{ key: string; ruleName: string; pointsAwarded: number; matched: boolean }> }>;
+  scoredCount: number;
+  errorsCount: number;
+  /** True if this match was already scoresProcessed — nothing new was scored or notified. */
+  alreadyProcessed: boolean;
+}
+
+/**
+ * Applies a single finished fixture's result to a match: writes the result
+ * scores, runs Champion Bonus accrual, scores every prediction, and updates
+ * streaks/badges. Idempotent via `scoresProcessed` — safe to call more than
+ * once for the same match (e.g. a cron run after the live-goal chain already
+ * processed it, or a QStash retry).
+ *
+ * Does NOT send notifications or refresh standings — callers do that, since
+ * the batch cron path batches those across all matches processed in one run
+ * while the real-time live-goal path does it per-match immediately.
+ */
+export async function applyMatchResult(
+  match: Match,
+  fixture: APIFixture,
+  rules: ScoringRule[],
+  logPrefix: string,
+): Promise<ApplyMatchResultOutcome | null> {
+  const rawHomeScore = fixture.score.fulltime.home ?? fixture.goals.home;
+  const rawAwayScore = fixture.score.fulltime.away ?? fixture.goals.away;
+  if (rawHomeScore === null || rawAwayScore === null) {
+    logger.warn(`[${logPrefix}] Fixture ${fixture.fixture.id} — scores not available yet`);
+    return null;
+  }
+
+  const isPenalty = fixture.score.duration === 'PENALTY_SHOOTOUT';
+  const penaltyHomeScore = isPenalty ? (fixture.score.penalties?.home ?? null) : null;
+  const penaltyAwayScore = isPenalty ? (fixture.score.penalties?.away ?? null) : null;
+
+  // The API adds penalty goals to fullTime for PENALTY_SHOOTOUT matches — subtract to get the actual match score
+  const homeScore = isPenalty && penaltyHomeScore !== null ? rawHomeScore - penaltyHomeScore : rawHomeScore;
+  const awayScore = isPenalty && penaltyAwayScore !== null ? rawAwayScore - penaltyAwayScore : rawAwayScore;
+
+  // Full-time winner (used for scoring — penalties are ignored)
+  const scoringWinner: 'home' | 'away' | 'draw' =
+    homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
+
+  // Stored winner: if match ended level and went to penalties, penalty winner is recorded
+  let winner: 'home' | 'away' | 'draw';
+  if (scoringWinner !== 'draw') {
+    winner = scoringWinner;
+  } else if (isPenalty && penaltyHomeScore !== null && penaltyAwayScore !== null) {
+    winner = penaltyHomeScore > penaltyAwayScore ? 'home' : 'away';
+  } else {
+    winner = 'draw';
+  }
+
+  // If the match had no result yet (e.g. was reset by an admin), clear scoresProcessed
+  // so the scoring step always runs for a freshly-received result.
+  const hadNoResult = match.resultHomeScore === null;
+
+  const updatedMatch = await MatchRepository.update({
+    where: { id: match.id },
+    data: {
+      status: 'finished',
+      resultHomeScore: homeScore,
+      resultAwayScore: awayScore,
+      resultPenaltyHomeScore: penaltyHomeScore,
+      resultPenaltyAwayScore: penaltyAwayScore,
+      resultWinner: winner,
+      ...(hadNoResult ? { scoresProcessed: false } : {}),
+    },
+  });
+  logger.info(`[${logPrefix}] Result saved: ${match.homeTeamName} ${homeScore}–${awayScore} ${match.awayTeamName}`);
+
+  // Accrue Champion Bonus before the scoring-processed short-circuit: the bonus
+  // must count for matches with zero predictions and already-scored matches too.
+  await ChampionBonusService.processFinishedMatch(updatedMatch).catch(e =>
+    logger.error(`[${logPrefix}] Champion Bonus accrual failed for match ${match.id}:`, { error: e instanceof Error ? e.message : String(e) }),
+  );
+
+  if (updatedMatch.scoresProcessed) {
+    logger.info(`[${logPrefix}] Match ${match.id} already scored — skipping`);
+    return { updatedMatch, scoredDetails: [], scoredCount: 0, errorsCount: 0, alreadyProcessed: true };
+  }
+
+  const predictions = await PredictionRepository.findMany({ where: { matchId: match.id } });
+  logger.info(`[${logPrefix}] Scoring ${predictions.length} predictions for match ${match.id}`);
+
+  const { scoredCount, errorsCount, scoredDetails } = await batchScorePredictions(
+    match.id,
+    predictions,
+    { homeScore, awayScore, winner: scoringWinner },
+    rules,
+    logPrefix
+  );
+
+  await MatchRepository.update({ where: { id: match.id }, data: { scoresProcessed: true } });
+  await updateStreaksAndBadges(scoredDetails);
+
+  return { updatedMatch, scoredDetails, scoredCount, errorsCount, alreadyProcessed: false };
+}
+
 /**
  * Finds all past unfinished matches in the DB, fetches their results from the
  * football API, updates scores, calculates prediction points, and sends result
@@ -298,87 +399,21 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
         }
         if (mapFixtureStatus(f.fixture.status.short) !== 'finished') continue;
 
-        const rawHomeScore = f.score.fulltime.home ?? f.goals.home;
-        const rawAwayScore = f.score.fulltime.away ?? f.goals.away;
-        if (rawHomeScore === null || rawAwayScore === null) {
-          logger.warn(`[${logPrefix}] Fixture ${f.fixture.id} — scores not available yet`);
-          continue;
-        }
-
-        const isPenalty = f.score.duration === 'PENALTY_SHOOTOUT';
-        const penaltyHomeScore = isPenalty ? (f.score.penalties?.home ?? null) : null;
-        const penaltyAwayScore = isPenalty ? (f.score.penalties?.away ?? null) : null;
-
-        // The API adds penalty goals to fullTime for PENALTY_SHOOTOUT matches — subtract to get the actual match score
-        const homeScore = isPenalty && penaltyHomeScore !== null ? rawHomeScore - penaltyHomeScore : rawHomeScore;
-        const awayScore = isPenalty && penaltyAwayScore !== null ? rawAwayScore - penaltyAwayScore : rawAwayScore;
-
-        // Full-time winner (used for scoring — penalties are ignored)
-        const scoringWinner: 'home' | 'away' | 'draw' =
-          homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
-
-        // Stored winner: if match ended level and went to penalties, penalty winner is recorded
-        let winner: 'home' | 'away' | 'draw';
-        if (scoringWinner !== 'draw') {
-          winner = scoringWinner;
-        } else if (isPenalty && penaltyHomeScore !== null && penaltyAwayScore !== null) {
-          winner = penaltyHomeScore > penaltyAwayScore ? 'home' : 'away';
-        } else {
-          winner = 'draw';
-        }
-
-        // If the match had no result yet (e.g. was reset by an admin), clear scoresProcessed
-        // so the scoring step always runs for a freshly-received result.
-        const hadNoResult = match.resultHomeScore === null;
-
-        const updatedMatch = await MatchRepository.update({
-          where: { id: match.id },
-          data: {
-            status: 'finished',
-            resultHomeScore: homeScore,
-            resultAwayScore: awayScore,
-            resultPenaltyHomeScore: penaltyHomeScore,
-            resultPenaltyAwayScore: penaltyAwayScore,
-            resultWinner: winner,
-            ...(hadNoResult ? { scoresProcessed: false } : {}),
-          },
-        });
+        const outcome = await applyMatchResult(match, f, rules, logPrefix);
+        if (!outcome) continue; // scores not available yet
         updated++;
-        logger.info(`[${logPrefix}] Result saved: ${match.homeTeamName} ${homeScore}–${awayScore} ${match.awayTeamName}`);
+        scored += outcome.scoredCount;
+        errors += outcome.errorsCount;
 
-        // Accrue Champion Bonus before the scoring-processed short-circuit: the bonus
-        // must count for matches with zero predictions and already-scored matches too.
-        await ChampionBonusService.processFinishedMatch(updatedMatch).catch(e =>
-          logger.error(`[${logPrefix}] Champion Bonus accrual failed for match ${match.id}:`, { error: e instanceof Error ? e.message : String(e) }),
-        );
-
-        if (updatedMatch.scoresProcessed) {
-          logger.info(`[${logPrefix}] Match ${match.id} already scored — skipping`);
-          continue;
-        }
-
-        const predictions = await PredictionRepository.findMany({ where: { matchId: match.id } });
-        logger.info(`[${logPrefix}] Scoring ${predictions.length} predictions for match ${match.id}`);
-
-        const { scoredCount, errorsCount, scoredDetails } = await batchScorePredictions(
-          match.id,
-          predictions,
-          { homeScore, awayScore, winner: scoringWinner },
-          rules,
-          logPrefix
-        );
-        scored += scoredCount;
-        errors += errorsCount;
-
-        for (const detail of scoredDetails) {
+        for (const detail of outcome.scoredDetails) {
           const list = userMatchMap.get(detail.userId) ?? [];
           list.push({
             homeTeamName: match.homeTeamName,
             awayTeamName: match.awayTeamName,
             kickoffTime: match.kickoffTime,
             leagueName: match.league?.name ?? 'Unknown League',
-            resultHomeScore: homeScore,
-            resultAwayScore: awayScore,
+            resultHomeScore: outcome.updatedMatch.resultHomeScore!,
+            resultAwayScore: outcome.updatedMatch.resultAwayScore!,
             predictionHomeScore: detail.predictionHomeScore,
             predictionAwayScore: detail.predictionAwayScore,
             pointsAwarded: detail.pointsAwarded,
@@ -386,10 +421,6 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
           });
           userMatchMap.set(detail.userId, list);
         }
-
-        await MatchRepository.update({ where: { id: match.id }, data: { scoresProcessed: true } });
-
-        await updateStreaksAndBadges(scoredDetails);
       }
     } catch (e) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${externalLeagueId}):`, { error: e instanceof Error ? e.message : String(e) });

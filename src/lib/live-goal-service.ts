@@ -6,6 +6,11 @@ import { fetchFixtureById, mapFixtureStatus, type APIFixture } from '@/lib/footb
 import { sendPushToUsers } from '@/lib/fcm';
 import { getQStashClient, liveGoalsWebhookUrl } from '@/lib/qstash';
 import { logger } from '@/lib/logger';
+import { applyMatchResult, sendResultNotifications } from '@/lib/results-processor';
+import { type ResultMatchForEmail } from '@/lib/email';
+import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
+import { LeagueService } from '@/lib/services/league-service';
+import { getStandingsMap } from '@/lib/standings';
 import {
   LIVE_POLL_INTERVAL_SECONDS,
   HALF_TIME_POLL_SECONDS,
@@ -33,7 +38,10 @@ export async function registerLiveGoalChain(match: { externalId: number; kickoff
  * has reached a terminal state or exceeded the safety cap.
  */
 export async function processLiveGoalTick(externalId: number, tick: number): Promise<{ outcome: string }> {
-  const match = await MatchRepository.findUnique({ where: { externalId } });
+  const match = await MatchRepository.findUnique({
+    where: { externalId },
+    include: { league: { select: { name: true } } },
+  });
   if (!match) {
     logger.info('[live-goals] tick: no Match row for this externalId — chain dies here', { externalId });
     return { outcome: 'match_not_found' };
@@ -55,7 +63,13 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
   const appStatus = mapFixtureStatus(fixture.fixture.status.short);
   const rawStatus = fixture.fixture.status.short;
 
-  if (appStatus === 'finished' || appStatus === 'cancelled' || appStatus === 'postponed') {
+  if (appStatus === 'finished') {
+    await processFinishedMatchRealtime(match, fixture);
+    logger.info('[live-goals] tick: terminal status, chain stops', { matchId: match.id, externalId, appStatus });
+    return { outcome: 'terminal_finished' };
+  }
+
+  if (appStatus === 'cancelled' || appStatus === 'postponed') {
     if (match.status !== appStatus) {
       await MatchRepository.update({ where: { id: match.id }, data: { status: appStatus } });
     }
@@ -127,6 +141,51 @@ async function notifyGoal(
     body,
     data: { type: 'goal', matchId: String(match.id) },
   });
+}
+
+/**
+ * Real-time counterpart to processMatchResults()'s per-match loop body: the
+ * moment this tick sees a match go 'finished', score it immediately instead
+ * of waiting for the next fetch-results run. Reuses applyMatchResult() so the
+ * actual scoring/Champion-Bonus/streaks logic lives in exactly one place.
+ * Idempotent (applyMatchResult short-circuits on scoresProcessed) — safe even
+ * if fetch-results (manual admin trigger) also processes this match later.
+ * Never throws — a failure here must not break the tick; the admin "Fetch
+ * Results" action remains available as a manual fallback.
+ */
+async function processFinishedMatchRealtime(match: Match & { league: { name: string } | null }, fixture: APIFixture): Promise<void> {
+  try {
+    const rules = await ScoringRuleService.getAll({ where: { isActive: true } });
+    const outcome = await applyMatchResult(match, fixture, rules, '[live-goals]');
+    if (!outcome || outcome.alreadyProcessed || outcome.scoredDetails.length === 0) return;
+
+    const userMatchMap = new Map<number, ResultMatchForEmail[]>();
+    for (const detail of outcome.scoredDetails) {
+      userMatchMap.set(detail.userId, [{
+        homeTeamName: match.homeTeamName,
+        awayTeamName: match.awayTeamName,
+        kickoffTime: match.kickoffTime,
+        leagueName: match.league?.name ?? 'Unknown League',
+        resultHomeScore: outcome.updatedMatch.resultHomeScore!,
+        resultAwayScore: outcome.updatedMatch.resultAwayScore!,
+        predictionHomeScore: detail.predictionHomeScore,
+        predictionAwayScore: detail.predictionAwayScore,
+        pointsAwarded: detail.pointsAwarded,
+        scoringBreakdown: detail.scoringBreakdown,
+      }]);
+    }
+    await sendResultNotifications(userMatchMap, '[live-goals]');
+
+    const league = await LeagueService.getById({ where: { externalId: match.externalLeagueId } });
+    if (league) {
+      await getStandingsMap([{ externalLeagueId: match.externalLeagueId, season: league.season }], { force: true });
+    }
+  } catch (e) {
+    logger.error('[live-goals] Real-time result processing failed — the admin "Fetch Results" action will need to catch this one', {
+      matchId: match.id,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
 }
 
 async function rearm(match: Match, tick: number, delaySeconds: number): Promise<void> {
