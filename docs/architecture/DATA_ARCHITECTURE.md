@@ -62,7 +62,7 @@ PostgreSQL database
 | country | String | | |
 | logo | String? | | emblem URL from API |
 | season | Int | | e.g. 2025 |
-| isActive | Boolean | default false | admin toggles inclusion |
+| isActive | Boolean | default false | admin toggles inclusion — soft-delete only: deactivating flips this flag, the row (and its `Match`/`TeamLeague` history) is never deleted, so re-activating updates the existing row by `externalId` instead of re-creating it |
 
 ### `Team`
 | Field | Type | Constraint | Notes |
@@ -82,7 +82,7 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 | teamId | Int | FK → Team (cascade delete) | |
 | leagueId | Int | FK → League (cascade delete) | |
 | externalLeagueId | Int | | denormalized for query perf |
-| isActive | Boolean | default true | admin toggles team visibility per league |
+| isActive | Boolean | default true | admin toggles team visibility per league — soft-delete only, same as `League.isActive`: the row persists so re-activating updates it in place |
 | createdAt / updatedAt | DateTime | | auto-managed |
 | | | **@@unique([teamId, leagueId])** | |
 

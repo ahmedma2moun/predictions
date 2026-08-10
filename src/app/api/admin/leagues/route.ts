@@ -1,5 +1,4 @@
 import { LeagueService } from '@/lib/services/league-service';
-import { TeamService } from '@/lib/services/team-service';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { fetchLeagues, type APILeague } from '@/lib/football/service';
@@ -23,7 +22,10 @@ export async function POST(req: NextRequest) {
       fetchLeagues(),
       LeagueService.getAll(),
     ]);
-    const activeSet = new Set(dbLeagues.map(l => l.externalId));
+    // Reflects true isActive, not just "row exists" — the two used to coincide
+    // because deactivating a league hard-deleted it; now it's soft-deleted, a
+    // disabled league's row persists but must still preview as inactive.
+    const activeSet = new Set(dbLeagues.filter(l => l.isActive).map(l => l.externalId));
     const dbMap = new Map(dbLeagues.map(l => [l.externalId, l.id.toString()]));
 
     const result = apiLeagues.flatMap(l =>
@@ -57,11 +59,9 @@ export async function PATCH(req: NextRequest) {
     });
     return NextResponse.json({ ...doc, _id: doc.id.toString() });
   } else {
-    const league = await LeagueService.getById({ where: { externalId } });
-    if (league) {
-      await TeamService.deleteOrphansForLeague(league.id);
-      await LeagueService.remove({ where: { externalId } }).catch(() => null);
-    }
+    // Soft-delete: keep the row (and its matches/history/team links) intact so
+    // re-enabling just flips the flag back instead of re-creating from the API.
+    await LeagueService.update({ where: { externalId }, data: { isActive: false } }).catch(() => null);
     return NextResponse.json({ success: true });
   }
 }

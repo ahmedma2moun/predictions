@@ -14,6 +14,7 @@ type LeagueOption = {
   name: string;
   country: string;
   season: number;
+  isActive: boolean;
 };
 
 type Team = {
@@ -38,6 +39,7 @@ export default function AdminTeamsPage() {
     return r.json() as Promise<LeagueOption[]>;
   }, []);
   const { data: leagues, loading: leaguesLoading, error: leaguesError } = useApiResource(loadLeagues, [] as LeagueOption[], "Failed to load leagues. Please refresh.");
+  const activeLeagues = leagues.filter(l => l.isActive);
 
   async function loadTeams(leagueId: string) {
     setLoading(true);
@@ -137,7 +139,7 @@ export default function AdminTeamsPage() {
           onChange={e => handleLeagueChange(e.target.value)}
         >
           <option value="">Select a league...</option>
-          {leagues.map(l => (
+          {activeLeagues.map(l => (
             <option key={l._id} value={l._id}>{l.name} ({l.country} · {l.season})</option>
           ))}
         </select>

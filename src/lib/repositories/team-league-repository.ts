@@ -8,6 +8,9 @@ export class TeamLeagueRepository {
   static upsert<T extends Prisma.TeamLeagueUpsertArgs>(args: Prisma.SelectSubset<T, Prisma.TeamLeagueUpsertArgs>) {
     return prisma.teamLeague.upsert(args);
   }
+  static update<T extends Prisma.TeamLeagueUpdateArgs>(args: Prisma.SelectSubset<T, Prisma.TeamLeagueUpdateArgs>) {
+    return prisma.teamLeague.update(args);
+  }
   static delete<T extends Prisma.TeamLeagueDeleteArgs>(args: Prisma.SelectSubset<T, Prisma.TeamLeagueDeleteArgs>) {
     return prisma.teamLeague.delete(args);
   }

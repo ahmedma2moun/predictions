@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest) {
       isActive: teamLeague.isActive,
     });
   } else {
-    await TeamService.removeFromLeague(externalId, Number(leagueId));
+    await TeamService.deactivateInLeague(externalId, Number(leagueId));
     return NextResponse.json({ success: true });
   }
 }

@@ -1,6 +1,5 @@
 import { TeamRepository } from '@/lib/repositories/team-repository';
 import { TeamLeagueRepository } from '@/lib/repositories/team-league-repository';
-import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
 export class TeamService {
@@ -50,31 +49,18 @@ export class TeamService {
     return { team, teamLeague };
   }
 
-  static async removeFromLeague(teamExternalId: number, leagueId: number) {
+  /**
+   * Soft-delete: keeps the Team and TeamLeague rows intact so re-activating
+   * (syncTeamWithLeague) finds the existing row by its unique key and updates
+   * it back to isActive:true instead of creating a duplicate.
+   */
+  static async deactivateInLeague(teamExternalId: number, leagueId: number) {
     const team = await TeamRepository.findUnique({ where: { externalId: teamExternalId } });
     if (!team) return;
-    await TeamLeagueRepository.delete({
+    await TeamLeagueRepository.update({
       where: { teamId_leagueId: { teamId: team.id, leagueId } },
+      data: { isActive: false },
     }).catch(() => null);
-  }
-
-  static async deleteOrphansForLeague(leagueId: number) {
-    const linked = await TeamLeagueRepository.findMany({
-      where: { leagueId },
-      select: { teamId: true },
-    });
-    const linkedIds = linked.map(r => r.teamId);
-    if (!linkedIds.length) return;
-
-    const counts = await prisma.teamLeague.groupBy({
-      by: ['teamId'],
-      where: { teamId: { in: linkedIds } },
-      _count: { teamId: true },
-    });
-    const orphanIds = counts.filter(c => c._count.teamId === 1).map(c => c.teamId);
-    if (orphanIds.length) {
-      await prisma.team.deleteMany({ where: { id: { in: orphanIds } } });
-    }
   }
 
   static async getActiveTeamsByLeagueMap(): Promise<Map<number, Set<number>>> {

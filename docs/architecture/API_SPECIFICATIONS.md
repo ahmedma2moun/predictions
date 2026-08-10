@@ -185,14 +185,14 @@ Health check endpoint. Returns `{ status: "ok" }`.
 All admin handlers re-verify `role === 'admin'` inline — layout-level checks are not sufficient.
 
 ### GET/POST/PATCH /api/admin/leagues
-- **GET** — List all leagues
+- **GET** — List all leagues (active and inactive — the admin Leagues page is where disabled leagues get re-enabled)
 - **POST `{action: "fetch"}`** — Fetch leagues from football-data.org, upsert current seasons
-- **PATCH `{id, isActive}`** — Toggle league active state
+- **PATCH `{externalId, name, country, logo, season, isActive}`** — Toggle league active state. Soft-delete: `isActive: false` only flips the flag (`LeagueService.update`), it never deletes the row — matches keep their league association and re-enabling (`isActive: true`) hits the existing row via `upsert({ where: { externalId } })` instead of creating a duplicate.
 
 ### GET/POST/PATCH /api/admin/teams
-- **GET** (query: `leagueId`) — List teams for a league
+- **GET** (query: `leagueId`) — List all teams for a league (active and inactive, same reasoning as leagues above)
 - **POST `{leagueId}`** — Sync teams from football-data.org for that league
-- **PATCH `{id, isActive}`** — Toggle team active state in a league
+- **PATCH `{externalId, name, logo, leagueId, externalLeagueId, isActive}`** — Toggle team active state in a league. Soft-delete: `isActive: false` calls `TeamService.deactivateInLeague()`, which flips `TeamLeague.isActive` to false without deleting the join row (or the `Team` row); re-enabling goes through `syncTeamWithLeague()`'s upsert on `[teamId, leagueId]` and updates the same row.
 
 ### GET/POST/DELETE /api/admin/matches
 - **GET** (query: `page`) — Paginated match list (50/page), each row includes computed odds (`match-service.ts` → `getAdminMatches()`)
