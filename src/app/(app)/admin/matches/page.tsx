@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,23 @@ import { toast } from "sonner";
 import { toastApiError } from "@/lib/client-api";
 import { ODDS_FEATURE_ENABLED } from "@/lib/feature-flags";
 import { KickoffTime } from "@/components/KickoffTime";
-import { Plus, ChevronDown, ChevronUp, Lock } from "lucide-react";
+import { useApiResource } from "@/hooks/useApiResource";
+import { Plus, ChevronDown, ChevronUp, Lock, ListFilter } from "lucide-react";
+
+type LeagueOption = {
+  _id: string;
+  name: string;
+  country: string;
+  season: number;
+  isActive: boolean;
+};
+
+type SelectableTeam = {
+  _id: string | null;
+  externalId: number;
+  name: string;
+  isActive: boolean;
+};
 
 type MatchOddsData = {
   homeWinVotes: number;
@@ -61,6 +77,28 @@ export default function AdminMatchesPage() {
   const [customAway, setCustomAway] = useState("");
   const [customKickoff, setCustomKickoff] = useState("");
   const [creatingCustom, setCreatingCustom] = useState(false);
+
+  // Selective fetch form state (league + teams + days + notify)
+  const [showSelectiveForm, setShowSelectiveForm] = useState(false);
+  const [selectiveLeagueId, setSelectiveLeagueId] = useState("");
+  const [selectiveTeams, setSelectiveTeams] = useState<SelectableTeam[]>([]);
+  const [selectiveTeamsLoading, setSelectiveTeamsLoading] = useState(false);
+  const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set());
+  const [selectiveDays, setSelectiveDays] = useState(7);
+  const [selectiveSendNotifications, setSelectiveSendNotifications] = useState(true);
+  const [selectiveFetching, setSelectiveFetching] = useState(false);
+
+  const loadSelectiveLeagues = useCallback(async () => {
+    const r = await fetch("/api/admin/leagues");
+    if (!r.ok) throw new Error("Failed to load leagues");
+    return (await r.json()) as LeagueOption[];
+  }, []);
+  const { data: selectiveLeagues, loading: selectiveLeaguesLoading } = useApiResource(
+    loadSelectiveLeagues,
+    [] as LeagueOption[],
+    "Failed to load leagues.",
+  );
+  const activeSelectiveLeagues = selectiveLeagues.filter(l => l.isActive);
 
   async function loadMatches() {
     try {
@@ -141,6 +179,62 @@ export default function AdminMatchesPage() {
       await toastApiError(r, "Failed to create match");
     }
     setCreatingCustom(false);
+  }
+
+  async function loadSelectiveTeams(leagueId: string) {
+    setSelectiveTeamsLoading(true);
+    const r = await fetch(`/api/admin/teams?leagueId=${leagueId}`);
+    if (r.ok) {
+      const data = (await r.json()) as SelectableTeam[];
+      setSelectiveTeams(data.filter(t => t.isActive));
+    } else {
+      await toastApiError(r, "Failed to load teams");
+    }
+    setSelectiveTeamsLoading(false);
+  }
+
+  function handleSelectiveLeagueChange(leagueId: string) {
+    setSelectiveLeagueId(leagueId);
+    setSelectiveTeams([]);
+    setSelectedTeamIds(new Set());
+    if (leagueId) loadSelectiveTeams(leagueId);
+  }
+
+  function toggleSelectiveTeam(externalId: number) {
+    const key = String(externalId);
+    setSelectedTeamIds(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  async function submitSelectiveFetch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectiveLeagueId || selectedTeamIds.size === 0) {
+      toast.error("Select a league and at least one team");
+      return;
+    }
+    setSelectiveFetching(true);
+    const r = await fetch("/api/admin/matches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "fetch-selective",
+        leagueId: selectiveLeagueId,
+        teamIds: selectiveTeams.filter(t => selectedTeamIds.has(String(t.externalId)) && t._id).map(t => t._id),
+        days: selectiveDays,
+        sendNotifications: selectiveSendNotifications,
+      }),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      toast.success(`Added ${data.inserted} matches (${data.skipped} already existed)`);
+      await loadMatches();
+    } else {
+      await toastApiError(r, "Failed to fetch selected matches");
+    }
+    setSelectiveFetching(false);
   }
 
   const visibleMatches = [...matches].sort(
@@ -256,6 +350,96 @@ export default function AdminMatchesPage() {
               </div>
               <Button type="submit" disabled={creatingCustom} className="w-full">
                 {creatingCustom ? "Creating..." : "Create Match"}
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Selective fetch form: league + teams + days + notify */}
+      <Card>
+        <CardContent className="pt-4">
+          <button
+            type="button"
+            className="flex items-center gap-2 text-sm font-medium w-full text-left"
+            onClick={() => setShowSelectiveForm(v => !v)}
+          >
+            <ListFilter className="h-4 w-4" />
+            Selective Fetch
+            {showSelectiveForm ? <ChevronUp className="h-4 w-4 ml-auto" /> : <ChevronDown className="h-4 w-4 ml-auto" />}
+          </button>
+          {showSelectiveForm && (
+            <form onSubmit={submitSelectiveFetch} className="mt-4 space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="selective-league">League</Label>
+                {selectiveLeaguesLoading ? (
+                  <Skeleton className="h-10 w-full rounded-md" />
+                ) : (
+                  <select
+                    id="selective-league"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={selectiveLeagueId}
+                    onChange={e => handleSelectiveLeagueChange(e.target.value)}
+                  >
+                    <option value="">Select a league...</option>
+                    {activeSelectiveLeagues.map(l => (
+                      <option key={l._id} value={l._id}>{l.name} ({l.country} · {l.season})</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label>Teams</Label>
+                {!selectiveLeagueId ? (
+                  <p className="text-sm text-muted-foreground">Select a league to view its active teams.</p>
+                ) : selectiveTeamsLoading ? (
+                  <Skeleton className="h-24 w-full rounded-md" />
+                ) : selectiveTeams.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No active teams in this league.</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto rounded-md border border-input p-2 space-y-1">
+                    {selectiveTeams.map(team => (
+                      <label
+                        key={team.externalId}
+                        className="flex items-center gap-2 p-1.5 rounded cursor-pointer text-sm select-none hover:bg-accent"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTeamIds.has(String(team.externalId))}
+                          onChange={() => toggleSelectiveTeam(team.externalId)}
+                          className="h-4 w-4 rounded border-input"
+                        />
+                        {team.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="selective-days">Days ahead</Label>
+                <Input
+                  id="selective-days"
+                  type="number"
+                  min={1}
+                  value={selectiveDays}
+                  onChange={e => setSelectiveDays(Math.max(1, Number(e.target.value) || 1))}
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm select-none cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectiveSendNotifications}
+                  onChange={e => setSelectiveSendNotifications(e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                Send new game notifications
+              </label>
+
+              <Button type="submit" disabled={selectiveFetching} className="w-full">
+                {selectiveFetching ? "Fetching..." : "Fetch Selected"}
               </Button>
             </form>
           )}

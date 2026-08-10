@@ -173,7 +173,7 @@ Not a `vercel.json` cron entry — no static schedule to add. `/api/webhooks/qst
 3. No further action — new matches inserted via `fetch-matches` (cron or admin "Fetch") automatically register their own chain.
 
 ### Quota watch
-Free tier: 1,000 messages/day, 10 max concurrent in-flight requests account-wide. At the app's 3-minute base poll interval, a ~2h match costs ~40 messages — comfortable for normal match volume, but a packed fixture day across many tracked leagues is worth watching via the Upstash console (`parallelismMax`/`parallelismCount`, and daily message count). If usage regularly approaches the cap, either widen `LIVE_POLL_INTERVAL_SECONDS` in `src/lib/live-goal-config.ts` or move to QStash's pay-as-you-go tier ($1/100K messages, no daily cap).
+Free tier: 1,000 messages/day, 10 max concurrent in-flight requests account-wide. At the app's 1.5-minute base poll interval, a ~2h match costs ~80 messages — comfortable for normal match volume, but a packed fixture day across many tracked leagues is worth watching via the Upstash console (`parallelismMax`/`parallelismCount`, and daily message count), since the tighter interval leaves less headroom than the earlier 3-minute cadence did. If usage regularly approaches the cap, either widen `LIVE_POLL_INTERVAL_SECONDS` in `src/lib/live-goal-config.ts` or move to QStash's pay-as-you-go tier ($1/100K messages, no daily cap).
 
 ### Local development
 QStash calls a public HTTPS URL, so `localhost` isn't directly reachable. Run `npx @upstash/qstash-cli dev` for a local QStash-compatible server (point `QSTASH_URL` at `http://127.0.0.1:8080`), or tunnel your dev server (ngrok/cloudflared) and use the real cloud service against the tunnel URL.

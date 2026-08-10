@@ -66,7 +66,9 @@ export interface FetchMatchesSummary {
  * @param to          - End date string (yyyy-MM-dd)
  * @param fromDate    - The Date written onto inserted matches' `weekStart` column (fetch-batch marker, not a calendar week)
  * @param leagueId    - Optional DB league id to restrict to a single league
- * @param filterByTeams - When true, only keep fixtures involving active teams
+ * @param filterByTeams - When true, only keep fixtures involving active teams (or `teamExternalIds`, if given)
+ * @param teamExternalIds - Optional explicit set of team externalIds to filter to, overriding the "all active teams in league" default — used by the admin selective-fetch action
+ * @param sendNotifications - When false, skips the new-match email/push notification step (default true)
  * @param logPrefix   - Prefix for console log lines
  */
 export async function fetchAndInsertMatches(params: {
@@ -75,15 +77,17 @@ export async function fetchAndInsertMatches(params: {
   fromDate: Date;
   leagueId?: number;
   filterByTeams?: boolean;
+  teamExternalIds?: Set<number>;
+  sendNotifications?: boolean;
   logPrefix: string;
 }): Promise<FetchMatchesSummary> {
-  const { from, to, fromDate, leagueId, filterByTeams = false, logPrefix } = params;
+  const { from, to, fromDate, leagueId, filterByTeams = false, teamExternalIds, sendNotifications = true, logPrefix } = params;
 
   const [leagues, activeTeamsByLeague, activeSeason] = await Promise.all([
     leagueId
       ? LeagueService.getById({ where: { id: leagueId } }).then(l => (l ? [l] : []))
       : LeagueService.getAll({ where: { isActive: true } }),
-    filterByTeams ? getActiveTeamsByLeague() : Promise.resolve(new Map<number, Set<number>>()),
+    filterByTeams && !teamExternalIds ? getActiveTeamsByLeague() : Promise.resolve(new Map<number, Set<number>>()),
     SeasonService.getActiveSeason(),
   ]);
   const activeSeasonId = activeSeason?.id ?? null;
@@ -97,7 +101,7 @@ export async function fetchAndInsertMatches(params: {
 
   for (const league of leagues) {
     try {
-      const activeTeamIds = activeTeamsByLeague.get(league.externalId);
+      const activeTeamIds = teamExternalIds ?? activeTeamsByLeague.get(league.externalId);
       if (filterByTeams && !activeTeamIds?.size) {
         logger.info(`[${logPrefix}] ${league.name}: skipped — no active teams`);
         debug.push({ league: league.name, externalId: league.externalId, skippedReason: 'no active teams' });
@@ -116,7 +120,7 @@ export async function fetchAndInsertMatches(params: {
         from,
         to,
         allFixtures: allFixtures.length,
-        activeTeams: filterByTeams ? (activeTeamsByLeague.get(league.externalId)?.size ?? 'none') : 'unfiltered',
+        activeTeams: filterByTeams ? (activeTeamIds?.size ?? 'none') : 'unfiltered',
         filtered: fixtures.length,
       });
 
@@ -182,7 +186,9 @@ export async function fetchAndInsertMatches(params: {
     }
   }
 
-  await sendNewMatchNotifications(fromDate, inserted, logPrefix);
+  if (sendNotifications) {
+    await sendNewMatchNotifications(fromDate, inserted, logPrefix);
+  }
 
   return { inserted, skipped, errors, debug, insertedMatches, skippedMatches };
 }
@@ -256,6 +262,39 @@ export async function fetchNextMonthFixtures(leagueId?: number): Promise<FetchMa
   const from = format(startOfMonth(nextMonth), 'yyyy-MM-dd');
   const to = format(endOfMonth(nextMonth), 'yyyy-MM-dd');
   return fetchAndInsertMatches({ from, to, fromDate, leagueId, filterByTeams: true, logPrefix: 'admin/matches fetch-next-month' });
+}
+
+/**
+ * Admin "selective fetch": fetches fixtures for one league, restricted to a
+ * specific set of teams (DB team ids), over a caller-chosen number of days
+ * starting today. Used by the admin matches page's league/teams/days form.
+ */
+export async function fetchSelectiveFixtures(params: {
+  leagueId: number;
+  teamIds: number[];
+  days: number;
+  sendNotifications: boolean;
+}): Promise<FetchMatchesSummary> {
+  const { leagueId, teamIds, days, sendNotifications } = params;
+
+  const fromDate = new Date();
+  fromDate.setUTCHours(0, 0, 0, 0);
+  const from = format(fromDate, 'yyyy-MM-dd');
+  const to = format(addDays(fromDate, Math.max(days, 1) - 1), 'yyyy-MM-dd');
+
+  const teams = await TeamService.getAll({ where: { id: { in: teamIds } }, select: { externalId: true } });
+  const teamExternalIds = new Set(teams.map(t => t.externalId));
+
+  return fetchAndInsertMatches({
+    from,
+    to,
+    fromDate,
+    leagueId,
+    filterByTeams: true,
+    teamExternalIds,
+    sendNotifications,
+    logPrefix: 'admin/matches fetch-selective',
+  });
 }
 
 export interface CreateCustomMatchInput {

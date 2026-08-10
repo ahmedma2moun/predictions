@@ -6,6 +6,7 @@ import {
   createCustomMatch,
   fetchThisWeekFixtures,
   fetchNextMonthFixtures,
+  fetchSelectiveFixtures,
 } from '@/lib/matches-processor';
 import { safeParseBody } from '@/lib/request';
 import { MatchRepository } from '@/lib/repositories/match-repository';
@@ -13,7 +14,7 @@ import { getAdminMatches } from '@/lib/services/match-service';
 import { withErrorHandling } from '@/lib/api-handler';
 import { requireOneOf } from '@/lib/validation';
 
-const MATCH_ACTIONS = ['create-custom', 'fetch-results', 'fetch-next-month', 'fetch'] as const;
+const MATCH_ACTIONS = ['create-custom', 'fetch-results', 'fetch-next-month', 'fetch', 'fetch-selective'] as const;
 
 interface MatchActionBody {
   action: unknown;
@@ -21,6 +22,9 @@ interface MatchActionBody {
   homeTeamName: unknown;
   awayTeamName: unknown;
   kickoffTime: unknown;
+  teamIds: unknown;
+  days: unknown;
+  sendNotifications: unknown;
 }
 
 interface DeleteMatchesBody {
@@ -71,6 +75,18 @@ export const POST = withErrorHandling('admin/matches POST', async (req: NextRequ
     }
     case 'fetch': {
       const { inserted, skipped, debug } = await fetchThisWeekFixtures(leagueId);
+      return NextResponse.json({ inserted, skipped, debug });
+    }
+    case 'fetch-selective': {
+      if (!leagueId) return NextResponse.json({ error: 'leagueId is required' }, { status: 400 });
+      const teamIds = Array.isArray(body.teamIds)
+        ? body.teamIds.map((id: unknown) => Number(id)).filter((id: number) => !isNaN(id))
+        : [];
+      if (teamIds.length === 0) return NextResponse.json({ error: 'At least one team is required' }, { status: 400 });
+      const days = Number(body.days);
+      if (!Number.isFinite(days) || days < 1) return NextResponse.json({ error: 'days must be a positive number' }, { status: 400 });
+      const sendNotifications = body.sendNotifications !== false;
+      const { inserted, skipped, debug } = await fetchSelectiveFixtures({ leagueId, teamIds, days, sendNotifications });
       return NextResponse.json({ inserted, skipped, debug });
     }
   }

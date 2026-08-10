@@ -200,7 +200,8 @@ All admin handlers re-verify `role === 'admin'` inline — layout-level checks a
 - **POST `{action: "fetch-next-month", leagueId?}`** — Fetch fixtures for next calendar month, via `fetchNextMonthFixtures()`. Returns `{ inserted, skipped, debug }`.
 - **POST `{action: "create-custom", homeTeamName, awayTeamName, kickoffTime}`** — Insert a non-external match and notify users, via `createCustomMatch()`. Returns `{ match }`, 201.
 - **POST `{action: "fetch-results"}`** — Trigger `processMatchResults()` for past matches without results. Returns `{ updated, scored }`.
-- **DELETE `{ids: number[]}`** — Bulk-delete matches by id. Returns `{ deleted }`.
+- **POST `{action: "fetch-selective", leagueId, teamIds: number[], days, sendNotifications?}`** — Fetch fixtures for one league restricted to specific teams, over `days` days starting today, via `matches-processor.ts` → `fetchSelectiveFixtures()`. `sendNotifications` (default `true`) controls whether the new-match email/push step runs. Returns `{ inserted, skipped, debug }`.
+- **DELETE `{ids: number[]}`** — Bulk-delete matches by id. Returns `{ deleted }`. Any in-flight QStash live-goal chain for a deleted match self-terminates on its next tick — `processLiveGoalTick()` looks the match up by `externalId` and stops re-arming when it's gone (`live-goal-service.ts`), so no explicit QStash cancellation is needed.
 
 ### POST /api/admin/results
 Manually set results for multiple finished matches and trigger scoring.
