@@ -11,6 +11,9 @@ export class TeamLeagueRepository {
   static update<T extends Prisma.TeamLeagueUpdateArgs>(args: Prisma.SelectSubset<T, Prisma.TeamLeagueUpdateArgs>) {
     return prisma.teamLeague.update(args);
   }
+  static updateMany<T extends Prisma.TeamLeagueUpdateManyArgs>(args: Prisma.SelectSubset<T, Prisma.TeamLeagueUpdateManyArgs>) {
+    return prisma.teamLeague.updateMany(args);
+  }
   static delete<T extends Prisma.TeamLeagueDeleteArgs>(args: Prisma.SelectSubset<T, Prisma.TeamLeagueDeleteArgs>) {
     return prisma.teamLeague.delete(args);
   }

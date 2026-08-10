@@ -63,6 +63,18 @@ export class TeamService {
     }).catch(() => null);
   }
 
+  /**
+   * Cascade: deactivating a league deactivates every team linked to it too
+   * (still soft — rows stay intact). Re-enabling the league does not reverse
+   * this; teams are re-enabled individually on the Teams admin page.
+   */
+  static async deactivateAllInLeague(leagueId: number) {
+    await TeamLeagueRepository.updateMany({
+      where: { leagueId, isActive: true },
+      data: { isActive: false },
+    });
+  }
+
   static async getActiveTeamsByLeagueMap(): Promise<Map<number, Set<number>>> {
     const teamLeagues = await TeamLeagueRepository.findMany({
       where: { isActive: true },

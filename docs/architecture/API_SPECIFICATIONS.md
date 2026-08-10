@@ -187,7 +187,7 @@ All admin handlers re-verify `role === 'admin'` inline — layout-level checks a
 ### GET/POST/PATCH /api/admin/leagues
 - **GET** — List all leagues (active and inactive — the admin Leagues page is where disabled leagues get re-enabled)
 - **POST `{action: "fetch"}`** — Fetch leagues from football-data.org, upsert current seasons
-- **PATCH `{externalId, name, country, logo, season, isActive}`** — Toggle league active state. Soft-delete: `isActive: false` only flips the flag (`LeagueService.update`), it never deletes the row — matches keep their league association and re-enabling (`isActive: true`) hits the existing row via `upsert({ where: { externalId } })` instead of creating a duplicate.
+- **PATCH `{externalId, name, country, logo, season, isActive}`** — Toggle league active state. Soft-delete: `isActive: false` only flips the flag (`LeagueService.update`), it never deletes the row — matches keep their league association and re-enabling (`isActive: true`) hits the existing row via `upsert({ where: { externalId } })` instead of creating a duplicate. Deactivating also cascades to every team linked to that league via `TeamService.deactivateAllInLeague()` (soft — `TeamLeague.isActive: false`, rows untouched otherwise); re-enabling the league does **not** reverse this, teams must be re-enabled individually on the Teams admin page.
 
 ### GET/POST/PATCH /api/admin/teams
 - **GET** (query: `leagueId`) — List all teams for a league (active and inactive, same reasoning as leagues above)

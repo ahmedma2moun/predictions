@@ -62,7 +62,7 @@ PostgreSQL database
 | country | String | | |
 | logo | String? | | emblem URL from API |
 | season | Int | | e.g. 2025 |
-| isActive | Boolean | default false | admin toggles inclusion — soft-delete only: deactivating flips this flag, the row (and its `Match`/`TeamLeague` history) is never deleted, so re-activating updates the existing row by `externalId` instead of re-creating it |
+| isActive | Boolean | default false | admin toggles inclusion — soft-delete only: deactivating flips this flag, the row (and its `Match`/`TeamLeague` history) is never deleted, so re-activating updates the existing row by `externalId` instead of re-creating it. Deactivating a league also cascades `isActive: false` onto every `TeamLeague` row linked to it; re-activating the league does not cascade back — linked teams stay disabled until toggled individually |
 
 ### `Team`
 | Field | Type | Constraint | Notes |

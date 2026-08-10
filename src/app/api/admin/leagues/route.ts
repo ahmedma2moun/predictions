@@ -1,4 +1,5 @@
 import { LeagueService } from '@/lib/services/league-service';
+import { TeamService } from '@/lib/services/team-service';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { fetchLeagues, type APILeague } from '@/lib/football/service';
@@ -61,7 +62,10 @@ export async function PATCH(req: NextRequest) {
   } else {
     // Soft-delete: keep the row (and its matches/history/team links) intact so
     // re-enabling just flips the flag back instead of re-creating from the API.
-    await LeagueService.update({ where: { externalId }, data: { isActive: false } }).catch(() => null);
+    const league = await LeagueService.update({ where: { externalId }, data: { isActive: false } }).catch(() => null);
+    if (league) {
+      await TeamService.deactivateAllInLeague(league.id);
+    }
     return NextResponse.json({ success: true });
   }
 }
