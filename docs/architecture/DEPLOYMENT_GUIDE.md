@@ -112,73 +112,55 @@ Creates: `admin@predictions.app` / `changeme123` + General group + 4 default sco
 5. Create user accounts at `/admin/users`
 6. Set `notificationEmail` for users who want email alerts
 
-## Cron Jobs (`vercel.json`)
+## Scheduled Jobs (Upstash QStash)
 
-> **Note**: The project's `vercel.json` is currently empty (`{}`). To activate Vercel-managed crons, add the `crons` block below. Vercel Hobby allows 2 crons; Pro allows unlimited. Alternatively, use [cron-job.org](#external-cron-provider-cron-joborg) to supplement or replace Vercel crons.
+All recurring jobs run as **QStash Schedules** — `vercel.json` stays empty (`{}`) and cron-job.org is no longer used for anything in this app. QStash schedules a signed HTTP call on a cron expression; the destination routes verify it the same way `/api/webhooks/qstash/live-goals` does (see below), so no shared secret needs to live in the schedule config.
 
-```json
-{
-  "crons": [
-    { "path": "/api/cron/db-export",           "schedule": "0 9 * * *"   },
-    { "path": "/api/cron/fetch-matches",        "schedule": "00 18 * * 4" },
-    { "path": "/api/cron/fetch-results",        "schedule": "0 23 * * *"  },
-    { "path": "/api/cron/prediction-reminder",  "schedule": "0 16 * * 5"  },
-    { "path": "/api/cron/daily-reminder",       "schedule": "0 9 * * *"   }
-  ]
-}
-```
+| Schedule ID | Endpoint | Cron | Fires | Purpose |
+|---|---|---|---|---|
+| `predictions-fetch-matches` | `/api/cron/fetch-matches` | `CRON_TZ=Africa/Cairo 0 20 * * 4` | Every Thursday, 8 PM Cairo local (DST-aware — QStash resolves the IANA offset itself) | Fetch fixtures for the upcoming week |
+| `predictions-daily-reminder` | `/api/cron/daily-reminder` | `0 9 * * *` | Daily, 09:00 UTC | Remind users who haven't predicted a match kicking off in the next 24h — no-ops on days with no matches |
+| `predictions-db-export` | `/api/cron/db-export` | `0 9 * * *` | Daily, 09:00 UTC | JSON backup of all DB tables → email |
 
-| Cron | UTC Schedule | CLT (UTC+2) | Purpose |
-|---|---|---|---|
-| db-export | 09:00 daily | 11:00 daily | JSON backup of all DB tables → email |
-| fetch-matches | 18:00 Thursday | 20:00 Thursday | Fetch fixtures for the upcoming week |
-| fetch-results | 23:00 daily | 01:00 daily | Fetch results for all unfinished past matches |
-| prediction-reminder | 16:00 Friday | 18:00 Friday | Remind users with missing predictions |
-| daily-reminder | 09:00 daily | 11:00 daily | Urgent reminder for today's matches |
-
-Vercel calls these endpoints with `Authorization: Bearer {CRON_SECRET}`.
-
-> **Note**: The Vercel Hobby plan allows up to 2 cron jobs. You need a Pro plan (or higher) to run all 5 crons. Running two crons at the same UTC time (db-export and daily-reminder at 09:00) is intentional — Vercel triggers them independently.
-
-## External Cron Provider (cron-job.org)
-
-`fetch-results` is also triggered by **[cron-job.org](https://console.cron-job.org/jobs)** on a fine-grained schedule (e.g. every hour during match windows) to supplement or replace the Vercel cron slots.
+`fetch-results` has **no schedule at all** — see "Live Goal Notifications" below, it's driven by the per-match QStash chain instead. `prediction-reminder` (weekly "you still have matches to predict this week" digest) is intentionally **not scheduled**; the route still exists but nothing calls it.
 
 ### Setup
 
-1. Sign up at [cron-job.org](https://cron-job.org) and go to the Jobs console
-2. Create a new job with:
-   - **URL**: `https://your-app.vercel.app/api/cron/fetch-results`
-   - **Method**: GET
-   - **Header**: `Authorization: Bearer <TRIGGER_SECRET>`
-3. Set `TRIGGER_SECRET` in Vercel environment variables (a strong random string, **different** from `CRON_SECRET`)
+```bash
+# From a shell with production QSTASH_TOKEN and NEXTAUTH_URL set
+# (e.g. `vercel env pull` first, or export them manually)
+npm run setup-qstash-schedules
+```
 
-### How it authenticates
+This runs `scripts/setup-qstash-schedules.ts`, which is idempotent — each schedule has a fixed `scheduleId`, so re-running it updates the existing schedule instead of creating duplicates. Verify at [console.upstash.com/qstash/schedules](https://console.upstash.com/qstash/schedules).
 
-The `fetch-results` handler accepts three sources:
+After confirming the schedules are live, **delete the corresponding jobs in cron-job.org** (Prediction Match Fetching, Predictions Daily Reminder, Prediction Daily Backup Export) — they're now redundant. Prediction Result Fetching and Prediction Weekly Reminder were already inactive there and can be deleted too.
+
+### How the destination routes authenticate
+
+`verifyCronRequest()` in `src/lib/cron-auth.ts` accepts any of:
 
 | Source | Header |
 |---|---|
-| Vercel internal cron | `x-vercel-cron-schedule` header (set automatically) |
+| Vercel internal cron (if `vercel.json` crons are ever added back) | `x-vercel-cron-schedule` header (set automatically) |
 | Manual / internal scripts | `Authorization: Bearer CRON_SECRET` |
-| cron-job.org | `Authorization: Bearer TRIGGER_SECRET` |
+| Legacy external cron trigger | `Authorization: Bearer TRIGGER_SECRET` |
+| QStash schedule | `Upstash-Signature` header, verified via `Receiver.verify()` against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` — same mechanism as the live-goals webhook |
 
 ## Live Goal Notifications (Upstash QStash)
 
-Not a `vercel.json` cron entry — no static schedule to add. `/api/webhooks/qstash/live-goals` is called dynamically by QStash's own delayed-message scheduling, registered per-match at insert time. See "Live Goal Notifications" in `SYSTEM_ARCHITECTURE.md` for the full design.
+`/api/webhooks/qstash/live-goals` is called dynamically by QStash's own delayed-message scheduling, registered per-match at insert time — not a fixed schedule. This chain is also what fetches results in near-real-time (via `processFinishedMatchRealtime` when a match reaches a terminal status), which is why `fetch-results` doesn't need its own schedule. See "Live Goal Notifications" in `SYSTEM_ARCHITECTURE.md` for the full design.
 
 ### Setup
 1. Create a QStash instance at [console.upstash.com/qstash](https://console.upstash.com/qstash) (or install the "Upstash QStash" integration from the Vercel Marketplace, which provisions the env vars automatically).
 2. Add `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` to Vercel env vars (see §6 above).
-3. No further action — new matches inserted via `fetch-matches` (cron or admin "Fetch") automatically register their own chain.
+3. No further action — new matches inserted via `fetch-matches` (QStash schedule or admin "Fetch") automatically register their own chain.
 
 ### Quota watch
 Free tier: 1,000 messages/day, 10 max concurrent in-flight requests account-wide. At the app's 1.5-minute base poll interval, a ~2h match costs ~80 messages — comfortable for normal match volume, but a packed fixture day across many tracked leagues is worth watching via the Upstash console (`parallelismMax`/`parallelismCount`, and daily message count), since the tighter interval leaves less headroom than the earlier 3-minute cadence did. If usage regularly approaches the cap, either widen `LIVE_POLL_INTERVAL_SECONDS` in `src/lib/live-goal-config.ts` or move to QStash's pay-as-you-go tier ($1/100K messages, no daily cap).
 
 ### Local development
 QStash calls a public HTTPS URL, so `localhost` isn't directly reachable. Run `npx @upstash/qstash-cli dev` for a local QStash-compatible server (point `QSTASH_URL` at `http://127.0.0.1:8080`), or tunnel your dev server (ngrok/cloudflared) and use the real cloud service against the tunnel URL.
-
-Add `TRIGGER_SECRET` to the environment variables table above and to your Vercel dashboard.
 
 ## Manual Triggers (testing/recovery)
 
@@ -226,7 +208,8 @@ For database rollbacks, restore from the daily JSON export (db-export cron) or u
 - [ ] Cron endpoints return 200 with CRON_SECRET
 - [ ] Test email endpoint `/api/admin/test-email` delivers to admin inbox
 - [ ] db-export cron delivers JSON backup to configured recipients
-- [ ] `TRIGGER_SECRET` set in Vercel dashboard and matching the header configured in cron-job.org
+- [ ] QStash schedules created (`npm run setup-qstash-schedules`) and visible at console.upstash.com/qstash/schedules
+- [ ] Old cron-job.org jobs deleted
 
 ## Mobile APK Distribution (Firebase App Distribution)
 

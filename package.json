@@ -11,6 +11,7 @@
     "seed:dev-data": "npx tsx scripts/seed-dev-data.ts",
     "backfill-matchday": "npx tsx scripts/backfill-matchday.ts",
     "backfill-stage-leg": "npx tsx scripts/backfill-stage-leg.ts",
+    "setup-qstash-schedules": "npx tsx scripts/setup-qstash-schedules.ts",
     "postinstall": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest"

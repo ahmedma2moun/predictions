@@ -10,7 +10,7 @@ import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 
 export async function GET(req: NextRequest) {
-  if (!verifyCronRequest(req)) {
+  if (!(await verifyCronRequest(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

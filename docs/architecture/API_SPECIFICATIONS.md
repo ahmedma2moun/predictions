@@ -7,7 +7,7 @@
 | `/api/auth/*` | None (NextAuth handlers) |
 | `/api/*` (public) | Valid NextAuth session cookie |
 | `/api/admin/*` | Session + `role === 'admin'` |
-| `/api/cron/*` | `Authorization: Bearer {CRON_SECRET}` **or** `Authorization: Bearer {TRIGGER_SECRET}` **or** `x-vercel-cron-schedule` header |
+| `/api/cron/*` | `Authorization: Bearer {CRON_SECRET}` **or** `Authorization: Bearer {TRIGGER_SECRET}` **or** `x-vercel-cron-schedule` header **or** a valid QStash `Upstash-Signature` |
 | `/api/webhooks/qstash/*` | `Upstash-Signature` header, verified against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` |
 | `/api/mobile/*` | `Authorization: Bearer {signed JWT}` (issued by `/api/mobile/auth/login`) |
 | `/api/health` | None |
@@ -295,32 +295,37 @@ Freezes picks (OPEN → LOCKED) and sets `lockedAt`. Only matches kicking off af
 
 ---
 
-## Cron API (CRON_SECRET bearer auth)
+## Cron API (`verifyCronRequest()` auth)
 
-Cron endpoints accept three auth sources:
+Cron endpoints accept any of four auth sources (`src/lib/cron-auth.ts`):
 - Vercel internal cron: `x-vercel-cron-schedule` header (set automatically by Vercel)
 - Manual trigger / scripts: `Authorization: Bearer CRON_SECRET`
-- cron-job.org: `Authorization: Bearer TRIGGER_SECRET`
+- Legacy external trigger: `Authorization: Bearer TRIGGER_SECRET`
+- QStash schedule: `Upstash-Signature` header, verified against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY`
+
+Recurring jobs run as QStash Schedules (`scripts/setup-qstash-schedules.ts`) — see [Scheduled Jobs](DEPLOYMENT_GUIDE.md#scheduled-jobs-upstash-qstash) for the full list and cron expressions.
 
 ### GET /api/cron/fetch-matches
 Fetches upcoming week's fixtures for all active leagues. Inserts new matches. Idempotent.
 Returns `{ inserted, skipped, errors, timestamp }`.
+QStash schedule: every Thursday, 8 PM Cairo local.
 
 ### GET /api/cron/fetch-results
-Finds all past unfinished matches, fetches results from the football API, scores predictions, updates streaks and badges. Runs daily at 23:00 UTC. Only processes results between 13:00–23:59 UTC.
+Finds all past unfinished matches, fetches results from the football API, scores predictions, updates streaks and badges.
 Returns `{ updated, scored, errors, timestamp }`.
+Not scheduled — results normally arrive per-match, near-real-time, via the QStash live-goal chain (`processFinishedMatchRealtime()`). This endpoint remains as a manually-triggered safety net (e.g. to catch a match the live chain missed).
 
 ### GET /api/cron/prediction-reminder
 Finds scheduled matches in the current week. For each user with unsubmitted predictions, sends a reminder email.
-Runs Friday 16:00 UTC (18:00 CLT).
+Not scheduled (deprecated) — the route still exists but nothing currently triggers it.
 
 ### GET /api/cron/daily-reminder
-Finds matches kicking off today (CLT). For each user missing predictions for today's matches, sends an urgent reminder email.
-Runs daily 09:00 UTC (11:00 CLT).
+Finds matches kicking off today (CLT). For each user missing predictions for today's matches, sends an urgent reminder email. No-ops when there are no matches today.
+QStash schedule: daily, 09:00 UTC (11:00 CLT).
 
 ### GET /api/cron/db-export
 Serializes all Prisma tables to JSON, gzips the payload, and emails it to configured admin recipients.
-Runs daily 09:00 UTC (11:00 CLT).
+QStash schedule: daily, 09:00 UTC (11:00 CLT).
 
 ---
 

@@ -6,7 +6,7 @@ import { format, addDays } from 'date-fns';
 import { verifyCronRequest } from '@/lib/cron-auth';
 
 export async function GET(req: NextRequest) {
-  if (!verifyCronRequest(req)) {
+  if (!(await verifyCronRequest(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

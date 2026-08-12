@@ -57,7 +57,7 @@ HttpOnly cookie set (secure in production)
 | GET /api/matches, /api/predictions, /api/leaderboard, /api/groups, /api/leagues | ✗ | ✓ | ✓ |
 | POST /api/predictions | ✗ | ✓ | ✓ |
 | /api/admin/* | ✗ | ✗ | ✓ |
-| /api/cron/* | ✗ | ✗ | Bearer `CRON_SECRET` or `TRIGGER_SECRET` |
+| /api/cron/* | ✗ | ✗ | Bearer `CRON_SECRET`/`TRIGGER_SECRET`, or a valid QStash `Upstash-Signature` |
 | /api/webhooks/qstash/* | ✗ | ✗ | `Upstash-Signature` header (verified, not a bearer token) |
 | /api/health | ✓ | ✓ | ✓ |
 | POST /api/mobile/auth/login | ✓ | ✓ | ✓ |
@@ -73,8 +73,8 @@ HttpOnly cookie set (secure in production)
 | MOBILE_JWT_SECRET | Mobile API JWT signing key (falls back to NEXTAUTH_SECRET) | .env.local / Vercel env |
 | NEXTAUTH_URL | Canonical app URL | .env.local / Vercel env |
 | FOOTBALL_API_KEY | football-data.org v4 API key | .env.local / Vercel env |
-| CRON_SECRET | Bearer token for cron endpoint auth (Vercel + manual) | .env.local / Vercel env |
-| TRIGGER_SECRET | Bearer token for cron-job.org to call `/api/cron/fetch-results` | .env.local / Vercel env |
+| CRON_SECRET | Bearer token for cron endpoint auth (Vercel + manual/curl testing) | .env.local / Vercel env |
+| TRIGGER_SECRET | Legacy bearer token, formerly used by cron-job.org; still accepted for manual triggering | .env.local / Vercel env |
 | QSTASH_URL | QStash API base URL (`https://qstash.upstash.io` in prod, local dev server URL otherwise) — not secret, but kept alongside the others | .env.local / Vercel env |
 | QSTASH_TOKEN | Publishes messages to QStash (live-goal chain scheduling) | .env.local / Vercel env |
 | QSTASH_CURRENT_SIGNING_KEY | Verifies `Upstash-Signature` on inbound `/api/webhooks/qstash/*` requests | .env.local / Vercel env |
@@ -92,8 +92,8 @@ All secrets injected at build/runtime via environment variables. Never committed
 - **Passwords**: bcrypt cost factor 12, never logged or returned in API responses
 - **matchId**: validated as integer; Prisma throws on invalid format
 - **Admin role**: `(session.user as any).role === 'admin'` checked inline in **every** admin API handler — layout-level checks alone are not sufficient
-- **Cron auth**: all cron handlers verify `Authorization: Bearer ${CRON_SECRET}` before any work
-- **QStash webhook auth**: `/api/webhooks/qstash/live-goals` verifies the `Upstash-Signature` header via `Receiver.verify()` against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` before parsing the body — signature check happens on the raw request text, not the parsed JSON
+- **Cron auth**: all cron handlers call `verifyCronRequest()` (`src/lib/cron-auth.ts`) before any work — accepts `Authorization: Bearer ${CRON_SECRET}`/`${TRIGGER_SECRET}`, the Vercel-internal cron header, or a QStash `Upstash-Signature` verified via `Receiver.verify()`. QStash Schedules (see `DEPLOYMENT_GUIDE.md`) are the primary trigger for `fetch-matches`, `daily-reminder`, and `db-export` — no shared secret sits in the schedule config, since the signature itself is the credential
+- **QStash webhook auth**: `/api/webhooks/qstash/live-goals` verifies the `Upstash-Signature` header via `Receiver.verify()` against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` before parsing the body — signature check happens on the raw request text, not the parsed JSON. Same verification helper is reused by `verifyCronRequest()` above
 
 ## Known Limitations
 

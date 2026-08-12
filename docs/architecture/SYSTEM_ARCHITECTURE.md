@@ -54,11 +54,11 @@ src/
 │   │   │   │   └── [id]/    # activate/ POST DRAFT→ACTIVE + retro-assign; end/ POST ACTIVE→ENDED + record standings; preview/ GET live champion preview; retro-assign/ POST backfill matches; champion-bonus/ GET/POST/PATCH/DELETE config, lock/ POST lock picks
 │   │   │   └── users/          # CRUD users
 │   │   ├── cron/
-│   │   │   ├── fetch-matches     # Thu 18:00 UTC — fetch upcoming fixtures
-│   │   │   ├── fetch-results     # Daily 23:00 UTC — safety-net result pass
-│   │   │   ├── prediction-reminder # Fri 16:00 UTC — remind unpredicted users
-│   │   │   ├── daily-reminder    # Daily 09:00 UTC — remind for today's matches
-│   │   │   └── db-export         # Daily 09:00 UTC — JSON backup via email
+│   │   │   ├── fetch-matches     # QStash schedule, Thu 8 PM Cairo local — fetch upcoming fixtures
+│   │   │   ├── fetch-results     # Unscheduled — safety-net result pass, results normally come from the live-goal chain
+│   │   │   ├── prediction-reminder # Unscheduled (deprecated) — weekly unpredicted-users reminder
+│   │   │   ├── daily-reminder    # QStash schedule, daily 09:00 UTC — remind for today's matches
+│   │   │   └── db-export         # QStash schedule, daily 09:00 UTC — JSON backup via email
 │   │   ├── mobile/           # Parallel route tree with JWT Bearer auth
 │   │   │   ├── auth/login/   # POST credential login → signed JWT
 │   │   │   ├── matches/      # GET list; [matchId]/ GET detail, group-predictions, h2h, live, predictions
@@ -267,14 +267,14 @@ fetch-matches cron runs
 
 ## Cron Job Flows
 
-**fetch-matches** (Thursday 18:00 UTC):
+**fetch-matches** (QStash schedule, Thursday 8 PM Cairo local):
 1. Load all active leagues
 2. For each: call football-data.org `/competitions/{id}/matches?dateFrom=…&dateTo=…`
 3. Check `externalId` existence, then `createMany()` — never overwrites existing
 4. Send "new matches" email to each user with `notificationEmail` set
 5. Returns `{ inserted, skipped, errors }`
 
-**fetch-results** (daily 23:00 UTC):
+**fetch-results** (unscheduled — no QStash schedule or cron trigger; kept only as a manually-invoked safety net):
 1. Queries any match with `kickoffTime < now` and `status NOT IN (finished, cancelled)`
 2. Groups by league — one football-data.org API call per league
 3. Updates finished matches: `status`, `resultHomeScore`, `resultAwayScore`, `resultWinner`
@@ -282,17 +282,20 @@ fetch-matches cron runs
 5. Sends results email to affected users
 6. Refreshes league standings
 
-**prediction-reminder** (Friday 16:00 UTC):
+In normal operation this same logic runs per-match, near-real-time, via `processFinishedMatchRealtime()` inside the live-goal QStash chain (see "Live Goal Notifications" below) — that's the actual result-fetching path in production.
+
+**prediction-reminder** (unscheduled/deprecated — route still exists, nothing calls it):
 1. Find all scheduled matches in the current week with kickoff in the future
 2. For each user: find matches without a prediction
 3. Send reminder email if any unpredicted matches remain
 
-**daily-reminder** (daily 09:00 UTC):
+**daily-reminder** (QStash schedule, daily 09:00 UTC):
 1. Find all scheduled matches kicking off today (CLT)
 2. For each user: find today's matches without a prediction
 3. Send urgent reminder email if any unpredicted matches remain
+4. No-ops cleanly if there are no matches today — this is what makes a fixed daily schedule correct for "remind only on days with a match"
 
-**db-export** (daily 09:00 UTC):
+**db-export** (QStash schedule, daily 09:00 UTC):
 1. Serialize all Prisma tables to JSON
 2. Gzip if over threshold
 3. Email export file to configured recipients (admin)
