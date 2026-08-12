@@ -67,6 +67,20 @@ interface TSDBTimelineEntry {
   intTime: string;
 }
 
+// /v2/livescore/{leagueId} — a dedicated, faster-refreshing feed for
+// currently-live matches only. Confirmed by hand (curl, same fixture, same
+// moment) that this updates ahead of /lookup/event/{id}'s strStatus/score —
+// e.g. this showed "2H" while lookup/event was still reporting "HT". Used as
+// an override source for live matches; matches that aren't live don't appear
+// in this feed at all.
+interface TSDBLiveScoreEntry {
+  idEvent: string;
+  intHomeScore: string | null;
+  intAwayScore: string | null;
+  strStatus: string | null;
+  strProgress?: string | null;
+}
+
 interface TSDBTableEntry {
   idTeam: string;
   strTeam: string;
@@ -88,7 +102,7 @@ interface TSDBTableEntry {
 // and live matches surface the elapsed minute ("1H", "HT", "2H") only inconsistently.
 // We normalize to the short codes mapFixtureStatus() already understands.
 
-function toShortStatus(raw: TSDBEvent): string {
+function toShortStatus(raw: { strStatus: string | null; strPostponed?: string | null }): string {
   const status = (raw.strStatus ?? '').trim();
   if (raw.strPostponed === 'yes') return 'PST';
   if (status === '' || status.toUpperCase() === 'NS') return 'NS';
@@ -287,7 +301,21 @@ export class TheSportsDBProvider implements IFootballProvider {
     if (!event) return null;
 
     const fixture = mapTSDBEvent(event);
-    const appStatus = mapFixtureStatus(fixture.fixture.status.short);
+    let appStatus = mapFixtureStatus(fixture.fixture.status.short);
+
+    if (appStatus === 'live') {
+      const live = await this.fetchLiveScore(fixture.league.id, fixtureId).catch(() => null);
+      if (live) {
+        fixture.fixture.status = { short: toShortStatus(live), long: live.strStatus ?? '' };
+        fixture.goals = {
+          home: live.intHomeScore !== null ? Number(live.intHomeScore) : fixture.goals.home,
+          away: live.intAwayScore !== null ? Number(live.intAwayScore) : fixture.goals.away,
+        };
+        fixture.score.fulltime = { ...fixture.goals };
+        appStatus = mapFixtureStatus(fixture.fixture.status.short);
+      }
+    }
+
     if (appStatus === 'finished' || appStatus === 'live') {
       fixture.events = await this.fetchMatchEvents(fixtureId);
     }
@@ -297,6 +325,15 @@ export class TheSportsDBProvider implements IFootballProvider {
   private async fetchMatchEvents(fixtureId: number): Promise<APIMatchEvent[]> {
     const data = await this.getV1<{ timeline: TSDBTimelineEntry[] | null }>('/lookuptimeline.php', { id: fixtureId });
     return mapTSDBTimeline(data.timeline ?? []);
+  }
+
+  // Only currently-live matches appear in this feed — returns null (fall back
+  // to the already-fetched /lookup/event data) for anything else, including a
+  // match that just finished between the two calls.
+  private async fetchLiveScore(leagueId: number, fixtureId: number): Promise<TSDBLiveScoreEntry | null> {
+    const data = await this.getV2<Record<string, unknown>>(`/livescore/${leagueId}`);
+    const entries = firstArray<TSDBLiveScoreEntry>(data);
+    return entries.find(e => Number(e.idEvent) === fixtureId) ?? null;
   }
 
   // No v2 standings endpoint — stays on v1.
