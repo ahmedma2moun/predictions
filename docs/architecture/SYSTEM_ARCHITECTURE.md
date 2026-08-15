@@ -362,7 +362,7 @@ fetchAndInsertMatches() inserts new fixtures
 
 No re-arming — this fires exactly once per match. A `flowControl` key (`match-reminders`, parallelism 3) keeps several fixtures sharing the same kickoff slot from all firing their full email/push broadcast in the same instant.
 
-Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `src/app/api/webhooks/qstash/match-reminder/route.ts`, `sendKickoffReminderEmail()` in `src/lib/email.ts`. Mobile push type `match_reminder` routes to the Matches tab (`mobile/src/notifications/route-for-notification.ts`).
+Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `src/app/api/webhooks/qstash/match-reminder/route.ts`, `sendKickoffReminderEmail()` in `src/lib/email.ts`. Mobile push type `match_reminder` (like `goal`) routes straight to that match's detail screen via `data.matchId`, falling back to the Matches tab if `matchId` is missing (`mobile/src/notifications/route-for-notification.ts`).
 
 ## Technology Stack
 
