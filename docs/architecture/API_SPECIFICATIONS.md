@@ -236,9 +236,9 @@ Returns `{ updated: number }`.
 Send a test email to the admin's own address to verify SMTP config.
 
 ### POST /api/admin/test-notification
-Send a push notification to specific users or all users with registered devices.
+Send a push notification to specific users or all users with registered devices. Used by the admin Notifications page to exercise `routeForNotification()` on a real device for every `data.type` the app knows about — `type` defaults to `admin_test` if omitted; `matchId` is required in practice for `goal`/`match_reminder` (they route to the match detail screen) and ignored otherwise.
 
-**Body**: `{ title: string, text: string, userIds?: number[], allUsers?: boolean, link?: string }`
+**Body**: `{ title: string, text: string, userIds?: number[], allUsers?: boolean, link?: string, type?: string, matchId?: string | number }`
 
 ### GET /api/admin/notifications/devices
 List registered FCM device tokens for a specific user.

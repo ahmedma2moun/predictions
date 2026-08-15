@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
-  const { title, text, userIds, allUsers, link } = body;
+  const { title, text, userIds, allUsers, link, type, matchId } = body;
 
   if (!title || !text) {
     return NextResponse.json({ error: 'Title and text are required' }, { status: 400 });
@@ -42,8 +42,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'No active device tokens found for selected users' });
   }
 
-  const data: Record<string, string> = { type: 'admin_test' };
+  const data: Record<string, string> = { type: typeof type === 'string' && type ? type : 'admin_test' };
   if (link) data.url = link;
+  if (matchId) data.matchId = String(matchId);
 
   try {
     const results = await sendPushToUsers(targetIds, {

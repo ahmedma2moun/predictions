@@ -31,11 +31,33 @@ type LiveGoalMatch = {
   awayTeamName: string;
 };
 
+// Every `data.type` the backend actually emits (src/lib/*, src/app/api/**) —
+// keep in sync with routeForNotification() in mobile/src/notifications/route-for-notification.ts.
+// `needsMatchId` marks the types that route needs `data.matchId` to open the
+// match detail screen instead of falling back to the Matches tab.
+const NOTIFICATION_TYPES: { value: string; label: string; needsMatchId: boolean }[] = [
+  { value: "goal", label: "goal — opens Match details", needsMatchId: true },
+  { value: "match_reminder", label: "match_reminder — opens Match details", needsMatchId: true },
+  { value: "results", label: "results — opens Predictions screen", needsMatchId: false },
+  { value: "result_correction", label: "result_correction — opens Predictions screen", needsMatchId: false },
+  { value: "season_end", label: "season_end — opens Seasons screen", needsMatchId: false },
+  { value: "new_matches", label: "new_matches — opens Matches screen", needsMatchId: false },
+  { value: "prediction_reminder", label: "prediction_reminder — opens Matches screen", needsMatchId: false },
+  { value: "daily_reminder", label: "daily_reminder — opens Matches screen", needsMatchId: false },
+  { value: "champion_bonus_enabled", label: "champion_bonus_enabled — opens Matches screen (default)", needsMatchId: false },
+  { value: "champion_bonus_locked", label: "champion_bonus_locked — opens Matches screen (default)", needsMatchId: false },
+  { value: "champion_bonus_win", label: "champion_bonus_win — opens Matches screen (default)", needsMatchId: false },
+  { value: "champion_bonus_cancelled", label: "champion_bonus_cancelled — opens Matches screen (default)", needsMatchId: false },
+  { value: "qstash_pipeline_test", label: "qstash_pipeline_test — opens Matches screen (default)", needsMatchId: false },
+  { value: "admin_test", label: "admin_test — opens Matches screen (default)", needsMatchId: false },
+];
+
 export default function AdminNotificationsPage() {
   const [selectedUserId, setSelectedUserId] = useState<number | "all">("all");
   const [title, setTitle] = useState("Test Notification");
   const [body, setBody] = useState("This is a test push notification from the admin.");
   const [type, setType] = useState("new_matches");
+  const [testMatchId, setTestMatchId] = useState<string>("");
 
   const [sending, setSending] = useState(false);
 
@@ -112,10 +134,15 @@ export default function AdminNotificationsPage() {
   }, [selectedUserId]);
   const { data: deviceInfo, loading: loadingDevices } = useApiResource(loadDeviceInfo, null as DeviceInfo | null);
 
+  const selectedType = NOTIFICATION_TYPES.find(t => t.value === type);
+
   async function sendNotification() {
     setSending(true);
     try {
       const payload: Record<string, unknown> = { title, text: body, type };
+      if (selectedType?.needsMatchId && testMatchId) {
+        payload.matchId = testMatchId;
+      }
       if (selectedUserId === "all") {
         payload.allUsers = true;
       } else {
@@ -192,12 +219,39 @@ export default function AdminNotificationsPage() {
               onChange={e => setType(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="new_matches">new_matches — opens Matches screen</option>
-              <option value="results">results — opens Predictions screen</option>
-              <option value="prediction_reminder">prediction_reminder — opens Matches screen</option>
-              <option value="daily_reminder">daily_reminder — opens Matches screen</option>
+              {NOTIFICATION_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
             </select>
           </div>
+
+          {/* Match — only needed for types that deep-link into a match's detail screen */}
+          {selectedType?.needsMatchId && (
+            <div className="space-y-2">
+              <Label>Match (for matchId payload)</Label>
+              {loadingMatches ? (
+                <Skeleton className="h-9 w-full rounded-md" />
+              ) : (
+                <select
+                  value={testMatchId}
+                  onChange={e => setTestMatchId(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select a match…</option>
+                  {liveGoalMatches.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.homeTeamName} vs {m.awayTeamName} — {m.status}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {!testMatchId && (
+                <p className="text-xs text-destructive">
+                  {type} needs a matchId — without one the app falls back to the Matches tab.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Title + Body */}
           <div className="space-y-2">
@@ -214,7 +268,8 @@ export default function AdminNotificationsPage() {
             onClick={sendNotification}
             disabled={
               sending ||
-              (selectedUserId !== "all" && deviceInfo?.count === 0)
+              (selectedUserId !== "all" && deviceInfo?.count === 0) ||
+              (selectedType?.needsMatchId && !testMatchId)
             }
           >
             {sending ? "Sending..." : "Send Notification"}
