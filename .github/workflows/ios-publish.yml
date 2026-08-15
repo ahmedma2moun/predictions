@@ -137,17 +137,21 @@ jobs:
           target  = project.targets.find { |t| t.name == target_name }
           raise "Target #{target_name} not found" unless target
 
-          # Automatic signing: Xcode generates/downloads a matching distribution
+          # Automatic signing: Xcode downloads/reuses a matching distribution
           # profile for the certificate present in the keychain via the ASC API key.
+          # CODE_SIGN_IDENTITY must match the certificate actually imported into
+          # the keychain (the "Import distribution certificate" step above pulls
+          # in an Apple Distribution cert) — pointing it at 'Apple Development'
+          # instead made -allowProvisioningUpdates mint a brand-new Development
+          # certificate on every single run, which exhausted the account's
+          # certificate quota. Signing as Distribution end-to-end reuses the
+          # existing certificate instead of generating a new one each time.
           target.build_configurations.each do |config|
             config.build_settings['CODE_SIGN_STYLE'] = 'Automatic'
             config.build_settings['DEVELOPMENT_TEAM'] = team_id
             config.build_settings.delete('PROVISIONING_PROFILE_SPECIFIER')
             config.build_settings.delete('PROVISIONING_PROFILE')
-            # Automatic mode signs the archive for development; exportArchive
-            # (method: app-store-connect) re-signs for distribution. Pinning a
-            # distribution identity here conflicts with automatic signing.
-            config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Development'
+            config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
             config.build_settings.delete('CODE_SIGN_IDENTITY[sdk=iphoneos*]')
           end
 
