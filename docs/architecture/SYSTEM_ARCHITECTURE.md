@@ -337,6 +337,33 @@ Admin test hook: `POST /api/admin/live-goals/test` (Admin → Notifications page
 
 Key files: `src/lib/live-goal-config.ts` (tunable constants), `src/lib/qstash.ts` (Client/Receiver singletons), `src/lib/live-goal-service.ts` (tick logic + chain registration), `src/app/api/webhooks/qstash/live-goals/route.ts`.
 
+## Match Kickoff Reminders
+
+Same self-chaining-schedule idea as Live Goal Notifications, but a single one-shot QStash message instead of a chain — every user gets reminded about every upcoming match 60 minutes before kickoff, regardless of whether they've predicted it (this is deliberately unfiltered, unlike `prediction-reminder`/`daily-reminder`, which only nudge users with missing predictions):
+
+```
+fetchAndInsertMatches() inserts new fixtures
+    │
+    └─ registerMatchReminderChain() — publishes one QStash message per fixture,
+       notBefore = kickoffTime - 60min, body = { externalId }
+       (skipped if kickoff is already inside the 60-minute window)
+                        │
+                        ▼
+   QStash delivers → POST /api/webhooks/qstash/match-reminder
+   (Upstash-Signature verified against QSTASH_CURRENT/NEXT_SIGNING_KEY)
+                        │
+                        ▼
+              sendMatchKickoffReminder(externalId)
+    │
+    ├─ match missing or status no longer 'scheduled' (postponed/cancelled) → no-op
+    └─ otherwise: email every user with a notificationEmail set, and push
+       every user with a registered device token — prediction status ignored
+```
+
+No re-arming — this fires exactly once per match. A `flowControl` key (`match-reminders`, parallelism 3) keeps several fixtures sharing the same kickoff slot from all firing their full email/push broadcast in the same instant.
+
+Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `src/app/api/webhooks/qstash/match-reminder/route.ts`, `sendKickoffReminderEmail()` in `src/lib/email.ts`. Mobile push type `match_reminder` routes to the Matches tab (`mobile/src/notifications/route-for-notification.ts`).
+
 ## Technology Stack
 
 | Component | Package | Version | Purpose |

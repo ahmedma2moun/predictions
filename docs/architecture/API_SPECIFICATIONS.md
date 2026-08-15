@@ -340,6 +340,13 @@ One tick of a match's live-goal polling chain. See [Live Goal Notifications](SYS
 
 **Response**: `{ ok: true, outcome: string }` where `outcome` is one of `ticked`, `not_started_rearmed`, `terminal_finished`, `terminal_postponed`, `terminal_cancelled`, `fetch_failed_rearmed`, `match_not_found`. Returns `401` on an invalid signature, `500` on a processing failure (QStash retries automatically per its retry policy).
 
+### POST /api/webhooks/qstash/match-reminder
+One-shot pre-kickoff reminder for a single match, delivered 60 minutes before `kickoffTime`. Emails every user with a `notificationEmail` set and pushes every user with a registered device token — unlike `prediction-reminder`/`daily-reminder`, this is sent regardless of prediction status. See [Match Kickoff Reminders](SYSTEM_ARCHITECTURE.md).
+
+**Body** (set by the publisher, not the caller): `{ externalId: number }`
+
+**Response**: `{ ok: true, outcome: string }` where `outcome` is one of `sent`, `match_not_found`, `skipped_status_<status>` (match is no longer `scheduled`, e.g. postponed/cancelled). Returns `401` on an invalid signature, `500` on a processing failure (QStash retries automatically per its retry policy).
+
 ---
 
 ## Mobile API (/api/mobile/*)

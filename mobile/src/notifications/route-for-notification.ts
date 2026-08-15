@@ -12,6 +12,7 @@ import { ROUTES } from '@/constants/routes';
  *  - `new_matches`        — new fixtures available to predict            → Matches
  *  - `prediction_reminder`— reminder to submit predictions              → Matches
  *  - `daily_reminder`     — daily nudge                                  → Matches
+ *  - `match_reminder`     — a specific match kicks off in 60 minutes     → Matches
  *  - anything else / missing                                            → Matches
  */
 export function routeForNotification(data: unknown): Href {
@@ -26,6 +27,7 @@ export function routeForNotification(data: unknown): Href {
     case 'new_matches':
     case 'prediction_reminder':
     case 'daily_reminder':
+    case 'match_reminder':
     default:
       return ROUTES.matches;
   }

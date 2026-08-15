@@ -41,3 +41,8 @@ export function liveGoalsWebhookUrl(): string {
 export function testNotificationWebhookUrl(): string {
   return absoluteWebhookUrl('/api/webhooks/qstash/test-notification');
 }
+
+/** Absolute URL QStash calls back into for a match's pre-kickoff reminder. */
+export function matchReminderWebhookUrl(): string {
+  return absoluteWebhookUrl('/api/webhooks/qstash/match-reminder');
+}

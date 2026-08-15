@@ -341,6 +341,38 @@ export async function sendDailyReminderEmail(
   });
 }
 
+// ─── Kickoff Reminder Email ────────────────────────────────────────────────────
+
+export async function sendKickoffReminderEmail(to: string | null | undefined, match: MatchForEmail): Promise<void> {
+  if (!to) return;
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a;">
+      <div style="background:#3b82f6;padding:20px 24px;border-radius:8px 8px 0 0;">
+        <h2 style="margin:0;color:#fff;font-size:20px;">Kickoff in 60 minutes!</h2>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.9);font-size:13px;">${match.leagueName} &middot; ${formatShortDate(match.kickoffTime)} CLT</p>
+      </div>
+      <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
+        <div style="text-align:center;font-size:18px;font-weight:600;margin-bottom:16px;">
+          ${match.homeTeamName} <span style="color:#888;font-weight:400;">vs</span> ${match.awayTeamName}
+        </div>
+        <div style="margin-bottom:20px;padding:10px 14px;background:#eff6ff;border-radius:6px;border-left:4px solid #3b82f6;font-size:13px;color:#1e3a8a;">
+          Predictions lock at kickoff — last chance to submit or double-check yours!
+        </div>
+        <div style="text-align:center;">
+          <a href="${process.env.NEXTAUTH_URL}/matches" style="display:inline-block;background:#3b82f6;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">View Match &rarr;</a>
+        </div>
+      </div>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `Football Predictions <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `Kickoff in 60 min: ${match.homeTeamName} vs ${match.awayTeamName}`,
+    html,
+  });
+}
+
 // ─── Result Correction Email ──────────────────────────────────────────────────
 
 export async function sendResultCorrectionEmail(
