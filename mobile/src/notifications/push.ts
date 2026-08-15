@@ -126,4 +126,16 @@ export async function unregisterPushToken(jwt: string) {
   }
 }
 
+/**
+ * The lazily-loaded @react-native-firebase/messaging module (null in Expo Go).
+ * Exposed so _layout.tsx can route notification taps through it — on Android,
+ * its native ReactNativeFirebaseMessagingService wins the manifest-priority
+ * race against expo-notifications' own ExpoFirebaseMessagingService (which is
+ * registered at priority -1), so it's the library that actually receives
+ * tapped notifications; expo-notifications' response listeners never fire.
+ */
+export function getMessaging() {
+  return messaging;
+}
+
 export { LAST_REGISTERED_TOKEN };

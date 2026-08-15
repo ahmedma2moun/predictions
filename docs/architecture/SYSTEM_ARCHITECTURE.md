@@ -364,6 +364,8 @@ No re-arming — this fires exactly once per match. A `flowControl` key (`match-
 
 Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `src/app/api/webhooks/qstash/match-reminder/route.ts`, `sendKickoffReminderEmail()` in `src/lib/email.ts`. Mobile push type `match_reminder` (like `goal`) routes straight to that match's detail screen via `data.matchId`, falling back to the Matches tab if `matchId` is missing (`mobile/src/notifications/route-for-notification.ts`).
 
+**Mobile tap-routing gotcha**: the Android build links both `@react-native-firebase/messaging` (native module, used only for iOS FCM token minting in JS) and `expo-notifications`. Both declare a `com.google.firebase.MESSAGING_EVENT` service in the manifest, but Expo's own service is registered at `android:priority="-1"` — lower than RNFirebase's default — so RNFirebase always wins the race and is the library that actually receives a tapped notification on Android. `mobile/app/_layout.tsx` therefore routes taps through `messaging().onNotificationOpenedApp()` / `messaging().getInitialNotification()` (exposed via `getMessaging()` in `mobile/src/notifications/push.ts`) rather than `expo-notifications`' own response listeners, falling back to the latter only when the native RNFirebase module isn't present (Expo Go). Using the expo-notifications listeners as the primary path silently drops `data` on every tap, regardless of type — a past regression.
+
 ## Technology Stack
 
 | Component | Package | Version | Purpose |

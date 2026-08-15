@@ -14,7 +14,7 @@ import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { ROUTES } from '@/constants/routes';
 import { colors, font, radius, spacing } from '@/theme/colors';
 import { ThemeProvider, useTheme } from '@/theme/theme';
-import { registerForPushNotifications } from '@/notifications/push';
+import { registerForPushNotifications, getMessaging } from '@/notifications/push';
 import { routeForNotification } from '@/notifications/route-for-notification';
 
 SplashScreen.preventAutoHideAsync();
@@ -73,9 +73,17 @@ function PushRegistrar() {
     registerForPushNotifications(token).catch(() => {});
   }, [token]);
 
-  // Live taps while the app is running (foreground/background).
+  // Live taps while the app is running (foreground/background). Routed
+  // through RNFirebase's messaging() when available — see getMessaging()'s
+  // doc comment for why expo-notifications' own listener doesn't see these.
   useEffect(() => {
     if (!token) return;
+    const rnMessaging = getMessaging();
+    if (rnMessaging) {
+      return rnMessaging().onNotificationOpenedApp(remoteMessage => {
+        router.push(routeForNotification(remoteMessage.data));
+      });
+    }
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
       router.push(routeForNotification(data));
@@ -89,6 +97,16 @@ function PushRegistrar() {
   useEffect(() => {
     if (!token || handledColdStart.current) return;
     handledColdStart.current = true;
+    const rnMessaging = getMessaging();
+    if (rnMessaging) {
+      rnMessaging()
+        .getInitialNotification()
+        .then(remoteMessage => {
+          if (remoteMessage) router.push(routeForNotification(remoteMessage.data));
+        })
+        .catch(() => {});
+      return;
+    }
     Notifications.getLastNotificationResponseAsync()
       .then(response => {
         if (!response) return;
