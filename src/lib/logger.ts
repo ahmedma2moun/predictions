@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- this module is the sanctioned console wrapper */
 export const logger = {
   info:  (msg: string, ctx?: object) => console.log(JSON.stringify({ level: 'info',  msg, ts: new Date().toISOString(), ...ctx })),
   warn:  (msg: string, ctx?: object) => console.warn(JSON.stringify({ level: 'warn', msg, ts: new Date().toISOString(), ...ctx })),

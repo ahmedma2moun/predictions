@@ -5,6 +5,7 @@ import type {
   APITeam,
   APIStandingEntry,
 } from '../types';
+import { logger } from '@/lib/logger';
 
 // ── API-Football v3 raw response shapes ──────────────────────────────────────
 
@@ -114,20 +115,20 @@ export class ApiFootballProvider implements IFootballProvider {
       Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
     }
     const label = `${path}${url.search}`;
-    console.log(`[api-football] GET ${label}`);
+    logger.info(`[api-football] GET ${label}`);
     const t0 = Date.now();
     const res = await fetch(url.toString(), { headers: this.headers, next: { revalidate: 0 } });
     const ms = Date.now() - t0;
     if (!res.ok) {
-      console.error(`[api-football] ${res.status} ${res.statusText} — ${label} (${ms}ms)`);
+      logger.error(`[api-football] ${res.status} ${res.statusText} — ${label} (${ms}ms)`);
       throw new Error(`api-football error: ${res.status} ${res.statusText}`);
     }
     const json: AFResponse<T> = await res.json();
     if (json.errors && Object.keys(json.errors).length > 0) {
-      console.error(`[api-football] API errors — ${label}:`, json.errors);
+      logger.error(`[api-football] API errors — ${label}:`, { errors: json.errors });
       throw new Error(`api-football error: ${JSON.stringify(json.errors)}`);
     }
-    console.log(`[api-football] 200 OK — ${label} (${ms}ms)`);
+    logger.info(`[api-football] 200 OK — ${label} (${ms}ms)`);
     return json;
   }
 

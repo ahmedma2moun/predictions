@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { withErrorHandling } from '@/lib/api-handler';

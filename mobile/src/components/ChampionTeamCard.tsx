@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { ChampionBonusAllowedTeam } from '@/types/api';
 
@@ -15,7 +15,7 @@ interface Props {
 
 export const ChampionTeamCard = memo(function ChampionTeamCard({ team, isPicked, isPicking, onPress }: Props) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
 
   return (
     <Pressable
@@ -32,7 +32,7 @@ export const ChampionTeamCard = memo(function ChampionTeamCard({ team, isPicked,
     >
       <View style={styles.logoWrap}>
         {team.logo ? (
-          <Image source={{ uri: team.logo }} style={{ width: 48, height: 48 }} contentFit="contain" />
+          <Image source={{ uri: team.logo }} style={{ width: 48, height: 48 }} contentFit="contain" alt={team.name} />
         ) : (
           <View style={[styles.fallbackLogo, { backgroundColor: colors.cardElevated }]}>
             <Text style={{ color: colors.foreground, fontWeight: font.weight.bold, fontSize: font.size.sm }}>
@@ -53,7 +53,7 @@ export const ChampionTeamCard = memo(function ChampionTeamCard({ team, isPicked,
   );
 });
 
-function makeStyles(c: Palette) {
+function makeStyles() {
   return StyleSheet.create({
     card: {
       flex: 1,

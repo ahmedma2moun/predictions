@@ -298,6 +298,10 @@ function DCViewport({ children, minScale = 0.1, maxScale = 8, style = {} }) {
     // window doesn't drop the last pan/zoom.
     window.addEventListener('pagehide', flush);
     return () => { window.removeEventListener('pagehide', flush); flush(); };
+    // Mount-once: restores the persisted transform exactly once per viewport
+    // instance. Re-running on apply/maxScale/minScale/tfKey identity churn
+    // would re-clamp and re-apply the transform on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   React.useEffect(() => {
@@ -508,6 +512,9 @@ function DCSection({ id, title, subtitle, children, gap = 48 }) {
   const order = React.useMemo(() => {
     const kept = (sec.order || []).filter((k) => srcOrder.includes(k));
     return [...kept, ...srcOrder.filter((k) => !kept.includes(k))];
+    // srcOrder.join('|') is a deliberate stable-key dep; extracting it to a
+    // variable breaks the React Compiler's static memoization analysis here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sec.order, srcOrder.join('|')]);
 
   const byId = Object.fromEntries(artboards.map((a) => [a.props.id ?? a.props.label, a]));

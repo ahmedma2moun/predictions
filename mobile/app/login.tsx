@@ -11,14 +11,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Input } from '@/components/ui';
 import { useAuth } from '@/auth/AuthContext';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import { ApiError } from '@/api/client';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -113,7 +113,7 @@ export default function LoginScreen() {
   );
 }
 
-function makeStyles(c: Palette) {
+function makeStyles() {
   return StyleSheet.create({
     root: { flex: 1 },
     scroll: {

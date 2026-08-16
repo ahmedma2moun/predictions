@@ -3,7 +3,7 @@ import { memo, useMemo } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Muted } from '@/components/ui';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import { formatKickoff } from '@/utils/format';
 import type { ChampionBonusRevealPick, ChampionBonusRevealTeam } from '@/types/api';
@@ -18,7 +18,7 @@ interface Props {
 
 export const ChampionRevealRow = memo(function ChampionRevealRow({ pickEntry, team, isMe, isExpanded, onToggle }: Props) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
 
   return (
     <View
@@ -32,7 +32,7 @@ export const ChampionRevealRow = memo(function ChampionRevealRow({ pickEntry, te
     >
       <Pressable onPress={onToggle} style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}>
         {pickEntry.teamLogo ? (
-          <Image source={{ uri: pickEntry.teamLogo }} style={{ width: 28, height: 28 }} contentFit="contain" />
+          <Image source={{ uri: pickEntry.teamLogo }} style={{ width: 28, height: 28 }} contentFit="contain" alt={pickEntry.teamName} />
         ) : (
           <View style={[styles.fallbackLogo, { backgroundColor: colors.cardElevated }]}>
             <Text style={{ color: colors.foreground, fontSize: font.size.xxs, fontWeight: font.weight.bold }}>
@@ -98,7 +98,7 @@ export const ChampionRevealRow = memo(function ChampionRevealRow({ pickEntry, te
   );
 });
 
-function makeStyles(c: Palette) {
+function makeStyles() {
   return StyleSheet.create({
     rowWrap: {
       borderRadius: radius.md,

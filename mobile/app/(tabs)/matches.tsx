@@ -16,10 +16,10 @@ import { Card, LiveDot, Muted, Pill } from '@/components/ui';
 import { AppHeader } from '@/components/AppHeader';
 import { ROUTES } from '@/constants/routes';
 import { useMatches } from '@/hooks/useMatches';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { MatchListItem } from '@/types/api';
-import { formatKickoff, formatMatchStatus, formatStage, isKnockoutStage, isMatchLocked, ordinal } from '@/utils/format';
+import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
 
 export default function MatchesScreen() {
   const { colors } = useTheme();
@@ -203,7 +203,7 @@ function TeamSide({
   return (
     <View style={[styles.teamSide, { alignItems: align === 'left' ? 'flex-start' : 'flex-end' }]}>
       {logo ? (
-        <Image source={{ uri: logo }} style={styles.logo} contentFit="contain" />
+        <Image source={{ uri: logo }} style={styles.logo} contentFit="contain" alt={name} />
       ) : (
         <View style={[styles.logo, { backgroundColor: colors.accent, borderRadius: radius.md }]} />
       )}

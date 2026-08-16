@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Appearance } from 'react-native';
 import { type Palette, type ThemeMode, palettes } from './colors';
 
@@ -54,19 +54,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const mode: ThemeMode = pref === 'system' ? systemMode : pref;
 
-  const setPref = (p: ThemePref) => {
+  const setPref = useCallback((p: ThemePref) => {
     setPrefState(p);
     AsyncStorage.setItem(STORAGE_KEY, p).catch(() => {});
-  };
+  }, []);
 
-  const toggle = () => {
+  const toggle = useCallback(() => {
     const current = resolve(pref);
     setPref(current === 'dark' ? 'light' : 'dark');
-  };
+  }, [pref, setPref]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({ mode, pref, colors: palettes[mode], setPref, toggle }),
-    [mode, pref],
+    [mode, pref, setPref, toggle],
   );
 
   // Avoid a flash on first paint before AsyncStorage resolves.

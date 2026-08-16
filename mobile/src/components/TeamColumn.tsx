@@ -22,7 +22,7 @@ export function TeamColumn({ name, logo, position, value, onChange, disabled }: 
   return (
     <View style={styles.teamCol}>
       {logo ? (
-        <Image source={{ uri: logo }} style={styles.teamLogo} contentFit="contain" />
+        <Image source={{ uri: logo }} style={styles.teamLogo} contentFit="contain" alt={name} />
       ) : (
         <View style={[styles.teamLogo, { backgroundColor: colors.accent, borderRadius: radius.md }]} />
       )}

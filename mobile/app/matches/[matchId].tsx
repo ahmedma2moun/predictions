@@ -340,7 +340,7 @@ export default function MatchPredictionScreen() {
         )}
 
         {!h2hLoading && h2h && h2h.length > 0 && (() => {
-          const summary = computeH2HSummary(h2h, match.homeTeam.name, match.awayTeam.name);
+          const summary = computeH2HSummary(h2h, match.homeTeam.name);
           const total = summary ? summary.homeWins + summary.draws + summary.awayWins : 0;
           return (
             <Card style={{ gap: spacing.md }}>
@@ -427,7 +427,7 @@ function teamsMatch(h2hName: string, upcomingName: string): boolean {
   return a === b || a.includes(b) || b.includes(a);
 }
 
-function computeH2HSummary(h2h: import('@/types/api').H2HMatch[], homeTeamName: string, awayTeamName: string) {
+function computeH2HSummary(h2h: import('@/types/api').H2HMatch[], homeTeamName: string) {
   const done = h2h.filter(m => m.homeScore !== null && m.awayScore !== null);
   if (done.length === 0) return null;
   let homeWins = 0, draws = 0, awayWins = 0, totalGoals = 0;
@@ -435,9 +435,13 @@ function computeH2HSummary(h2h: import('@/types/api').H2HMatch[], homeTeamName: 
     const hs = m.homeScore!, as = m.awayScore!;
     totalGoals += hs + as;
     const leftIsHome = teamsMatch(m.homeTeamName, homeTeamName);
-    if (hs > as)      leftIsHome ? homeWins++ : awayWins++;
-    else if (as > hs) leftIsHome ? awayWins++ : homeWins++;
-    else              draws++;
+    if (hs > as) {
+      if (leftIsHome) homeWins++; else awayWins++;
+    } else if (as > hs) {
+      if (leftIsHome) awayWins++; else homeWins++;
+    } else {
+      draws++;
+    }
   }
   const last = done[0];
   return {

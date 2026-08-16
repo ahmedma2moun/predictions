@@ -30,7 +30,7 @@ export function H2HRow({ m }: { m: H2HMatch }) {
       <View style={styles.h2hTeams}>
         <View style={styles.h2hTeamLeft}>
           {m.homeTeamLogo && (
-            <Image source={{ uri: m.homeTeamLogo }} style={styles.h2hLogo} contentFit="contain" />
+            <Image source={{ uri: m.homeTeamLogo }} style={styles.h2hLogo} contentFit="contain" alt={m.homeTeamName} />
           )}
           <Text
             numberOfLines={1}
@@ -66,7 +66,7 @@ export function H2HRow({ m }: { m: H2HMatch }) {
             {m.awayTeamName}
           </Text>
           {m.awayTeamLogo && (
-            <Image source={{ uri: m.awayTeamLogo }} style={styles.h2hLogo} contentFit="contain" />
+            <Image source={{ uri: m.awayTeamLogo }} style={styles.h2hLogo} contentFit="contain" alt={m.awayTeamName} />
           )}
         </View>
       </View>

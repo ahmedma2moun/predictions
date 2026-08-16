@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/ui';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { font, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { AccuracyStats } from '@/types/api';
 

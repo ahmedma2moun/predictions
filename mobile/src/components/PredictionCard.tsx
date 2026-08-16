@@ -6,7 +6,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { Card, Muted } from '@/components/ui';
 import { ScoringBreakdown } from '@/components/ScoringBreakdown';
 import { OddsPopover, getPredictedOutcome } from '@/components/OddsFactors';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { MatchDetail, PredictionHistoryItem } from '@/types/api';
 import { formatKickoff } from '@/utils/format';
@@ -16,7 +16,7 @@ type OtherPrediction = NonNullable<MatchDetail['allPredictions']>[number];
 export const PredictionCard = memo(function PredictionCard({ pred }: { pred: PredictionHistoryItem }) {
   const { token } = useAuth();
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
   const match = pred.match;
   const isFinished = match.status === 'finished';
   const isLocked = match.status !== 'scheduled';
@@ -204,7 +204,7 @@ function ScoreCell({
   );
 }
 
-function makeStyles(c: Palette) {
+function makeStyles() {
   return StyleSheet.create({
     tile: { gap: spacing.xs, paddingVertical: spacing.md },
     mainRow: {

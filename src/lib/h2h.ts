@@ -1,4 +1,5 @@
 import { fetchHeadToHead, type APIFixture } from '@/lib/football/service';
+import { logger } from '@/lib/logger';
 
 export type H2HMatch = {
   date: string;
@@ -57,7 +58,7 @@ export async function getH2H(externalId: number, limit = 5): Promise<H2HMatch[]>
     cache.set(externalId, { data, fetchedAt: Date.now() });
     return data;
   } catch (e) {
-    console.error('[h2h] Failed to fetch head-to-head:', e);
+    logger.error('[h2h] Failed to fetch head-to-head:', { error: e instanceof Error ? e.message : String(e) });
     if (cached) return cached.data;
     throw e;
   }

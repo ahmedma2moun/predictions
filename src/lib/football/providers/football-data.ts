@@ -5,6 +5,7 @@ import type {
   APITeam,
   APIStandingEntry,
 } from '../types';
+import { logger } from '@/lib/logger';
 
 // ── football-data.org v4 raw response shapes ─────────────────────────────────
 
@@ -124,10 +125,10 @@ export class FootballDataProvider implements IFootballProvider {
       Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
     }
     const label = `${path}${url.search}`;
-    console.log(`[football-data] GET ${label}`);
+    logger.info(`[football-data] GET ${label}`);
     const t0 = Date.now();
-    const res = await fetch(url.toString(), { 
-      headers: this.headers, 
+    const res = await fetch(url.toString(), {
+      headers: this.headers,
       next: { revalidate: 0 },
       signal: AbortSignal.timeout(15_000)
     });
@@ -135,10 +136,10 @@ export class FootballDataProvider implements IFootballProvider {
     if (!res.ok) {
       let body = '';
       try { body = await res.text(); } catch { /* ignore */ }
-      console.error(`[football-data] ${res.status}  — ${label} (${ms}ms) body=${body}`);
+      logger.error(`[football-data] ${res.status}  — ${label} (${ms}ms) body=${body}`);
       throw new Error(`football-data.org error: ${res.status} ${res.statusText}${body ? ` — ${body}` : ''}`);
     }
-    console.log(`[football-data] ${res.status} OK — ${label} (${ms}ms)`);
+    logger.info(`[football-data] ${res.status} OK — ${label} (${ms}ms)`);
     return res.json();
   }
 

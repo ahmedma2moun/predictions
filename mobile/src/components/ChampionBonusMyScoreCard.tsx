@@ -4,12 +4,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Muted } from '@/components/ui';
 import { useChampionBonus } from '@/hooks/useChampionBonus';
 import { ROUTES } from '@/constants/routes';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 
 export function ChampionBonusMyScoreCard() {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
   const { state } = useChampionBonus();
 
   if (!state || !state.enabled) return null;
@@ -60,7 +60,7 @@ export function ChampionBonusMyScoreCard() {
   );
 }
 
-function makeStyles(c: Palette) {
+function makeStyles() {
   return StyleSheet.create({
     card: {
       borderRadius: radius.md,

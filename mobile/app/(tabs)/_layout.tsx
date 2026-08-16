@@ -4,16 +4,13 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { font } from '@/theme/colors';
-import { useAuth } from '@/auth/AuthContext';
 import { useTheme } from '@/theme/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { OddsExplainerModal } from '@/components/OddsExplainerModal';
 import { ODDS_FEATURE_ENABLED } from '@/constants/featureFlags';
 
 export default function TabsLayout() {
-  const { user } = useAuth();
   const { colors, mode } = useTheme();
-  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(colors.background);

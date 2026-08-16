@@ -7,6 +7,7 @@ import type {
   APIStandingEntry,
 } from '../types';
 import { mapFixtureStatus } from '../types';
+import { logger } from '@/lib/logger';
 
 // ── TheSportsDB raw response shapes ───────────────────────────────────────────
 // Same data model across v1 and v2 — only the route/auth scheme differs.
@@ -223,17 +224,22 @@ export class TheSportsDBProvider implements IFootballProvider {
 
   private async request<T>(url: URL, headers?: Record<string, string>): Promise<T> {
     const label = `${url.pathname}${url.search}`;
-    console.log(`[thesportsdb] GET ${label}`);
+    logger.info(`[thesportsdb] GET ${label}`);
     const t0 = Date.now();
     const res = await fetch(url.toString(), { headers, next: { revalidate: 0 } });
     const ms = Date.now() - t0;
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      console.error(`[thesportsdb] ${res.status} ${res.statusText} — ${label} (${ms}ms) body=${body}`);
+      logger.error(`[thesportsdb] ${res.status} ${res.statusText} — ${label} (${ms}ms) body=${body}`);
       throw new Error(`thesportsdb error: ${res.status} ${res.statusText}`);
     }
-    console.log(`[thesportsdb] 200 OK — ${label} (${ms}ms)`);
-    return (await res.json()) as T;
+    const text = await res.text();
+    if (!text) {
+      logger.warn(`[thesportsdb] 200 OK with empty body — ${label} (${ms}ms)`);
+      return {} as T;
+    }
+    logger.info(`[thesportsdb] 200 OK — ${label} (${ms}ms)`);
+    return JSON.parse(text) as T;
   }
 
   // No v2 endpoint lists all leagues — stays on v1.

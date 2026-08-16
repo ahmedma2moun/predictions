@@ -1,7 +1,6 @@
 "use client";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export type H2HMatch = {
   date: string;
@@ -27,7 +26,7 @@ function teamsMatch(h2hName: string, upcomingName: string): boolean {
   return a === b || a.includes(b) || b.includes(a);
 }
 
-function computeSummary(h2h: H2HMatch[], homeTeamName: string, awayTeamName: string) {
+function computeSummary(h2h: H2HMatch[], homeTeamName: string) {
   const done = h2h.filter(m => m.homeScore !== null && m.awayScore !== null);
   if (done.length === 0) return null;
 
@@ -36,9 +35,13 @@ function computeSummary(h2h: H2HMatch[], homeTeamName: string, awayTeamName: str
     const hs = m.homeScore!, as = m.awayScore!;
     totalGoals += hs + as;
     const leftIsHome = teamsMatch(m.homeTeam.name, homeTeamName);
-    if (hs > as)      leftIsHome ? homeWins++ : awayWins++;
-    else if (as > hs) leftIsHome ? awayWins++ : homeWins++;
-    else              draws++;
+    if (hs > as) {
+      if (leftIsHome) homeWins++; else awayWins++;
+    } else if (as > hs) {
+      if (leftIsHome) awayWins++; else homeWins++;
+    } else {
+      draws++;
+    }
   }
 
   const last = done[0];
@@ -81,7 +84,7 @@ export function MatchH2H({
   if (!h2h || h2h.length === 0) return null;
 
   const summary = homeTeamName && awayTeamName
-    ? computeSummary(h2h, homeTeamName, awayTeamName)
+    ? computeSummary(h2h, homeTeamName)
     : null;
 
   return (

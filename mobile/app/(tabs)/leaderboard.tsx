@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,7 +15,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { Muted } from '@/components/ui';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import type { LeaderboardEntry } from '@/types/api';
-import { spacing, type Palette } from '@/theme/colors';
+import { spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 
 export default function LeaderboardScreen() {
@@ -27,8 +27,8 @@ export default function LeaderboardScreen() {
     isCurrentPeriod,
     offSeason,
     period, setPeriod,
-    weekOffset, setWeekOffset,
-    monthOffset, setMonthOffset,
+    setWeekOffset,
+    setMonthOffset,
     groups, groupId, setGroupId,
     leagues, selectedLeagues, setSelectedLeagues,
     leagueDropdownOpen, setLeagueDropdownOpen,
@@ -111,7 +111,7 @@ export default function LeaderboardScreen() {
               setMonthOffset={setMonthOffset}
             />
             {showPodium && (
-              <Podium entries={entries} myId={myId} />
+              <Podium entries={entries} />
             )}
           </View>
         }

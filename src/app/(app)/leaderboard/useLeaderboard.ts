@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import type { OddsBonus, RuleBreakdown } from "@/components/ScoringBreakdown";
 import type { MatchOddsFactors } from "@/components/OddsFactors";

@@ -6,6 +6,7 @@ import { correctMatchResult } from '@/lib/results-processor';
 import { getMatchById } from '@/lib/services/match-service';
 import { serializeBreakdown } from '@/models/Prediction';
 import { NotFoundError } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   req: NextRequest,
@@ -76,7 +77,7 @@ export async function PATCH(
     if (e instanceof NotFoundError) {
       return NextResponse.json({ error: 'Match not found' }, { status: 404 });
     }
-    console.error('[PATCH /api/mobile/matches/:id]', e);
+    logger.error('[PATCH /api/mobile/matches/:id]', { error: e instanceof Error ? e.message : String(e) });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { auth, isSessionAdmin } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { MatchRepository } from '@/lib/repositories/match-repository';
 
 export async function GET() {

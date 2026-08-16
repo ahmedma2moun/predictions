@@ -71,7 +71,7 @@ function EventIcon({ event, colors }: { event: DisplayMatchEvent; colors: Palett
 
 export function MatchEventRow({ event }: { event: DisplayMatchEvent }) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
   const isHome = event.team === 'home';
 
   return (
@@ -95,7 +95,7 @@ export function MatchEventRow({ event }: { event: DisplayMatchEvent }) {
   );
 }
 
-function makeStyles(c: Palette) {
+function makeStyles() {
   return StyleSheet.create({
     row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5 },
     side: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },

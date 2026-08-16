@@ -14,7 +14,7 @@ export function usePredictions() {
     { enabled: !!token },
   );
 
-  const predictions = data ?? [];
+  const predictions = useMemo(() => data ?? [], [data]);
 
   const { futurePreds, pastPreds, totalPoints } = useMemo(() => {
     const future: PredictionHistoryItem[] = [];

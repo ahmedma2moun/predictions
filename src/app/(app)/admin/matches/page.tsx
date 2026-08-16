@@ -204,7 +204,7 @@ export default function AdminMatchesPage() {
     const key = String(externalId);
     setSelectedTeamIds(prev => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }
@@ -247,7 +247,7 @@ export default function AdminMatchesPage() {
   function toggleSelect(id: string) {
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }

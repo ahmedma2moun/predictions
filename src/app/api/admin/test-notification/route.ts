@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { DeviceTokenService } from '@/lib/services/device-service';
-import { UserService } from '@/lib/services/user-service';
 import { sendPushToUsers } from '@/lib/fcm';
 
 export async function POST(req: NextRequest) {
@@ -59,7 +58,7 @@ export async function POST(req: NextRequest) {
       usersTargeted: targetIds.length,
       firebaseResult: results,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to send push' }, { status: 500 });
   }
 }

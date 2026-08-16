@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/auth';
 import { correctMatchResult } from '@/lib/results-processor';
+import { logger } from '@/lib/logger';
 
 export async function PATCH(
   req: NextRequest,
@@ -36,7 +37,7 @@ export async function PATCH(
     if (e.message?.includes('not found')) {
       return NextResponse.json({ error: 'Match not found' }, { status: 404 });
     }
-    console.error('[PATCH /api/admin/results/:id]', e);
+    logger.error('[PATCH /api/admin/results/:id]', { error: e instanceof Error ? e.message : String(e) });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

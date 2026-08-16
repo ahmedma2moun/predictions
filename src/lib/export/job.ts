@@ -7,6 +7,7 @@ import { sendExportNotification, sendExportAlertEmail } from './email';
 // ---------------------------------------------------------------------------
 // Structured JSON logger (parseable in Vercel log viewer)
 // ---------------------------------------------------------------------------
+/* eslint-disable no-console -- this factory is the sanctioned console wrapper for this job */
 function makeLogger(correlationId: string) {
   const base = () => ({ ts: new Date().toISOString(), correlationId });
   return {

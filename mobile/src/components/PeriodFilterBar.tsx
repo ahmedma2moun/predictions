@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { Period } from '@/hooks/usePeriodFilter';
 
@@ -26,7 +26,7 @@ export function PeriodFilterBar({
   setWeekOffset, setMonthOffset,
 }: Props) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
 
   return (
     <View style={{ gap: spacing.sm }}>
@@ -84,7 +84,7 @@ function OffsetNav({
   onNext: () => void;
 }) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
   return (
     <View style={styles.nav}>
       <Pressable
@@ -114,7 +114,7 @@ function OffsetNav({
   );
 }
 
-function makeStyles(c: Palette) {
+function makeStyles() {
   return StyleSheet.create({
     segShell: {
       flexDirection: 'row',

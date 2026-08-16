@@ -12,7 +12,7 @@ import {
 import { Muted } from '@/components/ui';
 import { ScoringBreakdown } from '@/components/ScoringBreakdown';
 import { OddsPopover, getPredictedOutcome } from '@/components/OddsFactors';
-import { font, radius, spacing, type Palette } from '@/theme/colors';
+import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { LeaderboardEntry, LeaderboardUserPrediction } from '@/types/api';
 import { formatKickoff } from '@/utils/format';
@@ -36,7 +36,7 @@ export const LeaderboardRow = memo(function LeaderboardRow({
   item, index, myId, isCurrentPeriod, isExpanded, expandedLoading, expandedData, onToggle, showMedal, championTeamName,
 }: Props) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
   const isMe = myId === item.userId;
   const rank = index + 1;
 
@@ -147,7 +147,7 @@ const MEDAL = {
   3: { color: '#CB8C5C', bg: 'rgba(203,140,92,0.33)', border: 'rgba(203,140,92,0.55)', height: 48 },
 } as const;
 
-export function Podium({ entries, myId }: { entries: LeaderboardEntry[]; myId: string | undefined }) {
+export function Podium({ entries }: { entries: LeaderboardEntry[] }) {
   const { colors } = useTheme();
   const top3 = entries.slice(0, 3);
   if (top3.length < 3) return null;
@@ -161,7 +161,6 @@ export function Podium({ entries, myId }: { entries: LeaderboardEntry[]; myId: s
       {order.map((entry, i) => {
         const rank = ranks[i];
         const medal = MEDAL[rank];
-        const isMe = entry.userId === myId;
         return (
           <View key={entry.userId} style={[podiumStyles.col, rank === 1 && podiumStyles.colFirst]}>
             <Avatar name={entry.name} url={entry.avatarUrl} size={rank === 1 ? 48 : 40} />
@@ -234,6 +233,7 @@ export const Avatar = memo(function Avatar({
       <Image
         source={{ uri: url }}
         style={{ width: size, height: size, borderRadius: size / 2 }}
+        alt={name}
       />
     );
   }
@@ -358,7 +358,7 @@ function BadgeStrip({
 // ── Expanded prediction row ───────────────────────────────────────────────────
 const UserPredRow = memo(function UserPredRow({ p }: { p: LeaderboardUserPrediction }) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(), []);
   const awarded = p.pointsAwarded > 0;
   return (
     <View style={[styles.predTile, { backgroundColor: colors.cardElevated }]}>
@@ -402,7 +402,7 @@ const UserPredRow = memo(function UserPredRow({ p }: { p: LeaderboardUserPredict
   );
 });
 
-function makeStyles(c: Palette) {
+function makeStyles() {
   return StyleSheet.create({
     rowWrap: {
       borderRadius: radius.md,

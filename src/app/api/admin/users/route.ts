@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
   const hashed = await bcrypt.hash(password, 12);
   const user = await UserService.createUser({ name, email, password: hashed, role: role || 'user' });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructure to strip password from the response
   const { password: _, ...userObj } = user;
   return NextResponse.json({ ...userObj, _id: user.id.toString() });
 }
