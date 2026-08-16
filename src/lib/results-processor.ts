@@ -537,13 +537,41 @@ export async function sendResultNotifications(userMatchMap: Map<number, ResultMa
         logger.info(`[${logPrefix}] Results email sent to ${user.notificationEmail}`);
       }
     }
-    // FCM push
+    // FCM push — when a user was scored on exactly one match (always true for the
+    // live-goals real-time path; usually true for the cron batch too), personalize
+    // the notification with that match's final score instead of the generic text.
     try {
-      await sendPushToUsers(userIds, {
-        title: 'Results are in!',
-        body: 'Your predictions have been scored — tap to see how you did.',
-        data: { type: 'results' },
-      });
+      const singleMatchGroups = new Map<string, { match: ResultMatchForEmail; userIds: number[] }>();
+      const multiMatchUserIds: number[] = [];
+
+      for (const userId of userIds) {
+        const matches = userMatchMap.get(userId)!;
+        if (matches.length === 1) {
+          const m = matches[0];
+          const key = `${m.homeTeamName}|${m.awayTeamName}|${m.resultHomeScore}|${m.resultAwayScore}`;
+          const group = singleMatchGroups.get(key) ?? { match: m, userIds: [] };
+          group.userIds.push(userId);
+          singleMatchGroups.set(key, group);
+        } else {
+          multiMatchUserIds.push(userId);
+        }
+      }
+
+      for (const { match, userIds: groupUserIds } of singleMatchGroups.values()) {
+        await sendPushToUsers(groupUserIds, {
+          title: 'Match Finished',
+          body: `${match.homeTeamName} ${match.resultHomeScore}-${match.resultAwayScore} ${match.awayTeamName} — tap to see how you did.`,
+          data: { type: 'results' },
+        });
+      }
+
+      if (multiMatchUserIds.length > 0) {
+        await sendPushToUsers(multiMatchUserIds, {
+          title: 'Results are in!',
+          body: 'Your predictions have been scored — tap to see how you did.',
+          data: { type: 'results' },
+        });
+      }
     } catch (e) {
       logger.error(`[${logPrefix}] FCM push failed:`, { error: e instanceof Error ? e.message : String(e) });
     }
