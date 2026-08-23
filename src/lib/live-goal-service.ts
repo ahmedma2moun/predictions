@@ -15,6 +15,7 @@ import {
   LIVE_POLL_INTERVAL_SECONDS,
   HALF_TIME_POLL_SECONDS,
   PRE_KICKOFF_POLL_SECONDS,
+  KICKOFF_GRACE_SECONDS,
   MAX_CHAIN_HOURS,
 } from '@/lib/live-goal-config';
 
@@ -23,12 +24,14 @@ const FLOW_CONTROL_PARALLELISM = 8; // headroom under QStash free tier's account
 
 /**
  * Registers the first wake-up for a newly-inserted match's live-goal polling
- * chain — fires at kickoff, then re-arms itself every LIVE_POLL_INTERVAL_SECONDS
- * until the match is finished/postponed/cancelled. Called from matches-processor.ts
- * right after a fixture with a real externalId is inserted.
+ * chain — fires KICKOFF_GRACE_SECONDS after kickoff (giving the provider time
+ * to flip the fixture to 'live'), then re-arms itself every
+ * LIVE_POLL_INTERVAL_SECONDS until the match is finished/postponed/cancelled.
+ * Called from matches-processor.ts right after a fixture with a real
+ * externalId is inserted.
  */
 export async function registerLiveGoalChain(match: { externalId: number; kickoffTime: Date }): Promise<void> {
-  const tick = Math.floor(match.kickoffTime.getTime() / 1000);
+  const tick = Math.floor(match.kickoffTime.getTime() / 1000) + KICKOFF_GRACE_SECONDS;
   await publishTick(match.externalId, tick);
 }
 
@@ -88,6 +91,7 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
   const awayGoals = fixture.score.fulltime.away ?? fixture.goals.away ?? 0;
   const prevHome = match.liveHomeScore ?? 0;
   const prevAway = match.liveAwayScore ?? 0;
+  const wasNotYetLive = match.status !== 'live';
 
   // Compare-and-swap: only proceed with notifying if this tick is the one that
   // actually advances the row. Guards against QStash's at-least-once delivery
@@ -96,6 +100,13 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
     where: { id: match.id, liveHomeScore: match.liveHomeScore, liveAwayScore: match.liveAwayScore },
     data: { liveHomeScore: homeGoals, liveAwayScore: awayGoals, status: 'live' },
   });
+
+  const matchStarted = claim.count === 1 && wasNotYetLive;
+  if (matchStarted) {
+    await notifyMatchStarted(match).catch(e =>
+      logger.error('[live-goals] notifyMatchStarted failed:', { matchId: match.id, error: e instanceof Error ? e.message : String(e) }),
+    );
+  }
 
   const goalDetected = claim.count === 1 && (homeGoals > prevHome || awayGoals > prevAway);
   if (goalDetected) {
@@ -109,9 +120,30 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
   logger.info('[live-goals] tick: live, rearmed', {
     matchId: match.id, externalId, rawStatus,
     score: `${homeGoals}-${awayGoals}`, prevScore: `${prevHome}-${prevAway}`,
-    goalDetected, rearmInSeconds: delaySeconds,
+    matchStarted, goalDetected, rearmInSeconds: delaySeconds,
   });
   return { outcome: 'ticked' };
+}
+
+/**
+ * Fired exactly once per match, on the first tick that observes the fixture
+ * as 'live' (i.e. match.status transitions away from 'scheduled'). Uses the
+ * same CAS-guarded claim as goal detection to stay idempotent under QStash's
+ * at-least-once delivery.
+ */
+async function notifyMatchStarted(match: Match): Promise<void> {
+  const predictors = await PredictionRepository.findMany({
+    where: { matchId: match.id },
+    select: { userId: true },
+  });
+  const userIds = [...new Set(predictors.map(p => p.userId))];
+  if (userIds.length === 0) return;
+
+  await sendPushToUsers(userIds, {
+    title: 'Kick-off!',
+    body: `${match.homeTeamName} vs ${match.awayTeamName} has started`,
+    data: { type: 'match_started', matchId: String(match.id) },
+  });
 }
 
 async function notifyGoal(
