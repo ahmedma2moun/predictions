@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay } from 'date-fns';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -11,6 +11,27 @@ export function formatKickoff(date: string | Date): string {
   // Add 2 hours for CLT (UTC+2)
   const clt = new Date(d.getTime() + 2 * 60 * 60 * 1000);
   return format(clt, 'EEE dd MMM, HH:mm');
+}
+
+/** CLT (UTC+2) calendar-day key, e.g. "2026-08-24" — used to group matches by day. */
+export function getMatchDayKey(date: string | Date): string {
+  const d = typeof date === 'string' ? parseISO(date) : date;
+  const clt = new Date(d.getTime() + 2 * 60 * 60 * 1000);
+  return format(clt, 'yyyy-MM-dd');
+}
+
+/** Human-readable day-group header in CLT (UTC+2): "Today", "Tomorrow", or "EEEE, dd MMMM". */
+export function formatMatchDayHeader(date: string | Date): string {
+  const d = typeof date === 'string' ? parseISO(date) : date;
+  const clt = new Date(d.getTime() + 2 * 60 * 60 * 1000);
+  const nowClt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const dayDiff = Math.round(
+    (startOfDay(clt).getTime() - startOfDay(nowClt).getTime()) / 86_400_000
+  );
+  if (dayDiff === 0) return 'Today';
+  if (dayDiff === 1) return 'Tomorrow';
+  if (dayDiff === -1) return 'Yesterday';
+  return format(clt, 'EEEE, dd MMMM');
 }
 
 export function isMatchLocked(kickoffTime: string | Date): boolean {

@@ -1,7 +1,7 @@
 import { auth, getSessionUser } from "@/lib/auth";
 import { serializeMatch } from "@/models/Match";
 import { getStandingsMap, standingKey } from "@/lib/standings";
-import { formatStage, isKnockoutStage } from "@/lib/utils";
+import { formatStage, isKnockoutStage, getMatchDayKey, formatMatchDayHeader } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { KickoffTime } from "@/components/KickoffTime";
@@ -39,142 +39,160 @@ export default async function MatchesPage() {
   const predMap = new Map<number, { homeScore: number; awayScore: number }>();
   predictions.forEach((p) => predMap.set(p.matchId, p));
 
+  // Matches arrive sorted by kickoffTime asc, so grouping consecutively preserves order.
+  const groups: { dayKey: string; matches: typeof matches }[] = [];
+  for (const match of matches) {
+    const dayKey = getMatchDayKey(match.kickoffTime);
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup?.dayKey === dayKey) {
+      lastGroup.matches.push(match);
+    } else {
+      groups.push({ dayKey, matches: [match] });
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
       <h1 className="text-2xl font-bold">Upcoming Matches</h1>
       {matches.length === 0 ? (
         <p className="text-muted-foreground">No upcoming matches available.</p>
       ) : (
-        matches.map((match) => {
-          const serialized = serializeMatch(match);
-          const prediction = predMap.get(match.id) ?? null;
-          const homeStanding = standingMap.get(standingKey(match.homeTeamExtId, match.externalLeagueId));
-          const awayStanding = standingMap.get(standingKey(match.awayTeamExtId, match.externalLeagueId));
-          const locked = new Date() >= new Date(match.kickoffTime);
-          const isLive = match.status === "live";
+        groups.map((group) => (
+          <div key={group.dayKey} className="space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground pt-2 first:pt-0">
+              {formatMatchDayHeader(group.matches[0].kickoffTime)}
+            </h2>
+            {group.matches.map((match) => {
+              const serialized = serializeMatch(match);
+              const prediction = predMap.get(match.id) ?? null;
+              const homeStanding = standingMap.get(standingKey(match.homeTeamExtId, match.externalLeagueId));
+              const awayStanding = standingMap.get(standingKey(match.awayTeamExtId, match.externalLeagueId));
+              const locked = new Date() >= new Date(match.kickoffTime);
+              const isLive = match.status === "live";
 
-          // Competition label: "MATCHDAY 35 · PREMIER LEAGUE"
-          const leagueName = ((match as any).league?.name ?? (match as any).season?.name) as string | undefined;
-          const compParts: string[] = [];
-          if (match.matchday) {
-            compParts.push(`MATCHDAY ${match.matchday}`);
-          } else if (isKnockoutStage(serialized.stage)) {
-            compParts.push(formatStage(serialized.stage!).toUpperCase());
-          }
-          if (leagueName) compParts.push(leagueName.toUpperCase());
-          const competitionLabel = compParts.join(" · ") || "MATCH";
+              // Competition label: "MATCHDAY 35 · PREMIER LEAGUE"
+              const leagueName = ((match as any).league?.name ?? (match as any).season?.name) as string | undefined;
+              const compParts: string[] = [];
+              if (match.matchday) {
+                compParts.push(`MATCHDAY ${match.matchday}`);
+              } else if (isKnockoutStage(serialized.stage)) {
+                compParts.push(formatStage(serialized.stage!).toUpperCase());
+              }
+              if (leagueName) compParts.push(leagueName.toUpperCase());
+              const competitionLabel = compParts.join(" · ") || "MATCH";
 
-          return (
-            <Link key={serialized._id} href={`/matches/${serialized._id}`}>
-              <div
-                className={cn(
-                  "rounded-md border border-border bg-card overflow-hidden transition-colors hover:border-primary/40",
-                  "mb-1"
-                )}
-              >
-                {/* Top strip */}
-                <div
-                  className={cn(
-                    "flex items-center justify-between px-4 py-[10px]",
-                    isLive && "bg-live/[0.06]"
-                  )}
-                >
-                  <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted-foreground truncate">
-                    {competitionLabel}
-                  </span>
-                  <div className="shrink-0 ml-2">
-                    {isLive ? (
-                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-live/10 border border-live/30 text-live text-[10px] font-bold uppercase tracking-[0.04em]">
-                        <span className="animate-live inline-block h-1.5 w-1.5 rounded-full bg-live" />
-                        LIVE
-                      </span>
-                    ) : locked ? (
-                      <span className="px-2.5 py-1 rounded-sm border border-border text-muted-foreground text-[10px] font-bold uppercase tracking-[0.04em]">
-                        LOCKED
-                      </span>
-                    ) : prediction ? (
-                      <span className="px-2.5 py-1 rounded-sm bg-primary-soft border border-primary-soft-border text-primary text-[10px] font-bold uppercase tracking-[0.04em]">
-                        PICKED
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* Body — 3-col grid */}
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-2">
-                  {/* Home team */}
-                  <div className="flex flex-col items-center gap-1.5">
-                    {serialized.homeTeam.logo ? (
-                      <Image
-                        src={serialized.homeTeam.logo}
-                        alt={serialized.homeTeam.name}
-                        width={36}
-                        height={36}
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div className="h-9 w-9 rounded-full bg-card-elevated" />
+              return (
+                <Link key={serialized._id} href={`/matches/${serialized._id}`}>
+                  <div
+                    className={cn(
+                      "rounded-md border border-border bg-card overflow-hidden transition-colors hover:border-primary/40",
+                      "mb-1"
                     )}
-                    <p className="text-sm font-semibold text-center leading-tight">{serialized.homeTeam.name}</p>
-                    {homeStanding && (
-                      <p className="text-[10.5px] text-muted-foreground font-mono-nums">
-                        #{homeStanding.position} · {homeStanding.points} pts
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Score chip */}
-                  <div className="flex flex-col items-center justify-center">
-                    {prediction ? (
-                      <div className="min-w-[70px] px-[14px] py-1 rounded-md text-center bg-primary-soft border border-primary-soft-border text-primary font-mono-nums score-glow text-[19px] font-bold">
-                        {prediction.homeScore}–{prediction.awayScore}
+                  >
+                    {/* Top strip */}
+                    <div
+                      className={cn(
+                        "flex items-center justify-between px-4 py-[10px]",
+                        isLive && "bg-live/[0.06]"
+                      )}
+                    >
+                      <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-muted-foreground truncate">
+                        {competitionLabel}
+                      </span>
+                      <div className="shrink-0 ml-2">
+                        {isLive ? (
+                          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-live/10 border border-live/30 text-live text-[10px] font-bold uppercase tracking-[0.04em]">
+                            <span className="animate-live inline-block h-1.5 w-1.5 rounded-full bg-live" />
+                            LIVE
+                          </span>
+                        ) : locked ? (
+                          <span className="px-2.5 py-1 rounded-sm border border-border text-muted-foreground text-[10px] font-bold uppercase tracking-[0.04em]">
+                            LOCKED
+                          </span>
+                        ) : prediction ? (
+                          <span className="px-2.5 py-1 rounded-sm bg-primary-soft border border-primary-soft-border text-primary text-[10px] font-bold uppercase tracking-[0.04em]">
+                            PICKED
+                          </span>
+                        ) : null}
                       </div>
-                    ) : isLive ? (
-                      <div className="min-w-[70px] px-[14px] py-1 rounded-md text-center bg-card-elevated border border-border text-foreground font-mono-nums text-xl font-bold">
-                        –
+                    </div>
+
+                    {/* Body — 3-col grid */}
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-2">
+                      {/* Home team */}
+                      <div className="flex flex-col items-center gap-1.5">
+                        {serialized.homeTeam.logo ? (
+                          <Image
+                            src={serialized.homeTeam.logo}
+                            alt={serialized.homeTeam.name}
+                            width={36}
+                            height={36}
+                            className="object-contain"
+                          />
+                        ) : (
+                          <div className="h-9 w-9 rounded-full bg-card-elevated" />
+                        )}
+                        <p className="text-sm font-semibold text-center leading-tight">{serialized.homeTeam.name}</p>
+                        {homeStanding && (
+                          <p className="text-[10.5px] text-muted-foreground font-mono-nums">
+                            #{homeStanding.position} · {homeStanding.points} pts
+                          </p>
+                        )}
                       </div>
-                    ) : (
-                      <span className="text-xs font-semibold uppercase text-muted-foreground">VS</span>
-                    )}
-                  </div>
 
-                  {/* Away team */}
-                  <div className="flex flex-col items-center gap-1.5">
-                    {serialized.awayTeam.logo ? (
-                      <Image
-                        src={serialized.awayTeam.logo}
-                        alt={serialized.awayTeam.name}
-                        width={36}
-                        height={36}
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div className="h-9 w-9 rounded-full bg-card-elevated" />
-                    )}
-                    <p className="text-sm font-semibold text-center leading-tight">{serialized.awayTeam.name}</p>
-                    {awayStanding && (
-                      <p className="text-[10.5px] text-muted-foreground font-mono-nums">
-                        #{awayStanding.position} · {awayStanding.points} pts
-                      </p>
-                    )}
-                  </div>
-                </div>
+                      {/* Score chip */}
+                      <div className="flex flex-col items-center justify-center">
+                        {prediction ? (
+                          <div className="min-w-[70px] px-[14px] py-1 rounded-md text-center bg-primary-soft border border-primary-soft-border text-primary font-mono-nums score-glow text-[19px] font-bold">
+                            {prediction.homeScore}–{prediction.awayScore}
+                          </div>
+                        ) : isLive ? (
+                          <div className="min-w-[70px] px-[14px] py-1 rounded-md text-center bg-card-elevated border border-border text-foreground font-mono-nums text-xl font-bold">
+                            –
+                          </div>
+                        ) : (
+                          <span className="text-xs font-semibold uppercase text-muted-foreground">VS</span>
+                        )}
+                      </div>
 
-                {/* Footer */}
-                {!locked && (
-                  <div className="border-t border-dashed border-border mt-[14px] pt-3 px-4 pb-[14px] flex items-center justify-between">
-                    <span className="text-[11.5px] text-muted-foreground">
-                      <KickoffTime date={match.kickoffTime} />
-                    </span>
-                    <DeadlineCountdown kickoffTime={match.kickoffTime} compact />
+                      {/* Away team */}
+                      <div className="flex flex-col items-center gap-1.5">
+                        {serialized.awayTeam.logo ? (
+                          <Image
+                            src={serialized.awayTeam.logo}
+                            alt={serialized.awayTeam.name}
+                            width={36}
+                            height={36}
+                            className="object-contain"
+                          />
+                        ) : (
+                          <div className="h-9 w-9 rounded-full bg-card-elevated" />
+                        )}
+                        <p className="text-sm font-semibold text-center leading-tight">{serialized.awayTeam.name}</p>
+                        {awayStanding && (
+                          <p className="text-[10.5px] text-muted-foreground font-mono-nums">
+                            #{awayStanding.position} · {awayStanding.points} pts
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    {!locked && (
+                      <div className="border-t border-dashed border-border mt-[14px] pt-3 px-4 pb-[14px] flex items-center justify-between">
+                        <span className="text-[11.5px] text-muted-foreground">
+                          <KickoffTime date={match.kickoffTime} />
+                        </span>
+                        <DeadlineCountdown kickoffTime={match.kickoffTime} compact />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </Link>
-          );
-        })
+                </Link>
+              );
+            })}
+          </div>
+        ))
       )}
     </div>
   );
 }
-
