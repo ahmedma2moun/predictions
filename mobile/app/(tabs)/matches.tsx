@@ -4,9 +4,9 @@ import { Image } from 'expo-image';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   RefreshControl,
+  SectionList,
   StyleSheet,
   Text,
   View,
@@ -19,7 +19,14 @@ import { useMatches } from '@/hooks/useMatches';
 import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { MatchListItem } from '@/types/api';
-import { formatKickoff, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
+import {
+  formatKickoff,
+  formatMatchDayHeader,
+  formatStage,
+  getMatchDayKey,
+  isKnockoutStage,
+  isMatchLocked,
+} from '@/utils/format';
 
 export default function MatchesScreen() {
   const { colors } = useTheme();
@@ -48,6 +55,21 @@ export default function MatchesScreen() {
     <MatchCard match={item} onPress={() => router.push(ROUTES.matchDetail(item._id))} />
   ), [router]);
 
+  // Matches arrive sorted by kickoffTime asc, so grouping consecutively preserves order.
+  const sections = useMemo(() => {
+    const result: { key: string; title: string; data: MatchListItem[] }[] = [];
+    for (const match of matches) {
+      const dayKey = getMatchDayKey(match.kickoffTime);
+      const lastSection = result[result.length - 1];
+      if (lastSection?.key === dayKey) {
+        lastSection.data.push(match);
+      } else {
+        result.push({ key: dayKey, title: formatMatchDayHeader(match.kickoffTime), data: [match] });
+      }
+    }
+    return result;
+  }, [matches]);
+
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
@@ -59,9 +81,10 @@ export default function MatchesScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <AppHeader title="Matches" subtitle={subtitle} />
-      <FlatList
-        data={matches}
+      <SectionList
+        sections={sections}
         keyExtractor={item => item._id}
+        stickySectionHeadersEnabled={false}
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 90 }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -71,6 +94,9 @@ export default function MatchesScreen() {
             {error ?? 'No upcoming matches available.'}
           </Muted>
         }
+        renderSectionHeader={({ section }) => (
+          <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>{section.title}</Text>
+        )}
         renderItem={renderMatchItem}
       />
     </View>
@@ -266,6 +292,12 @@ function CountdownText({ kickoffTime }: { kickoffTime: string }) {
 const styles = StyleSheet.create({
   list: { padding: spacing.lg, gap: spacing.md },
   card: { padding: 0, overflow: 'hidden' },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
   topStrip: {
     flexDirection: 'row',
     alignItems: 'center',

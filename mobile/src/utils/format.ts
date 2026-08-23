@@ -18,9 +18,18 @@ const NON_KNOCKOUT_STAGES = new Set(['GROUP_STAGE', 'REGULAR_SEASON']);
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const FULL_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const FULL_MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n);
+}
+
+function startOfLocalDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
 /** Format kickoff in the device's local timezone. */
@@ -32,6 +41,22 @@ export function formatKickoff(date: string | Date): string {
   const h = pad2(d.getHours());
   const m = pad2(d.getMinutes());
   return `${day} ${dayNum} ${month}, ${h}:${m}`;
+}
+
+/** Local calendar-day key, e.g. "2026-08-24" — used to group matches by day. */
+export function getMatchDayKey(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/** Human-readable day-group header in the device's local timezone: "Today", "Tomorrow", or "Weekday, dd Month". */
+export function formatMatchDayHeader(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const dayDiff = Math.round((startOfLocalDay(d) - startOfLocalDay(new Date())) / 86_400_000);
+  if (dayDiff === 0) return 'Today';
+  if (dayDiff === 1) return 'Tomorrow';
+  if (dayDiff === -1) return 'Yesterday';
+  return `${FULL_DAYS[d.getDay()]}, ${d.getDate()} ${FULL_MONTHS[d.getMonth()]}`;
 }
 
 export function isMatchLocked(kickoffTime: string | Date): boolean {
