@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { UserService } from '@/lib/services/user-service';
 import { DeviceTokenService } from '@/lib/services/device-service';
-import { sendDailyReminderEmail, sendCronRunEmail, type UnpredictedMatch } from '@/lib/email';
+import { sendDailyReminderEmail, sendCronRunEmail, type UnpredictedMatch, type RemindedUser } from '@/lib/email';
 import { sendPushToUsers } from '@/lib/fcm';
 import { verifyCronRequest } from '@/lib/cron-auth';
 import { logger } from '@/lib/logger';
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   const users = await UserService.getAll({
     where:  { notificationEmail: { not: null } },
-    select: { id: true, notificationEmail: true },
+    select: { id: true, name: true, notificationEmail: true },
   });
 
   const userIds = users.map(u => u.id);
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
   }
 
   let remindedUsers = 0, skippedUsers = 0, errors = 0;
-  const remindedEmails: string[] = [];
+  const remindedUserDetails: RemindedUser[] = [];
 
   for (const user of users) {
     if (!user.notificationEmail) continue;
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     try {
       await sendDailyReminderEmail(user.notificationEmail, matchesForEmail);
       remindedUsers++;
-      remindedEmails.push(user.notificationEmail);
+      remindedUserDetails.push({ name: user.name, email: user.notificationEmail });
       logger.info(`[cron/daily-reminder] Reminder sent to user ${user.id} (${missing.length} unpredicted today)`);
     } catch (e) {
       logger.error(`[cron/daily-reminder] Failed to email user ${user.id}:`, { error: e instanceof Error ? e.message : String(e) });
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
     distinct: ['userId'],
   })).map(d => d.userId);
 
-  let pushNotifiedUserIds: number[] = [];
+  let pushNotifiedUserNames: string[] = [];
 
   if (allMobileUserIds.length > 0) {
     const predCounts = (await PredictionRepository.groupBy({
@@ -117,7 +117,10 @@ export async function GET(req: NextRequest) {
           body: `${todayMatches.length} match${todayMatches.length > 1 ? 'es kick' : ' kicks'} off today — predict before the whistle!`,
           data: { type: 'daily_reminder' },
         });
-        pushNotifiedUserIds = mobileUsersToNotify;
+        pushNotifiedUserNames = (await UserService.getAll({
+          where:  { id: { in: mobileUsersToNotify } },
+          select: { name: true },
+        })).map(u => u.name);
       } catch (e) {
         logger.error('[cron/daily-reminder] FCM push failed:', { error: e instanceof Error ? e.message : String(e) });
       }
@@ -134,7 +137,7 @@ export async function GET(req: NextRequest) {
   logger.info('[cron/daily-reminder] Done —', JSON.parse(JSON.stringify(summary)));
 
   try {
-    await sendCronRunEmail('daily-reminder', summary, remindedEmails, pushNotifiedUserIds);
+    await sendCronRunEmail('daily-reminder', summary, remindedUserDetails, pushNotifiedUserNames);
   } catch (e) {
     logger.error('[cron/daily-reminder] Failed to send cron notification email:', { error: e instanceof Error ? e.message : String(e) });
   }
