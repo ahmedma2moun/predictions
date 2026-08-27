@@ -674,11 +674,16 @@ export async function sendFetchMatchesCronEmail(params: {
 
 // ─── Cron Run Notification ────────────────────────────────────────────────────
 
+export interface RemindedUser {
+  name: string;
+  email: string;
+}
+
 export async function sendCronRunEmail(
   cronName: string,
   summary: Record<string, string | number>,
-  remindedEmails?: string[],
-  pushNotifiedUserIds?: number[],
+  remindedUsers?: RemindedUser[],
+  pushNotifiedUserNames?: string[],
 ): Promise<void> {
   const to = 'ahmed.m.maamoun94@gmail.com';
   const timestamp = new Date().toUTCString();
@@ -693,22 +698,22 @@ export async function sendCronRunEmail(
     )
     .join('');
 
-  const remindedBlock = remindedEmails && remindedEmails.length > 0
+  const remindedBlock = remindedUsers && remindedUsers.length > 0
     ? `
       <div style="margin-top:16px;">
-        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;">Reminded via email (${remindedEmails.length}):</div>
+        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;">Reminded via email (${remindedUsers.length}):</div>
         <ul style="margin:0;padding:0 0 0 18px;font-size:13px;color:#1a1a1a;">
-          ${remindedEmails.map(e => `<li style="margin-bottom:2px;">${e}</li>`).join('')}
+          ${remindedUsers.map(u => `<li style="margin-bottom:2px;">${u.name} (${u.email})</li>`).join('')}
         </ul>
       </div>`
     : '';
 
-  const pushBlock = pushNotifiedUserIds && pushNotifiedUserIds.length > 0
+  const pushBlock = pushNotifiedUserNames && pushNotifiedUserNames.length > 0
     ? `
       <div style="margin-top:12px;">
-        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;">Reminded via push (${pushNotifiedUserIds.length} device user${pushNotifiedUserIds.length !== 1 ? 's' : ''}):</div>
+        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:6px;">Reminded via push (${pushNotifiedUserNames.length} device user${pushNotifiedUserNames.length !== 1 ? 's' : ''}):</div>
         <ul style="margin:0;padding:0 0 0 18px;font-size:13px;color:#1a1a1a;">
-          ${pushNotifiedUserIds.map(id => `<li style="margin-bottom:2px;">User ID: ${id}</li>`).join('')}
+          ${pushNotifiedUserNames.map(name => `<li style="margin-bottom:2px;">${name}</li>`).join('')}
         </ul>
       </div>`
     : '';
