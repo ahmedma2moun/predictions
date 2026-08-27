@@ -5,10 +5,10 @@
 export const LIVE_POLL_INTERVAL_SECONDS = 90;
 
 // Half-time: no goals can happen, so back off further than the base cadence.
-export const HALF_TIME_POLL_SECONDS = 1070;
+export const HALF_TIME_POLL_SECONDS = 300;
 
 // Kickoff hasn't shown up as 'live' yet (delayed start) — slow poll until it does.
-export const PRE_KICKOFF_POLL_SECONDS = 90;
+export const PRE_KICKOFF_POLL_SECONDS = 60;
 
 // Delay before the chain's first tick fires, relative to kickoffTime — gives
 // the provider a moment to flip the fixture to 'live' so the very first poll
