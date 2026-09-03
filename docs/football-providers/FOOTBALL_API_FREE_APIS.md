@@ -28,24 +28,23 @@ All providers must implement all 6 methods of `IFootballProvider` from `src/lib/
 | `fetchFixtures({league, season, from, to})` | Fixtures within a date window |
 | `fetchFixtureById(id)` | Single match by external ID |
 | `fetchStandings(leagueId)` | League standings table |
-| `fetchHeadToHead(matchId, limit)` | Last N matches between two teams |
+| `fetchTeamForm(teamId, limit)` | A single team's last N finished matches, most recent first |
 
 ---
 
 ## Comparison Table
 
-| Provider | Req/Day Free | Live Scores | Coverage (free) | H2H by Match ID | Key Required |
+| Provider | Req/Day Free | Live Scores | Coverage (free) | Team Form Endpoint | Key Required |
 |---|---|---|---|---|---|
-| **football-data.org** (current) | ~unlimited (10/min) | No | 16 top competitions | Yes (native) | Yes |
-| **API-Football** | 100 | Yes (~15s) | 1,000+ leagues | Via team ID lookup | Yes |
-| **Sportmonks** | ~4,320 (180/hr) | Yes | Top 5 + UCL | Via team ID lookup | Yes |
-| **AllSportsAPI** | 100 | Yes | 400+ leagues | Via team ID lookup | Yes |
-| **TheSportsDB** | n/a — paid only (100–120/min) | Yes | Global | Via team ID lookup (no native H2H) | Yes, paid plan |
+| **football-data.org** | ~unlimited (10/min) | No | 16 top competitions | `GET /teams/{id}/matches` | Yes |
+| **API-Football** | 100 | Yes (~15s) | 1,000+ leagues | `GET /fixtures?team={id}&last={n}` | Yes |
+| **Sportmonks** | ~4,320 (180/hr) | Yes | Top 5 + UCL | Team fixtures endpoint | Yes |
+| **AllSportsAPI** | 100 | Yes | 400+ leagues | Team fixtures endpoint | Yes |
+| **TheSportsDB** (current) | n/a — paid only (100–120/min) | Yes | Global | `GET /eventslast.php?id={id}` (capped at 5) | Yes, paid plan |
 
-### H2H Note
+### Recent Form Note
 
-football-data.org is the only provider with a native "H2H by match ID" endpoint (`/matches/{id}/head2head`).  
-All other providers expose H2H by team pair. The provider implementations in this folder handle this transparently by resolving team IDs from the fixture first — callers see no difference.
+Every provider exposes a "team's recent fixtures" endpoint, unlike true head-to-head (which most providers only support by team pair, and TheSportsDB doesn't support natively at all). `fetchTeamForm(teamId, limit)` fetches each team's own last N games independently — the match page then shows both team's forms side by side rather than trying to compute actual head-to-head history, which sidesteps the head-to-head gap entirely.
 
 ---
 
@@ -69,7 +68,7 @@ The app uses a provider abstraction at `src/lib/football/`. To activate a differ
 3. Set `FOOTBALL_PROVIDER=<name>` in `.env.local` and Vercel project settings
 4. Set the provider-specific API key env var
 
-`service.ts` and all callers (`matches-processor`, `results-processor`, `standings`, `h2h`, admin routes) require **no changes**.
+`service.ts` and all callers (`matches-processor`, `results-processor`, `standings`, `team-form`, admin routes) require **no changes**.
 
 ## Mock Provider (tests / local dev without an API key)
 

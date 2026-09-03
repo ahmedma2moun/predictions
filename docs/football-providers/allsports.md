@@ -37,7 +37,7 @@
 Same constraint as API-Football — 100 req/day. With 5 active leagues:
 - Friday `fetch-matches` cron: 5 requests
 - Daily `fetch-results` cron: 5 requests
-- H2H lookups: +1 per match (team ID resolution)
+- Recent form lookups: +2 per match (one call per team, no ID resolution needed)
 
 Normal cron-only operation consumes ~10 req/day. Leave headroom for admin actions.
 
@@ -54,11 +54,11 @@ All AllSportsAPI requests use a single base URL with `?met=` to select the opera
 | `fetchFixtures({league, season, from, to})` | `GET /?met=Fixtures&leagueId={league}&from={from}&to={to}&APIkey={key}` |
 | `fetchFixtureById(id)` | `GET /?met=Fixtures&matchId={id}&APIkey={key}` |
 | `fetchStandings(leagueId)` | `GET /?met=Standings&leagueId={leagueId}&APIkey={key}` |
-| `fetchHeadToHead(matchId, limit)` | Resolve team IDs via `fetchFixtureById` → `GET /?met=H2H&firstTeamId={id}&secondTeamId={id}&APIkey={key}` |
+| `fetchTeamForm(teamId, limit)` | `GET /?met=Fixtures&teamId={teamId}&APIkey={key}`, filtered to finished matches, sorted by date descending, and sliced to `limit` |
 
 All responses are wrapped: `{ success: 1, result: [...] }`.
 
-**H2H:** Requires two API calls — first resolves team IDs from the fixture, then calls H2H by team pair.
+**Recent form:** Single call per team, filtered/sorted client-side — no team-ID resolution needed.
 
 ---
 
@@ -332,15 +332,15 @@ export class AllSportsProvider implements IFootballProvider {
     };
   }
 
-  async fetchHeadToHead(matchId: number, limit = 5): Promise<APIFixture[]> {
-    // AllSportsAPI H2H is by team pair — resolve team IDs from the fixture first (1 extra request)
-    const fixture = await this.fetchFixtureById(matchId);
-    if (!fixture) return [];
-    const data = await this.get<ASFixture[]>('H2H', {
-      firstTeamId:  fixture.teams.home.id,
-      secondTeamId: fixture.teams.away.id,
-    });
-    return data.result.slice(0, limit).map(mapASFixture);
+  async fetchTeamForm(teamId: number, limit = 5): Promise<APIFixture[]> {
+    // No native "most recent N" ordering — the endpoint returns full fixture history
+    // for the team, so filter to finished matches and sort client-side.
+    const data = await this.get<ASFixture[]>('Fixtures', { teamId });
+    return data.result
+      .filter(e => e.event_status === 'Finished')
+      .sort((a, b) => `${b.event_date}T${b.event_time}`.localeCompare(`${a.event_date}T${a.event_time}`))
+      .slice(0, limit)
+      .map(mapASFixture);
   }
 }
 ```

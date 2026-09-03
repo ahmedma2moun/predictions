@@ -372,19 +372,10 @@ export class TheSportsDBProvider implements IFootballProvider {
     return league?.strCurrentSeason ?? '';
   }
 
-  async fetchHeadToHead(matchId: number, limit = 5): Promise<APIFixture[]> {
-    // Neither API version has a team-pair H2H endpoint. Resolve the two teams from
-    // the fixture, then pull the home team's recent results and keep the ones
-    // played against the away team. Costs 1 + 1 extra requests vs. a native H2H call.
-    const fixture = await this.fetchFixtureById(matchId);
-    if (!fixture) return [];
-    const { home, away } = fixture.teams;
-
-    const data = await this.getV1<Record<string, unknown>>('/eventslast.php', { id: home.id });
+  async fetchTeamForm(teamId: number, limit = 5): Promise<APIFixture[]> {
+    // /eventslast.php is hard-capped at the 5 most recent results for the team by the API itself.
+    const data = await this.getV1<Record<string, unknown>>('/eventslast.php', { id: teamId });
     const recent = firstArray<TSDBEvent>(data);
-    return recent
-      .filter(e => Number(e.idHomeTeam) === away.id || Number(e.idAwayTeam) === away.id)
-      .slice(0, limit)
-      .map(mapTSDBEvent);
+    return recent.slice(0, limit).map(mapTSDBEvent);
   }
 }

@@ -94,9 +94,3 @@ export function formatMatchStatus(status: string): string {
     default:          return 'Upcoming';
   }
 }
-
-export function formatH2HDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: '2-digit',
-  });
-}

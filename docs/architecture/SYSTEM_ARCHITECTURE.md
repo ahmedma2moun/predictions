@@ -31,7 +31,7 @@ src/
 │   │   ├── groups/         # GET user's groups
 │   │   ├── leagues/        # GET active leagues
 │   │   ├── matches/        # GET list + GET single match
-│   │   │   └── [matchId]/  # group-predictions/ GET group's picks; h2h/ GET head-to-head; live/ GET in-play score (30s cached)
+│   │   │   └── [matchId]/  # group-predictions/ GET group's picks; form/ GET each team's last 5 games side by side; live/ GET in-play score (30s cached)
 │   │   ├── predictions/    # GET history, POST submit; stats/ GET streak + badge summary
 │   │   ├── leaderboard/    # GET ranked aggregation
 │   │   │   ├── live/       # GET live group standing (provisional in-play points + rank movement) — consumed by the match page's Group Comparison
@@ -61,7 +61,7 @@ src/
 │   │   │   └── db-export         # QStash schedule, daily 09:00 UTC — JSON backup via email
 │   │   ├── mobile/           # Parallel route tree with JWT Bearer auth
 │   │   │   ├── auth/login/   # POST credential login → signed JWT
-│   │   │   ├── matches/      # GET list; [matchId]/ GET detail, group-predictions, h2h, live, predictions
+│   │   │   ├── matches/      # GET list; [matchId]/ GET detail, group-predictions, form, live, predictions
 │   │   │   ├── predictions/  # GET history, POST submit; stats/ GET stats
 │   │   │   ├── leaderboard/  # GET ranked; live/ GET live group standing; user-predictions/ GET a user's scored history (active season only)
 │   │   │   ├── champion-bonus/  # GET user state; pick/ POST set pick

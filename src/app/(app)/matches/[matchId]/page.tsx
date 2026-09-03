@@ -7,8 +7,8 @@ import { isMatchLocked, formatStage, isKnockoutStage, ordinal } from "@/lib/util
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
 import { ChevronLeft, Minus, Plus, Lock, Pencil, Loader2 } from "lucide-react";
-import { MatchH2H } from "./MatchH2H";
-import type { H2HMatch } from "./MatchH2H";
+import { MatchForm } from "./MatchForm";
+import type { TeamFormMatch } from "./MatchForm";
 import { MatchStandings } from "./MatchStandings";
 import type { Standing } from "./MatchStandings";
 import { GroupPredictions } from "./GroupPredictions";
@@ -62,19 +62,20 @@ export default function MatchPredictionPage() {
   const [editingResult, setEditingResult] = useState(false);
   const [addingResult, setAddingResult] = useState(false);
   const [locked, setLocked] = useState(false);
-  const [h2h, setH2h] = useState<H2HMatch[] | null>(null);
-  const [h2hLoading, setH2hLoading] = useState(false);
+  const [formHome, setFormHome] = useState<TeamFormMatch[] | null>(null);
+  const [formAway, setFormAway] = useState<TeamFormMatch[] | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
   const [liveScore, setLiveScore] = useState<{ homeScore: number | null; awayScore: number | null } | null>(null);
   const [matchEvents, setMatchEvents] = useState<MatchEvent[] | null>(null);
 
   const isCustom = match?.externalId === null || (match?.externalId === undefined && match?.externalLeagueId === 0);
 
   useEffect(() => {
-    setH2hLoading(true);
+    setFormLoading(true);
     Promise.all([
       fetch(`/api/matches/${matchId}`).then(r => r.json() as Promise<MatchDetailData>),
-      fetch(`/api/matches/${matchId}/h2h`).then(r => r.ok ? r.json() : { matches: null }).catch(() => ({ matches: null })),
-    ]).then(([matchData, h2hData]) => {
+      fetch(`/api/matches/${matchId}/form`).then(r => r.ok ? r.json() : { home: null, away: null }).catch(() => ({ home: null, away: null })),
+    ]).then(([matchData, formData]) => {
       setMatch(matchData);
       if (matchData.prediction) {
         setHomeScore(matchData.prediction.homeScore);
@@ -82,8 +83,9 @@ export default function MatchPredictionPage() {
       }
       setLocked(isMatchLocked(matchData.kickoffTime));
       setLoading(false);
-      setH2h(h2hData.matches ?? null);
-      setH2hLoading(false);
+      setFormHome(formData.home ?? null);
+      setFormAway(formData.away ?? null);
+      setFormLoading(false);
     });
   }, [matchId]);
 
@@ -386,9 +388,10 @@ export default function MatchPredictionPage() {
       />
 
       {!isCustom && (
-        <MatchH2H
-          h2h={h2h}
-          loading={h2hLoading}
+        <MatchForm
+          home={formHome}
+          away={formAway}
+          loading={formLoading}
           homeTeamName={match.homeTeam?.name}
           awayTeamName={match.awayTeam?.name}
         />

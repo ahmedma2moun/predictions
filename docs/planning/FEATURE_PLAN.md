@@ -96,18 +96,14 @@ Zero new API calls.
 
 ---
 
-### F7 — H2H Summary Card ✅ Done
+### F7 — H2H Summary Card ✅ Done → Superseded
 
 **Layers:** Web + Mobile  
 **Effort:** Low | **Impact:** Medium
 
-`fetchHeadToHead` is already implemented and called. Currently lists 5 matches. Add an aggregated summary row above the list:
+Originally implemented against `fetchHeadToHead`, aggregating true head-to-head history (home wins / draws / away wins, average goals, last meeting) from football-data.org's native `/matches/{id}/head2head` endpoint.
 
-- Home wins / Draws / Away wins
-- Average goals per game
-- Last meeting result
-
-Pure UI + small aggregation on existing data.
+**Superseded** after the provider migration to TheSportsDB, which has no team-pair H2H endpoint — the old implementation degraded to filtering the home team's last 5 results for games against the away team, which was almost always empty. Replaced by `fetchTeamForm(teamId, limit)`: each team's own last 5 finished games (independent of opponent), shown side by side as a compact recent-form comparison instead of true head-to-head. See `docs/football-providers/FOOTBALL_API_FREE_APIS.md` ("Recent Form Note") and `docs/architecture/API_SPECIFICATIONS.md` (`GET /api/matches/[matchId]/form`).
 
 ---
 
@@ -159,7 +155,7 @@ Display:
 | F2 | Form strip | Low | High | No | ❌ Blocked (no data in free tier) |
 | F1b | Status badge | Low | Medium | No | ✅ Done |
 | F9 | Deadline countdown | Low | Medium | No | ✅ Done |
-| F7 | H2H summary card | Low | Medium | No | ✅ Done |
+| F7 | Recent form comparison (superseded H2H) | Low | Medium | No | ✅ Done → Superseded |
 | F6 | Group match comparison | Medium | High | No | ✅ Done |
 | F5 | Personal accuracy stats | Medium | High | No | ✅ Done |
 | F4 | Full standings page | Medium | Medium | No | ❌ Not started |

@@ -51,6 +51,6 @@ export function fetchStandings(leagueId: number): Promise<{ season: number; stan
   return getFootballProvider().fetchStandings(leagueId);
 }
 
-export function fetchHeadToHead(matchId: number, limit = 5): Promise<APIFixture[]> {
-  return getFootballProvider().fetchHeadToHead(matchId, limit);
+export function fetchTeamForm(teamId: number, limit = 5): Promise<APIFixture[]> {
+  return getFootballProvider().fetchTeamForm(teamId, limit);
 }

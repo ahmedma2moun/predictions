@@ -73,7 +73,8 @@ export interface IFootballProvider {
   }): Promise<APIFixture[]>;
   fetchFixtureById(fixtureId: number): Promise<APIFixture | null>;
   fetchStandings(leagueId: number): Promise<{ season: number; standings: APIStandingEntry[] }>;
-  fetchHeadToHead(matchId: number, limit?: number): Promise<APIFixture[]>;
+  /** A single team's most recent finished fixtures, most recent first — used for the recent-form display. */
+  fetchTeamForm(teamId: number, limit?: number): Promise<APIFixture[]>;
 }
 
 // ── Shared utility: normalize fixture.status.short → app status ──────────────

@@ -63,7 +63,7 @@ With 100 req/day and typical cron usage:
 | Friday `fetch-matches` cron (5 active leagues) | 5 |
 | Daily `fetch-results` cron (5 active leagues) | 5 |
 | Admin "Fetch Results" manual trigger | 5 |
-| H2H lookup (1 extra call per match to resolve team IDs) | +1 per match |
+| Recent form lookup (one call per team, no ID resolution needed) | +2 per match |
 
 With 5 active leagues, the two daily crons alone consume 10 requests. Budget 50–70 req/day for normal operation, leaving 30–50 for admin actions and spikes.
 
@@ -78,9 +78,9 @@ With 5 active leagues, the two daily crons alone consume 10 requests. Budget 50�
 | `fetchFixtures({league, season, from, to})` | `GET /fixtures?league={league}&season={season}&from={from}&to={to}` |
 | `fetchFixtureById(id)` | `GET /fixtures?id={id}` |
 | `fetchStandings(leagueId)` | `GET /standings?league={leagueId}` (uses current season) |
-| `fetchHeadToHead(matchId, limit)` | `GET /fixtures?id={matchId}` → extract team IDs → `GET /fixtures/headtohead?h2h={homeId}-{awayId}&last={limit}` |
+| `fetchTeamForm(teamId, limit)` | `GET /fixtures?team={teamId}&last={limit}` |
 
-**H2H:** Requires two API calls — first resolves team IDs from the fixture, then calls the H2H endpoint. This costs 2 requests instead of 1 per H2H lookup.
+**Recent form:** Single call — the `last` param already returns the N most recent fixtures for the team, most recent first.
 
 All responses are wrapped: `{ response: [...], errors: {} }`.
 
@@ -302,12 +302,8 @@ export class ApiFootballProvider implements IFootballProvider {
     };
   }
 
-  async fetchHeadToHead(matchId: number, limit = 5): Promise<APIFixture[]> {
-    // API-Football H2H is by team pair — resolve team IDs from the fixture first (costs 1 extra request)
-    const fixture = await this.fetchFixtureById(matchId);
-    if (!fixture) return [];
-    const h2h = `${fixture.teams.home.id}-${fixture.teams.away.id}`;
-    const data = await this.get<AFFixture[]>('/fixtures/headtohead', { h2h, last: limit });
+  async fetchTeamForm(teamId: number, limit = 5): Promise<APIFixture[]> {
+    const data = await this.get<AFFixture[]>('/fixtures', { team: teamId, last: limit });
     return data.response.map(mapAFFixture);
   }
 }

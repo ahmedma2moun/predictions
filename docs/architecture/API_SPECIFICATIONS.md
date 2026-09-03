@@ -43,8 +43,8 @@ Other users' predictions for a specific match (used to show group picks before a
 
 **Query params**: `groupId` (number, required), `liveHomeScore` / `liveAwayScore` (number, optional) — when the match has no official result yet, passing the current live score computes each entry's `pointsAwarded`/`scoringBreakdown` on the fly (via `calculateScore()`) against that live score instead of the stored (post-match) result. If the match's season has `oddsEnabled`, the same odds multiplier used at final scoring (`calcFinalScore()` in `src/lib/odds.ts`) is applied to the live `correct_winner` points using the current (pre-lock) prediction pool from `getLiveMatchOdds()`, so live points match what the final score would be if the match ended now. Each entry includes `isLive: boolean` indicating whether its points reflect this live computation.
 
-### GET /api/matches/[matchId]/h2h
-Head-to-head record between the two teams from historical match data.
+### GET /api/matches/[matchId]/form
+Each team's own last 5 finished games (independent of the opponent), returned side by side for a compact form comparison. Response: `{ home: TeamFormMatch[], away: TeamFormMatch[] }`, or `{ home: null, away: null }` for a custom match with no `externalId`. Each `TeamFormMatch` is from the tracked team's own perspective: `{ date, opponentName, opponentLogo, isHome, teamScore, opponentScore, penaltyTeamScore, penaltyOpponentScore, result: 'W'|'D'|'L'|null, competition, status }`.
 
 ### GET /api/matches/[matchId]/live
 Live status/score for a locked match, polled client-side (every 60s while the match is in progress). Calls `fetchFixtureById()` from the football service layer (never the provider's raw API directly) and returns `{ status: 'scheduled'|'live'|'finished'|'postponed'|'cancelled', homeScore, awayScore, events }`, normalized via `mapFixtureStatus()`. `fetchFixtureById()` caches each fixture lookup for 30s (`src/lib/football/service.ts`) so concurrent viewers of the same live match collapse into one upstream request — free-tier providers cap requests at ~10/min, shared across the whole app. Returns 400 if the match has no `externalId` (custom match), 502 if the upstream fetch fails.
@@ -375,8 +375,8 @@ Other users' predictions for a match.
 
 **Query params**: `groupId` (number, required), `liveHomeScore` / `liveAwayScore` (number, optional) — same live-points behavior as the web endpoint above.
 
-### GET /api/mobile/matches/[matchId]/h2h
-Head-to-head record between the two teams.
+### GET /api/mobile/matches/[matchId]/form
+Same recent-form comparison as the web endpoint above. Response: `{ home: TeamFormMatch[], away: TeamFormMatch[] }` (empty arrays for a custom match with no `externalId`).
 
 ### GET /api/mobile/matches/[matchId]/live
 Same behavior as the web `/api/matches/[matchId]/live` endpoint above.

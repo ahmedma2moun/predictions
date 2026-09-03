@@ -61,9 +61,9 @@
 | `fetchFixtures({league, season, from, to})` | `GET /competitions/{league}/matches?season={year}&dateFrom={from}&dateTo={to}` |
 | `fetchFixtureById(id)` | `GET /matches/{id}` |
 | `fetchStandings(leagueId)` | `GET /competitions/{leagueId}/standings` |
-| `fetchHeadToHead(matchId, limit)` | `GET /matches/{matchId}/head2head?limit={limit}` |
+| `fetchTeamForm(teamId, limit)` | `GET /teams/{teamId}/matches?status=FINISHED&limit=20` (over-fetched and sorted client-side, then sliced to `limit`) |
 
-**H2H:** Native match-ID-based endpoint — no extra lookup required.
+**Recent form:** No native "most recent N" ordering guarantee on this endpoint, so results are sorted by date descending client-side before slicing.
 
 ---
 

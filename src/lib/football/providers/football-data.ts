@@ -210,10 +210,17 @@ export class FootballDataProvider implements IFootballProvider {
     };
   }
 
-  async fetchHeadToHead(matchId: number, limit = 5): Promise<APIFixture[]> {
-    const data = await this.get<{ matches: FDMatch[] }>(
-      `/matches/${matchId}/head2head`,
-    );
-    return (data.matches ?? []).slice(0, limit).map(mapFDMatch);
+  async fetchTeamForm(teamId: number, limit = 5): Promise<APIFixture[]> {
+    // No native "most recent N" ordering guarantee on this endpoint — over-fetch
+    // finished matches and sort client-side to get the true most recent ones.
+    const data = await this.get<{ matches: FDMatch[] }>(`/teams/${teamId}/matches`, {
+      status: 'FINISHED',
+      limit: 20,
+    });
+    return (data.matches ?? [])
+      .slice()
+      .sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime())
+      .slice(0, limit)
+      .map(mapFDMatch);
   }
 }

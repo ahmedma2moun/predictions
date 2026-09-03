@@ -55,7 +55,7 @@ Sportmonks v3 uses a flexible `include=` parameter to embed related resources in
 | `fetchFixtures({league, season, from, to})` | `GET /football/fixtures/between/{from}/{to}?filters=fixturesByLeagueIds:{league}&include=participants;scores;state;league;round` |
 | `fetchFixtureById(id)` | `GET /football/fixtures/{id}?include=participants;scores;state;league;round` |
 | `fetchStandings(leagueId)` | Resolve season ID → `GET /football/standings/seasons/{seasonId}?include=participant` |
-| `fetchHeadToHead(matchId, limit)` | Resolve team IDs from fixture → `GET /football/fixtures/head-to-head/{teamA}/{teamB}?include=participants;scores;state` |
+| `fetchTeamForm(teamId, limit)` | `GET /football/teams/{teamId}?include=latest` (the `latest` include returns the team's most recent finished fixtures, most recent first) |
 
 ### Season ID resolution
 
@@ -67,9 +67,9 @@ GET /football/seasons?filters=seasonsByLeagueId:{leagueId}
 
 This adds one extra call per league per cold start, after which it is cached in memory for the lifetime of the serverless instance.
 
-### H2H
+### Recent form
 
-Requires two API calls: first resolves team IDs from `fetchFixtureById`, then calls the team-pair H2H endpoint. The 2-call cost is identical to API-Football's approach.
+Single call per team via the `latest` include — no separate team-ID resolution needed. The match page calls this once per side (home + away), so 2 calls per match total.
 
 ---
 
@@ -403,20 +403,17 @@ export class SportmonksProvider implements IFootballProvider {
     };
   }
 
-  async fetchHeadToHead(matchId: number, limit = 5): Promise<APIFixture[]> {
-    // Sportmonks H2H is by team pair — resolve team IDs from the fixture first (1 extra request)
-    const fixture = await this.fetchFixtureById(matchId);
-    if (!fixture) return [];
-    const { home, away } = fixture.teams;
-
-    const data = await this.get<SMPaged<SMFixture[]>>(
-      `/fixtures/head-to-head/${home.id}/${away.id}`,
-      {
-        include: 'participants;scores;state',
-        per_page: String(limit),
-      },
+  async fetchTeamForm(teamId: number, limit = 5): Promise<APIFixture[]> {
+    // The `latest` include on a team resolves its most recent finished fixtures directly —
+    // each fixture carries its own embedded league, so no separate league/season lookup is needed.
+    const data = await this.get<{ data: SMTeam & { latest?: SMFixture[] } }>(
+      `/teams/${teamId}`,
+      { include: 'latest.participants;latest.scores;latest.state;latest.league' },
     );
-    return data.data.map(f => mapSMFixture(f, fixture.league.id, fixture.league.season));
+    const recent = data.data.latest ?? [];
+    return recent
+      .slice(0, limit)
+      .map(f => mapSMFixture(f, f.league?.id ?? 0, new Date(f.starting_at).getFullYear()));
   }
 }
 ```

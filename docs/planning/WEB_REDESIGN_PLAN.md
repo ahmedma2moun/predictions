@@ -166,10 +166,9 @@ scores, points, rankings, percentages, countdowns, dates in tables.
 - "Your call: **Arsenal wins**" summary line below steppers
 - Save button: `h-12 w-full rounded-md bg-primary text-primary-foreground shadow-[0_0_20px_theme(colors.primary/25%)]`
 
-### H2H card
-- 3-number row (home wins / draws / away wins) in `font-mono-nums text-2xl font-bold`
-- 6px stacked bar: `flex h-[6px] rounded-full overflow-hidden` — primary / muted/55 / `#5B8FC9`
-- Past meetings: hairline `divide-y divide-border` between rows, score column mono
+### Recent Form card *(supersedes the original H2H card — see `docs/planning/FEATURE_PLAN.md` F7)*
+- Two-column grid, one per team, for a compact side-by-side comparison instead of a single vertical head-to-head list
+- Each column: team name, a row of 5 small W/D/L badges (`bg-emerald-500/15 text-emerald-500` / `bg-muted text-muted-foreground` / `bg-red-500/15 text-red-500`), then compact opponent/score rows below
 
 ### Group comparison card
 - Member rows: 28px avatar initials + name + optional `· YOU` tag + mono score or italic "No pick"

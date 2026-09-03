@@ -15,14 +15,14 @@ import { apiRequest, ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Button, Card, Muted, Pill, SectionTitle } from '@/components/ui';
 import { GroupComparisonCard } from '@/components/GroupComparisonCard';
-import { H2HRow } from '@/components/H2HRow';
+import { TeamFormColumn } from '@/components/TeamFormColumn';
 import { MatchEventRow, mergeMatchEvents } from '@/components/MatchEventRow';
 import { StandingsRow } from '@/components/StandingsRow';
 import { TeamColumn } from '@/components/TeamColumn';
 import { useRemoteData } from '@/hooks/useRemoteData';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
-import type { H2HMatch, MatchDetail, MatchEvent } from '@/types/api';
+import type { MatchDetail, MatchEvent, TeamFormMatch } from '@/types/api';
 import { formatKickoff, formatMatchStatus, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
 
 export default function MatchPredictionScreen() {
@@ -41,18 +41,19 @@ export default function MatchPredictionScreen() {
 
   const loadMatch = useCallback(
     async (signal: AbortSignal) => {
-      const [data, h2hData] = await Promise.all([
+      const [data, formData] = await Promise.all([
         apiRequest<MatchDetail>(`/api/mobile/matches/${matchId}`, { token: token!, signal }),
-        apiRequest<H2HMatch[]>(`/api/mobile/matches/${matchId}/h2h`, { token: token!, signal }).catch(() => null),
+        apiRequest<{ home: TeamFormMatch[]; away: TeamFormMatch[] }>(`/api/mobile/matches/${matchId}/form`, { token: token!, signal }).catch(() => null),
       ]);
-      return { match: data, h2h: h2hData };
+      return { match: data, form: formData };
     },
     [token, matchId],
   );
   const { data, loading, error } = useRemoteData(loadMatch, [token, matchId], { enabled: !!token && !!matchId });
   const match = data?.match ?? null;
-  const h2h = data?.h2h ?? null;
-  const h2hLoading = loading;
+  const formHome = data?.form?.home ?? null;
+  const formAway = data?.form?.away ?? null;
+  const formLoading = loading;
 
   useEffect(() => {
     if (error) Alert.alert('Failed to load match', error);
@@ -331,71 +332,23 @@ export default function MatchPredictionScreen() {
           </Card>
         )}
 
-        {/* H2H */}
-        {h2hLoading && (
+        {/* Recent form */}
+        {formLoading && (
           <Card>
-            <SectionTitle style={{ marginBottom: spacing.sm }}>Head to Head</SectionTitle>
+            <SectionTitle style={{ marginBottom: spacing.sm }}>Recent Form</SectionTitle>
             <ActivityIndicator color={colors.primary} />
           </Card>
         )}
 
-        {!h2hLoading && h2h && h2h.length > 0 && (() => {
-          const summary = computeH2HSummary(h2h, match.homeTeam.name);
-          const total = summary ? summary.homeWins + summary.draws + summary.awayWins : 0;
-          return (
-            <Card style={{ gap: spacing.md }}>
-              <SectionTitle>Head to Head</SectionTitle>
-              {summary && (
-                <>
-                  <View style={styles.h2hSummary}>
-                    <View style={styles.h2hSummaryCol}>
-                      <Text style={[styles.h2hSummaryNum, { color: colors.foreground, fontFamily: 'JetBrainsMonoBold' }]}>
-                        {summary.homeWins}
-                      </Text>
-                      <Muted style={styles.h2hSummaryLabel} numberOfLines={1}>{match.homeTeam.name}</Muted>
-                    </View>
-                    <View style={styles.h2hSummaryCol}>
-                      <Text style={[styles.h2hSummaryNum, { color: colors.mutedForeground, fontFamily: 'JetBrainsMonoBold' }]}>
-                        {summary.draws}
-                      </Text>
-                      <Muted style={styles.h2hSummaryLabel}>Draw</Muted>
-                    </View>
-                    <View style={styles.h2hSummaryCol}>
-                      <Text style={[styles.h2hSummaryNum, { color: colors.foreground, fontFamily: 'JetBrainsMonoBold' }]}>
-                        {summary.awayWins}
-                      </Text>
-                      <Muted style={styles.h2hSummaryLabel} numberOfLines={1}>{match.awayTeam.name}</Muted>
-                    </View>
-                  </View>
-                  {/* Stacked bar */}
-                  {total > 0 && (
-                    <View style={[styles.h2hBar, { backgroundColor: colors.cardElevated }]}>
-                      {summary.homeWins > 0 && (
-                        <View style={[styles.h2hBarFill, { flex: summary.homeWins, backgroundColor: colors.primary }]} />
-                      )}
-                      {summary.draws > 0 && (
-                        <View style={[styles.h2hBarFill, { flex: summary.draws, backgroundColor: colors.mutedForeground + '55' }]} />
-                      )}
-                      {summary.awayWins > 0 && (
-                        <View style={[styles.h2hBarFill, { flex: summary.awayWins, backgroundColor: '#5B8FC9' }]} />
-                      )}
-                    </View>
-                  )}
-                </>
-              )}
-              <View style={{ gap: 0 }}>
-                {h2h.map((m, i) => (
-                  <View
-                    key={`${m.date}:${m.homeTeamName}:${m.awayTeamName}`}
-                    style={i > 0 ? [styles.h2hDivider, { borderTopColor: colors.border }] : undefined}
-                  >
-                    <H2HRow m={m} />
-                  </View>
-                ))}
-              </View>
-            </Card>
-          );
-        })()}
+        {!formLoading && ((formHome && formHome.length > 0) || (formAway && formAway.length > 0)) && (
+          <Card style={{ gap: spacing.md }}>
+            <SectionTitle>Recent Form</SectionTitle>
+            <View style={styles.formRow}>
+              <TeamFormColumn teamName={match.homeTeam.name} matches={formHome ?? []} />
+              <TeamFormColumn teamName={match.awayTeam.name} matches={formAway ?? []} />
+            </View>
+          </Card>
+        )}
 
         {/* League standings */}
         {!knockout && (match.homeStanding || match.awayStanding) && (
@@ -419,36 +372,6 @@ export default function MatchPredictionScreen() {
       </ScrollView>
     </View>
   );
-}
-
-function teamsMatch(h2hName: string, upcomingName: string): boolean {
-  const a = h2hName.toLowerCase().trim();
-  const b = upcomingName.toLowerCase().trim();
-  return a === b || a.includes(b) || b.includes(a);
-}
-
-function computeH2HSummary(h2h: import('@/types/api').H2HMatch[], homeTeamName: string) {
-  const done = h2h.filter(m => m.homeScore !== null && m.awayScore !== null);
-  if (done.length === 0) return null;
-  let homeWins = 0, draws = 0, awayWins = 0, totalGoals = 0;
-  for (const m of done) {
-    const hs = m.homeScore!, as = m.awayScore!;
-    totalGoals += hs + as;
-    const leftIsHome = teamsMatch(m.homeTeamName, homeTeamName);
-    if (hs > as) {
-      if (leftIsHome) homeWins++; else awayWins++;
-    } else if (as > hs) {
-      if (leftIsHome) awayWins++; else homeWins++;
-    } else {
-      draws++;
-    }
-  }
-  const last = done[0];
-  return {
-    homeWins, draws, awayWins,
-    avgGoals: Math.round((totalGoals / done.length) * 10) / 10,
-    last: { homeScore: last.homeScore!, awayScore: last.awayScore! },
-  };
 }
 
 function makeStyles(c: Palette) {
@@ -546,17 +469,6 @@ function makeStyles(c: Palette) {
       fontWeight: font.weight.bold,
       fontVariant: ['tabular-nums'],
     },
-    h2hSummary: { flexDirection: 'row' },
-    h2hSummaryCol: { flex: 1, alignItems: 'center', gap: 2 },
-    h2hSummaryNum: { fontSize: font.size.xl, fontWeight: font.weight.bold },
-    h2hSummaryLabel: { fontSize: font.size.xs, textAlign: 'center' },
-    h2hBar: {
-      flexDirection: 'row',
-      height: 6,
-      borderRadius: 3,
-      overflow: 'hidden',
-    },
-    h2hBarFill: { height: 6 },
-    h2hDivider: { borderTopWidth: StyleSheet.hairlineWidth },
+    formRow: { flexDirection: 'row', gap: spacing.md },
   });
 }

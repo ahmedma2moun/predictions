@@ -70,16 +70,16 @@ export interface MatchDetail extends MatchListItem {
   }> | null;
 }
 
-export interface H2HMatch {
+export interface TeamFormMatch {
   date: string;
-  homeTeamName: string;
-  homeTeamLogo: string | null;
-  awayTeamName: string;
-  awayTeamLogo: string | null;
-  homeScore: number | null;
-  awayScore: number | null;
-  penaltyHomeScore: number | null;
-  penaltyAwayScore: number | null;
+  opponentName: string;
+  opponentLogo: string | null;
+  isHome: boolean;
+  teamScore: number | null;
+  opponentScore: number | null;
+  penaltyTeamScore: number | null;
+  penaltyOpponentScore: number | null;
+  result: 'W' | 'D' | 'L' | null;
   competition: string;
   status: string;
 }

@@ -43,7 +43,7 @@ export class MockFootballProvider implements IFootballProvider {
     return { season: 0, standings: [] };
   }
 
-  async fetchHeadToHead(): Promise<APIFixture[]> {
+  async fetchTeamForm(): Promise<APIFixture[]> {
     return [];
   }
 }

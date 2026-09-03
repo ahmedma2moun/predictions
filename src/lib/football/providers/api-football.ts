@@ -199,12 +199,8 @@ export class ApiFootballProvider implements IFootballProvider {
     };
   }
 
-  async fetchHeadToHead(matchId: number, limit = 5): Promise<APIFixture[]> {
-    // Resolve team IDs from the fixture first (costs 1 extra request)
-    const fixture = await this.fetchFixtureById(matchId);
-    if (!fixture) return [];
-    const h2h = `${fixture.teams.home.id}-${fixture.teams.away.id}`;
-    const data = await this.get<AFFixture[]>('/fixtures/headtohead', { h2h, last: limit });
+  async fetchTeamForm(teamId: number, limit = 5): Promise<APIFixture[]> {
+    const data = await this.get<AFFixture[]>('/fixtures', { team: teamId, last: limit });
     return data.response.map(mapAFFixture);
   }
 }
