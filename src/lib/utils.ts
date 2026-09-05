@@ -1,37 +1,45 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { format, parseISO, startOfDay } from 'date-fns';
+
+const CAIRO_TIME_ZONE = 'Africa/Cairo';
+
+function cairoParts(date: string | Date, options: Intl.DateTimeFormatOptions): Record<string, string> {
+  const value = typeof date === 'string' ? new Date(date) : date;
+  return Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', { timeZone: CAIRO_TIME_ZONE, ...options })
+      .formatToParts(value)
+      .filter(part => part.type !== 'literal')
+      .map(part => [part.type, part.value]),
+  );
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
 export function formatKickoff(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date;
-  // Add 2 hours for CLT (UTC+2)
-  const clt = new Date(d.getTime() + 2 * 60 * 60 * 1000);
-  return format(clt, 'EEE dd MMM, HH:mm');
+  const parts = cairoParts(date, {
+    weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  });
+  return `${parts.weekday} ${parts.day} ${parts.month}, ${parts.hour}:${parts.minute}`;
 }
 
-/** CLT (UTC+2) calendar-day key, e.g. "2026-08-24" — used to group matches by day. */
+/** Cairo calendar-day key, e.g. "2026-08-24" — used to group matches by day. */
 export function getMatchDayKey(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date;
-  const clt = new Date(d.getTime() + 2 * 60 * 60 * 1000);
-  return format(clt, 'yyyy-MM-dd');
+  const parts = cairoParts(date, { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-/** Human-readable day-group header in CLT (UTC+2): "Today", "Tomorrow", or "EEEE, dd MMMM". */
+/** Human-readable day-group header in Cairo time: "Today", "Tomorrow", or "EEEE, dd MMMM". */
 export function formatMatchDayHeader(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date;
-  const clt = new Date(d.getTime() + 2 * 60 * 60 * 1000);
-  const nowClt = new Date(Date.now() + 2 * 60 * 60 * 1000);
   const dayDiff = Math.round(
-    (startOfDay(clt).getTime() - startOfDay(nowClt).getTime()) / 86_400_000
+    (Date.parse(getMatchDayKey(date)) - Date.parse(getMatchDayKey(new Date()))) / 86_400_000,
   );
   if (dayDiff === 0) return 'Today';
   if (dayDiff === 1) return 'Tomorrow';
   if (dayDiff === -1) return 'Yesterday';
-  return format(clt, 'EEEE, dd MMMM');
+  const parts = cairoParts(date, { weekday: 'long', day: '2-digit', month: 'long' });
+  return `${parts.weekday}, ${parts.day} ${parts.month}`;
 }
 
 export function isMatchLocked(kickoffTime: string | Date): boolean {
