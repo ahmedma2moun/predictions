@@ -270,9 +270,17 @@ fetch-matches cron runs
 **fetch-matches** (QStash schedule, Thursday 8 PM Cairo local):
 1. Load all active leagues
 2. For each: call football-data.org `/competitions/{id}/matches?dateFrom=…&dateTo=…`
-3. Check `externalId` existence, then `createMany()` — never overwrites existing
-4. Send "new matches" email to each user with `notificationEmail` set
-5. Returns `{ inserted, skipped, errors }`
+3. Filter fixtures to those that are eligible — a fixture is kept when either:
+   - one of its teams is an **active** (prediction) team in the league, or
+   - at least **one user has selected both of its teams** on the Reminders page
+     (`getReminderPairsByLeagueMap()` in `src/lib/services/reminder-service.ts`).
+     Admin-enabling a team for reminders (`TeamLeague.reminderEnabled`) only makes it
+     selectable — it does not by itself cause its fixtures to be ingested, so enabling
+     a whole league does not flood the DB with every fixture.
+   Reminder-only fixtures are inserted with `predictionsEnabled = false`.
+4. Check `externalId` existence, then `createMany()` — never overwrites existing
+5. Send "new matches" email to each user with `notificationEmail` set (prediction matches only)
+6. Returns `{ inserted, skipped, errors }`
 
 **fetch-results** (unscheduled — no QStash schedule or cron trigger; kept only as a manually-invoked safety net):
 1. Queries any match with `kickoffTime < now` and `status NOT IN (finished, cancelled)`
@@ -348,7 +356,7 @@ Key files: `src/lib/live-goal-config.ts` (tunable constants), `src/lib/qstash.ts
 
 ## Match Kickoff Reminders
 
-Same self-chaining-schedule idea as Live Goal Notifications, but a single one-shot QStash message instead of a chain — every user gets reminded about every upcoming match 60 minutes before kickoff, regardless of whether they've predicted it (this is deliberately unfiltered, unlike `prediction-reminder`/`daily-reminder`, which only nudge users with missing predictions):
+Same self-chaining-schedule idea as Live Goal Notifications, but one-shot QStash messages instead of a chain — two reminders per fixture (60 minutes before kickoff, and at kickoff). Recipients are resolved at delivery time from each user's reminder team selections (`UserReminderTeam`): a user is reminded about a match only when they selected **both** of its teams on the Reminders page (`getReminderRecipientIds()` in `src/lib/services/reminder-service.ts`). Prediction status is ignored, unlike `prediction-reminder`/`daily-reminder`, which only nudge users with missing predictions:
 
 ```
 fetchAndInsertMatches() inserts new fixtures
@@ -365,11 +373,13 @@ fetchAndInsertMatches() inserts new fixtures
               sendMatchKickoffReminder(externalId)
     │
     ├─ match missing or status no longer 'scheduled' (postponed/cancelled) → no-op
-    └─ otherwise: email every user with a notificationEmail set, and push
-       every user with a registered device token — prediction status ignored
+    ├─ getReminderRecipientIds(match) → users who selected BOTH of this
+    │  match's teams; none → no-op ('no_subscribers')
+    └─ otherwise: email those recipients with a notificationEmail set, and
+       push those recipients' registered devices — prediction status ignored
 ```
 
-No re-arming — this fires exactly once per match. A `flowControl` key (`match-reminders`, parallelism 3) keeps several fixtures sharing the same kickoff slot from all firing their full email/push broadcast in the same instant.
+No re-arming — each of the two messages fires exactly once per match. A `flowControl` key (`match-reminders`, parallelism 3) keeps several fixtures sharing the same kickoff slot from all firing their full email/push broadcast in the same instant.
 
 Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `src/app/api/webhooks/qstash/match-reminder/route.ts`, `sendKickoffReminderEmail()` in `src/lib/email.ts`. Mobile push type `match_reminder` (like `goal`) routes straight to that match's detail screen via `data.matchId`, falling back to the Matches tab if `matchId` is missing (`mobile/src/notifications/route-for-notification.ts`).
 
