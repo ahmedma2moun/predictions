@@ -55,9 +55,12 @@ export async function PATCH(req: NextRequest) {
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { externalId, name, logo, leagueId, externalLeagueId, isActive, reminderEnabled } = await req.json();
+  const league = await LeagueService.getById({ where: { id: Number(leagueId) } });
+  if (!league) return NextResponse.json({ error: 'League not found' }, { status: 404 });
+  const resolvedExternalLeagueId = typeof externalLeagueId === 'number' ? externalLeagueId : league.externalId;
 
   if (typeof reminderEnabled === 'boolean') {
-    const { team, teamLeague } = await TeamService.setReminderEnabled({ externalId, name, logo, leagueId: Number(leagueId), externalLeagueId, enabled: reminderEnabled });
+    const { team, teamLeague } = await TeamService.setReminderEnabled({ externalId, name, logo, leagueId: Number(leagueId), externalLeagueId: resolvedExternalLeagueId, enabled: reminderEnabled });
     return NextResponse.json({ ...team, _id: team.id.toString(), leagueId: teamLeague.leagueId.toString(), externalLeagueId: teamLeague.externalLeagueId, isActive: teamLeague.isActive, reminderEnabled: teamLeague.reminderEnabled });
   }
 
@@ -67,7 +70,7 @@ export async function PATCH(req: NextRequest) {
       name,
       logo,
       leagueId: Number(leagueId),
-      externalLeagueId,
+      externalLeagueId: resolvedExternalLeagueId,
     });
     return NextResponse.json({
       ...team,
