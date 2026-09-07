@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { UserService } from '@/lib/services/user-service';
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';

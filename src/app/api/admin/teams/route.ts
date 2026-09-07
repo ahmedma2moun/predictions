@@ -2,7 +2,7 @@ import { TeamService } from '@/lib/services/team-service';
 import { LeagueService } from '@/lib/services/league-service';
 import { TeamLeagueRepository } from '@/lib/repositories/team-league-repository';
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { fetchTeams, type APITeam } from '@/lib/football/service';
 
 export async function GET(req: NextRequest) {

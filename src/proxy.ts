@@ -18,5 +18,6 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ['/((?!api/auth|api/cron|api/webhooks|api/mobile|_next/static|_next/image|favicon.ico).*)'],
+  // Admin API handlers enforce both web-session and native-token authorization.
+  matcher: ['/((?!api/admin|api/auth|api/cron|api/webhooks|api/mobile|_next/static|_next/image|favicon.ico).*)'],
 };

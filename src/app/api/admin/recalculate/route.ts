@@ -1,6 +1,6 @@
 import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
 import { NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { recalculateAllScores } from '@/lib/services/prediction-service';
 import { SeasonService } from '@/lib/services/season-service';
 import { ChampionBonusService } from '@/lib/services/champion-bonus-service';

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { sendNewMatchesEmail, sendResultsEmail } from '@/lib/email';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { withErrorHandling } from '@/lib/api-handler';

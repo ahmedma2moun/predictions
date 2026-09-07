@@ -1,6 +1,6 @@
 import { ScoringRuleService } from '@/lib/services/scoring-rule-service';
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 
 export async function GET() {
   const session = await auth();

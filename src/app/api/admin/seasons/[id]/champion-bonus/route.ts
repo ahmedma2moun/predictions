@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { ChampionBonusService } from '@/lib/services/champion-bonus-service';
 import { safeParseBody } from '@/lib/request';
 

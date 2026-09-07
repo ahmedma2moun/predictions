@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { awardAllTimeGroupChampions } from '@/lib/services/streak-badge-service';
 
 export async function POST() {

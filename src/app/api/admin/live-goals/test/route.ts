@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { triggerLiveGoalTestTick } from '@/lib/live-goal-service';
 import { safeParseBody } from '@/lib/request';

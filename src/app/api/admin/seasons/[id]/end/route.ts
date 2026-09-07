@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { SeasonService } from '@/lib/services/season-service';
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

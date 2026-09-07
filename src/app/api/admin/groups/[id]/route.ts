@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { GroupService } from '@/lib/services/group-service';
 import { withErrorHandling } from '@/lib/api-handler';
 import { requireOneOf } from '@/lib/validation';

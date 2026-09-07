@@ -1,0 +1,60 @@
+name: FootballPredictionAdmin
+options:
+  bundleIdPrefix: com.maamoun
+  deploymentTarget:
+    iOS: '17.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    MARKETING_VERSION: '1.0.0'
+    CURRENT_PROJECT_VERSION: 1
+targets:
+  FootballPredictionAdmin:
+    type: application
+    platform: iOS
+    sources: [Sources, Resources]
+    info:
+      path: Resources/Info.plist
+      properties:
+        AdminAPIBaseURL: $(ADMIN_API_BASE_URL)
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.maamoun.footballpredictionadmin
+        TARGETED_DEVICE_FAMILY: '1,2'
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Football Prediction Admin
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        ADMIN_API_BASE_URL: https://predictions-virid.vercel.app
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+  FootballPredictionAdminTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: FootballPredictionAdmin
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+  FootballPredictionAdminUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: FootballPredictionAdmin
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  FootballPredictionAdmin:
+    build:
+      targets:
+        FootballPredictionAdmin: all
+    test:
+      targets:
+        - FootballPredictionAdminTests
+        - FootballPredictionAdminUITests

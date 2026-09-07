@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, isSessionAdmin } from '@/lib/auth';
+import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { scheduleTestNotification, TEST_NOTIFICATION_DELAY_SECONDS } from '@/lib/qstash-test-notification';
 import { safeParseBody } from '@/lib/request';
 import { withErrorHandling } from '@/lib/api-handler';
