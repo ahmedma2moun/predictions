@@ -138,6 +138,7 @@ function ThemedShell() {
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="slip" options={{ title: "Matchday slip" }} />
             <Stack.Screen
               name="matches/[matchId]"
               options={{ headerShown: false }}

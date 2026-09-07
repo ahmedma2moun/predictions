@@ -100,7 +100,7 @@ export async function sendNewMatchesEmail(to: string | null | undefined, matches
       <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
         ${leagueBlocks}
         <div style="margin-top:16px;text-align:center;">
-          <a href="${process.env.NEXTAUTH_URL}/matches" style="display:inline-block;background:#22c55e;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Go to Matches &rarr;</a>
+          <a href="${process.env.NEXTAUTH_URL}/slip" style="display:inline-block;background:#22c55e;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Fill Your Matchday Slip &rarr;</a>
         </div>
       </div>
     </div>`;
@@ -291,7 +291,7 @@ export async function sendPredictionReminderEmail(
       <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
         ${buildReminderLeagueBlocks(matches)}
         <div style="margin-top:16px;text-align:center;">
-          <a href="${process.env.NEXTAUTH_URL}/matches" style="display:inline-block;background:#f59e0b;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Submit Predictions &rarr;</a>
+          <a href="${process.env.NEXTAUTH_URL}/slip" style="display:inline-block;background:#f59e0b;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Submit Predictions &rarr;</a>
         </div>
       </div>
     </div>`;
@@ -322,7 +322,7 @@ export async function sendDailyReminderEmail(
           Predictions lock at kickoff — submit before the whistle!
         </div>
         <div style="text-align:center;">
-          <a href="${process.env.NEXTAUTH_URL}/matches" style="display:inline-block;background:#ef4444;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Predict Now &rarr;</a>
+          <a href="${process.env.NEXTAUTH_URL}/slip" style="display:inline-block;background:#ef4444;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Predict Now &rarr;</a>
         </div>
       </div>
     </div>`;
@@ -354,7 +354,7 @@ export async function sendKickoffReminderEmail(to: string | null | undefined, ma
           Predictions lock at kickoff — last chance to submit or double-check yours!
         </div>
         <div style="text-align:center;">
-          <a href="${process.env.NEXTAUTH_URL}/matches" style="display:inline-block;background:#3b82f6;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">View Match &rarr;</a>
+          <a href="${process.env.NEXTAUTH_URL}/slip" style="display:inline-block;background:#3b82f6;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;font-size:14px;">Fill Your Matchday Slip &rarr;</a>
         </div>
       </div>
     </div>`;

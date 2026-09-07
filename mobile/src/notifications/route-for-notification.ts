@@ -25,14 +25,16 @@ export function routeForNotification(data: unknown): Href {
     case 'result_correction':
       return ROUTES.predictions; // "My Score" tab
     case 'season_end':
-      return ROUTES.seasons;
+      return ROUTES.club;
     case 'goal':
     case 'match_started':
+          return matchId ? ROUTES.matchDetail(matchId) : ROUTES.matches;
     case 'match_reminder':
-      return matchId ? ROUTES.matchDetail(matchId) : ROUTES.matches;
+      return ROUTES.slip;
     case 'new_matches':
     case 'prediction_reminder':
     case 'daily_reminder':
+      return ROUTES.slip;
     default:
       return ROUTES.matches;
   }

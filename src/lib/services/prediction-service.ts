@@ -1,5 +1,6 @@
 
-import { getWinner, isMatchLocked } from '@/lib/utils';
+import { prisma } from '@/lib/prisma';
+import { getWinner } from '@/lib/utils';
 import { Prisma, Match, MatchOdds, Prediction } from '@prisma/client';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
@@ -39,21 +40,27 @@ export async function upsertPrediction(
   homeScore: number,
   awayScore: number,
 ): Promise<UpsertPredictionResult | UpsertPredictionError> {
-  const match = await MatchRepository.findUnique({
-    where: { id: matchId },
-    select: { id: true, kickoffTime: true },
+  if (!Number.isInteger(matchId) || matchId < 1 || !Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0 || homeScore > 99 || awayScore > 99) {
+    return { error: 'Scores must be whole numbers from 0 to 99', status: 400 };
+  }
+  return prisma.$transaction(async tx => {
+    // Hold a shared match-row lock so rescheduling/result writes cannot cross
+    // the validation and save boundary. Read database time after acquiring it.
+    const matches = await tx.$queryRaw<Array<{ id: number; kickoffTime: Date; status: string }>>`
+      SELECT id, "kickoffTime", status::text FROM "Match" WHERE id = ${matchId} FOR SHARE
+    `;
+    const match = matches[0];
+    if (!match) return { error: 'Match not found', status: 404 };
+    const [clock] = await tx.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`;
+    if (match.status !== 'scheduled' || match.kickoffTime <= clock.now) return { error: 'Predictions are locked for this match', status: 409 };
+    const predictedWinner = getWinner(homeScore, awayScore);
+    const prediction = await tx.prediction.upsert({
+      where: { userId_matchId: { userId, matchId } },
+      create: { userId, matchId, homeScore, awayScore, predictedWinner },
+      update: { homeScore, awayScore, predictedWinner },
+    });
+    return { prediction };
   });
-  if (!match) return { error: 'Match not found', status: 404 };
-  if (isMatchLocked(match.kickoffTime)) return { error: 'Match has already started', status: 400 };
-
-  const predictedWinner = getWinner(homeScore, awayScore);
-  const prediction = await PredictionRepository.upsert({
-    where: { userId_matchId: { userId, matchId: match.id } },
-    create: { userId, matchId: match.id, homeScore, awayScore, predictedWinner },
-    update: { homeScore, awayScore, predictedWinner },
-  });
-
-  return { prediction };
 }
 
 export interface UserPredictionHistoryFilters {

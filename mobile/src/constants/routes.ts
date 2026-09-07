@@ -6,6 +6,8 @@ export const ROUTES = {
   predictions: '/(tabs)/predictions' satisfies Href,
   leaderboard: '/(tabs)/leaderboard' satisfies Href,
   champion:    '/(tabs)/champion' satisfies Href,
+  club: '/(tabs)/club' satisfies Href,
+  slip: '/slip' satisfies Href,
   seasons:     '/(tabs)/seasons' satisfies Href,
   matchDetail: (id: string): Href => `/matches/${id}`,
 } as const;

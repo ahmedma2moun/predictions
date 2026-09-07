@@ -4,6 +4,7 @@ import path from 'path';
 export default defineConfig({
   test: {
     environment: 'node',
+    fileParallelism: false, // Integration files reset the same disposable database.
     globalSetup: './tests/helpers/global-setup.ts',
     setupFiles: ['./tests/helpers/setup-env.ts'],
     testTimeout: 20_000,

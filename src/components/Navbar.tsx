@@ -2,15 +2,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Calendar, TrendingUp, Trophy, Settings, LogOut, Star } from "lucide-react";
+import { Calendar, TrendingUp, Trophy, Settings, LogOut, Star, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
-  { href: "/matches", label: "Upcoming Matches", icon: Calendar },
+  { href: "/matches", label: "Matches", icon: Calendar },
   { href: "/predictions", label: "My Score", icon: TrendingUp },
   { href: "/leaderboard", label: "Leaders", icon: Trophy },
+  { href: "/club", label: "Club", icon: Users },
   { href: "/seasons", label: "Seasons", icon: Star },
 ];
 

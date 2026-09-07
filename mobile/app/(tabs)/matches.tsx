@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Card, LiveDot, Muted, Pill } from '@/components/ui';
+import { Button, Card, LiveDot, Muted, Pill } from '@/components/ui';
 import { AppHeader } from '@/components/AppHeader';
 import { ROUTES } from '@/constants/routes';
 import { useMatches } from '@/hooks/useMatches';
@@ -82,6 +82,7 @@ export default function MatchesScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <AppHeader title="Matches" subtitle={subtitle} />
       <SectionList
+        ListHeaderComponent={<Button variant="outline" onPress={() => router.push(ROUTES.slip)}>Fill your matchday slip →</Button>}
         sections={sections}
         keyExtractor={item => item._id}
         stickySectionHeadersEnabled={false}

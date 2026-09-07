@@ -54,6 +54,7 @@ export default async function MatchesPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
       <h1 className="text-2xl font-bold">Upcoming Matches</h1>
+      {!isAdmin && <Link href="/slip" className="block rounded-lg border border-primary/30 bg-primary/10 p-4"><strong>Fill your matchday slip →</strong><p className="text-sm text-muted-foreground">Quick picks for the next seven days, with one save.</p></Link>}
       {matches.length === 0 ? (
         <p className="text-muted-foreground">No upcoming matches available.</p>
       ) : (

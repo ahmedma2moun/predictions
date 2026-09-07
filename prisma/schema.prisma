@@ -66,6 +66,12 @@ model User {
   badges            UserBadge[]
   seasonStandings   SeasonStanding[]
   championBonusPicks ChampionBonusPick[]
+  rivalId           Int?
+  rival             User?         @relation("PlayerRival", fields: [rivalId], references: [id], onDelete: SetNull)
+  followedBy        User[]        @relation("PlayerRival")
+  equippedTitle     String?
+  achievements      PlayerAchievement[]
+  activityReactions ActivityReaction[]
 }
 
 model UserBadge {
@@ -205,6 +211,7 @@ model Group {
   updatedAt DateTime      @updatedAt
   members         GroupMember[]
   seasonStandings SeasonStanding[]
+  activityReactions ActivityReaction[]
 }
 
 model GroupMember {
@@ -265,6 +272,32 @@ model Season {
   matches     Match[]
   standings   SeasonStanding[]
   championBonus ChampionBonus?
+  activityReactions ActivityReaction[]
+}
+
+model PlayerAchievement {
+  userId   Int
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key      String
+  earnedAt DateTime @default(now())
+
+  @@id([userId, key])
+}
+
+model ActivityReaction {
+  id        Int      @id @default(autoincrement())
+  groupId   Int
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  seasonId  Int
+  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  eventKey  String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, seasonId, eventKey, userId])
+  @@index([groupId, seasonId, eventKey])
 }
 
 model MatchOdds {

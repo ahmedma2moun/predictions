@@ -40,7 +40,6 @@ export class PredictionRepository {
         WHERE ${whereClause}
         GROUP BY p."userId"
         ORDER BY "totalPoints" DESC
-        LIMIT 100
       `,
     );
   }
