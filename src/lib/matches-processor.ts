@@ -1,5 +1,5 @@
 import { TeamService } from '@/lib/services/team-service';
-import { getReminderTeamsByLeagueMap } from '@/lib/services/reminder-service';
+import { getReminderPairsByLeagueMap, reminderPairKey } from '@/lib/services/reminder-service';
 import { LeagueService } from '@/lib/services/league-service';
 import { logger } from '@/lib/logger';
 import { UserRepository } from '@/lib/repositories/user-repository';
@@ -85,12 +85,12 @@ export async function fetchAndInsertMatches(params: {
 }): Promise<FetchMatchesSummary> {
   const { from, to, fromDate, leagueId, filterByTeams = false, teamExternalIds, sendNotifications = true, logPrefix } = params;
 
-  const [leagues, activeTeamsByLeague, reminderTeamsByLeague, activeSeason] = await Promise.all([
+  const [leagues, activeTeamsByLeague, reminderPairsByLeague, activeSeason] = await Promise.all([
     leagueId
       ? LeagueService.getById({ where: { id: leagueId } }).then(l => (l ? [l] : []))
       : LeagueService.getAll({ where: { isActive: true } }),
     filterByTeams && !teamExternalIds ? getActiveTeamsByLeague() : Promise.resolve(new Map<number, Set<number>>()),
-    filterByTeams ? getReminderTeamsByLeagueMap() : Promise.resolve(new Map<number, Set<number>>()),
+    filterByTeams ? getReminderPairsByLeagueMap() : Promise.resolve(new Map<number, Set<string>>()),
     SeasonService.getActiveSeason(),
   ]);
   const activeSeasonId = activeSeason?.id ?? null;
@@ -105,17 +105,16 @@ export async function fetchAndInsertMatches(params: {
   for (const league of leagues) {
     try {
       const predictionTeamIds = teamExternalIds ?? activeTeamsByLeague.get(league.externalId) ?? new Set<number>();
-      const reminderTeamIds = teamExternalIds ? new Set<number>() : (reminderTeamsByLeague.get(league.externalId) ?? new Set<number>());
-      const eligibleTeamIds = new Set([...predictionTeamIds, ...reminderTeamIds]);
-      if (filterByTeams && !eligibleTeamIds.size) {
-        logger.info(`[${logPrefix}] ${league.name}: skipped — no active teams`);
-        debug.push({ league: league.name, externalId: league.externalId, skippedReason: 'no active teams' });
+      const reminderPairs = teamExternalIds ? new Set<string>() : (reminderPairsByLeague.get(league.externalId) ?? new Set<string>());
+      if (filterByTeams && !predictionTeamIds.size && !reminderPairs.size) {
+        logger.info(`[${logPrefix}] ${league.name}: skipped — no active teams or reminder selections`);
+        debug.push({ league: league.name, externalId: league.externalId, skippedReason: 'no active teams or reminder selections' });
         continue;
       }
 
       const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
       const fixtures = filterByTeams
-        ? filterByActiveTeams(allFixtures, eligibleTeamIds)
+        ? filterEligibleFixtures(allFixtures, predictionTeamIds, reminderPairs)
         : allFixtures;
 
       debug.push({
@@ -125,7 +124,8 @@ export async function fetchAndInsertMatches(params: {
         from,
         to,
         allFixtures: allFixtures.length,
-        activeTeams: filterByTeams ? eligibleTeamIds.size : 'unfiltered',
+        activeTeams: filterByTeams ? predictionTeamIds.size : 'unfiltered',
+        reminderPairs: filterByTeams ? reminderPairs.size : 'unfiltered',
         filtered: fixtures.length,
       });
 
@@ -385,8 +385,15 @@ async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
   return TeamService.getActiveTeamsByLeagueMap();
 }
 
-function filterByActiveTeams(fixtures: APIFixture[], activeTeamIds: Set<number>) {
+/**
+ * A fixture is kept when it involves an active (prediction) team, or when at
+ * least one user has selected BOTH of its teams for reminders. A reminder team
+ * on only one side of a fixture is never enough — nobody would be reminded.
+ */
+function filterEligibleFixtures(fixtures: APIFixture[], predictionTeamIds: Set<number>, reminderPairs: Set<string>) {
   return fixtures.filter(f =>
-    activeTeamIds.has(f.teams.home.id) || activeTeamIds.has(f.teams.away.id)
+    predictionTeamIds.has(f.teams.home.id) ||
+    predictionTeamIds.has(f.teams.away.id) ||
+    reminderPairs.has(reminderPairKey(f.teams.home.id, f.teams.away.id))
   );
 }
