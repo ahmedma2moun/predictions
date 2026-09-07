@@ -46,13 +46,13 @@ export async function upsertPrediction(
   return prisma.$transaction(async tx => {
     // Hold a shared match-row lock so rescheduling/result writes cannot cross
     // the validation and save boundary. Read database time after acquiring it.
-    const matches = await tx.$queryRaw<Array<{ id: number; kickoffTime: Date; status: string }>>`
-      SELECT id, "kickoffTime", status::text FROM "Match" WHERE id = ${matchId} FOR SHARE
+    const matches = await tx.$queryRaw<Array<{ id: number; kickoffTime: Date; status: string; predictionsEnabled: boolean }>>`
+      SELECT id, "kickoffTime", status::text, "predictionsEnabled" FROM "Match" WHERE id = ${matchId} FOR SHARE
     `;
     const match = matches[0];
     if (!match) return { error: 'Match not found', status: 404 };
     const [clock] = await tx.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`;
-    if (match.status !== 'scheduled' || match.kickoffTime <= clock.now) return { error: 'Predictions are locked for this match', status: 409 };
+    if (!match.predictionsEnabled || match.status !== 'scheduled' || match.kickoffTime <= clock.now) return { error: 'Predictions are locked for this match', status: 409 };
     const predictedWinner = getWinner(homeScore, awayScore);
     const prediction = await tx.prediction.upsert({
       where: { userId_matchId: { userId, matchId } },

@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 
 interface MatchReminderBody {
   externalId: number;
+  kind?: 'before' | 'kickoff';
 }
 
 // Same signature-verification auth as /api/webhooks/qstash/live-goals —
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   if (!parsed.externalId) return NextResponse.json({ error: 'externalId is required' }, { status: 400 });
 
-  const result = await sendMatchKickoffReminder(parsed.externalId).catch(e => {
+  const result = await sendMatchKickoffReminder(parsed.externalId, parsed.kind ?? 'before').catch(e => {
     logger.error('[match-reminder] Failed:', { externalId: parsed.externalId, error: e instanceof Error ? e.message : String(e) });
     return null;
   });

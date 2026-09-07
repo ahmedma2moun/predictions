@@ -1,4 +1,5 @@
 import { TeamService } from '@/lib/services/team-service';
+import { getReminderTeamsByLeagueMap } from '@/lib/services/reminder-service';
 import { LeagueService } from '@/lib/services/league-service';
 import { logger } from '@/lib/logger';
 import { UserRepository } from '@/lib/repositories/user-repository';
@@ -84,11 +85,12 @@ export async function fetchAndInsertMatches(params: {
 }): Promise<FetchMatchesSummary> {
   const { from, to, fromDate, leagueId, filterByTeams = false, teamExternalIds, sendNotifications = true, logPrefix } = params;
 
-  const [leagues, activeTeamsByLeague, activeSeason] = await Promise.all([
+  const [leagues, activeTeamsByLeague, reminderTeamsByLeague, activeSeason] = await Promise.all([
     leagueId
       ? LeagueService.getById({ where: { id: leagueId } }).then(l => (l ? [l] : []))
       : LeagueService.getAll({ where: { isActive: true } }),
     filterByTeams && !teamExternalIds ? getActiveTeamsByLeague() : Promise.resolve(new Map<number, Set<number>>()),
+    filterByTeams ? getReminderTeamsByLeagueMap() : Promise.resolve(new Map<number, Set<number>>()),
     SeasonService.getActiveSeason(),
   ]);
   const activeSeasonId = activeSeason?.id ?? null;
@@ -102,8 +104,10 @@ export async function fetchAndInsertMatches(params: {
 
   for (const league of leagues) {
     try {
-      const activeTeamIds = teamExternalIds ?? activeTeamsByLeague.get(league.externalId);
-      if (filterByTeams && !activeTeamIds?.size) {
+      const predictionTeamIds = teamExternalIds ?? activeTeamsByLeague.get(league.externalId) ?? new Set<number>();
+      const reminderTeamIds = teamExternalIds ? new Set<number>() : (reminderTeamsByLeague.get(league.externalId) ?? new Set<number>());
+      const eligibleTeamIds = new Set([...predictionTeamIds, ...reminderTeamIds]);
+      if (filterByTeams && !eligibleTeamIds.size) {
         logger.info(`[${logPrefix}] ${league.name}: skipped — no active teams`);
         debug.push({ league: league.name, externalId: league.externalId, skippedReason: 'no active teams' });
         continue;
@@ -111,7 +115,7 @@ export async function fetchAndInsertMatches(params: {
 
       const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
       const fixtures = filterByTeams
-        ? filterByActiveTeams(allFixtures, activeTeamIds!)
+        ? filterByActiveTeams(allFixtures, eligibleTeamIds)
         : allFixtures;
 
       debug.push({
@@ -121,15 +125,19 @@ export async function fetchAndInsertMatches(params: {
         from,
         to,
         allFixtures: allFixtures.length,
-        activeTeams: filterByTeams ? (activeTeamIds?.size ?? 'none') : 'unfiltered',
+        activeTeams: filterByTeams ? eligibleTeamIds.size : 'unfiltered',
         filtered: fixtures.length,
       });
 
       const fixtureIds = fixtures.map((f: APIFixture) => f.fixture.id);
-      const existing = new Set(
-        (await MatchRepository.findMany({ where: { externalId: { in: fixtureIds } }, select: { externalId: true } }))
-          .map(m => m.externalId)
-      );
+      const existingRows = await MatchRepository.findMany({ where: { externalId: { in: fixtureIds } }, select: { id: true, externalId: true, predictionsEnabled: true } });
+      const existing = new Set(existingRows.map(m => m.externalId));
+      const predictionState = new Map(fixtures.map(f => [f.fixture.id, !filterByTeams || predictionTeamIds.has(f.teams.home.id) || predictionTeamIds.has(f.teams.away.id)]));
+      const stateUpdates = existingRows
+        .map(row => ({ row, enabled: row.externalId == null ? row.predictionsEnabled : (predictionState.get(row.externalId) ?? row.predictionsEnabled) }))
+        .filter(({ row, enabled }) => row.predictionsEnabled !== enabled)
+        .map(({ row, enabled }) => MatchRepository.update({ where: { id: row.id }, data: { predictionsEnabled: enabled } }));
+      if (stateUpdates.length) await MatchRepository.transaction(stateUpdates);
 
       const toCreate = fixtures.filter((f: APIFixture) => !existing.has(f.fixture.id));
       const alreadyExisting = fixtures.filter((f: APIFixture) => existing.has(f.fixture.id));
@@ -157,6 +165,7 @@ export async function fetchAndInsertMatches(params: {
             awayTeamName: f.teams.away.name,
             awayTeamLogo: f.teams.away.logo,
             kickoffTime: new Date(f.fixture.date),
+            predictionsEnabled: !filterByTeams || predictionTeamIds.has(f.teams.home.id) || predictionTeamIds.has(f.teams.away.id),
             status: mapFixtureStatus(f.fixture.status.short),
             stage: f.fixture.stage ?? null,
             matchday: f.fixture.matchday ?? null,
@@ -178,9 +187,11 @@ export async function fetchAndInsertMatches(params: {
         logger.info(`[${logPrefix}] ${league.name}: inserted=${toCreate.length}, skipped=${alreadyExisting.length}`);
 
         await assignKnockoutLegs(league.externalId);
-        await registerLiveGoalChains(toCreate, logPrefix);
-        await registerMatchReminderChains(toCreate, logPrefix);
+        await registerLiveGoalChains(toCreate.filter(f => !filterByTeams || predictionTeamIds.has(f.teams.home.id) || predictionTeamIds.has(f.teams.away.id)), logPrefix);
       }
+      // Re-registering is safe because QStash deduplicates by external fixture id;
+      // this also covers fixtures that were ingested before a user enabled reminders.
+      await registerMatchReminderChains(fixtures, logPrefix);
     } catch (e: unknown) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${league.externalId}):`, { error: e instanceof Error ? e.message : String(e) });
       debug.push({ league: league.name, externalId: league.externalId, error: e instanceof Error ? e.message : String(e) });
@@ -198,7 +209,7 @@ export async function fetchAndInsertMatches(params: {
 export async function sendNewMatchNotifications(fromDate: Date, insertedCount: number, logPrefix: string) {
   if (insertedCount === 0) return;
   const newMatches = await MatchRepository.findMany({
-    where: { weekStart: fromDate, status: 'scheduled' },
+    where: { weekStart: fromDate, status: 'scheduled', predictionsEnabled: true },
     include: { league: { select: { name: true } } },
     orderBy: { kickoffTime: 'asc' },
   });

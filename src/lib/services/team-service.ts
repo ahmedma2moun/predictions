@@ -21,6 +21,7 @@ export class TeamService {
       leagueId: tl.leagueId,
       externalLeagueId: tl.externalLeagueId,
       isActive: tl.isActive,
+      reminderEnabled: tl.reminderEnabled,
     }));
   }
 
@@ -90,4 +91,26 @@ export class TeamService {
     }
     return map;
   }
+
+  static async setReminderEnabled(params: {
+    externalId: number;
+    name: string;
+    logo?: string | null;
+    leagueId: number;
+    externalLeagueId: number;
+    enabled: boolean;
+  }) {
+    const team = await TeamRepository.upsert({
+      where: { externalId: params.externalId },
+      create: { externalId: params.externalId, name: params.name, logo: params.logo },
+      update: { name: params.name, logo: params.logo },
+    });
+    const teamLeague = await TeamLeagueRepository.upsert({
+      where: { teamId_leagueId: { teamId: team.id, leagueId: params.leagueId } },
+      create: { teamId: team.id, leagueId: params.leagueId, externalLeagueId: params.externalLeagueId, isActive: false, reminderEnabled: params.enabled },
+      update: { externalLeagueId: params.externalLeagueId, reminderEnabled: params.enabled },
+    });
+    return { team, teamLeague };
+  }
+
 }

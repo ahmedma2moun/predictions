@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     leagueId: league.id.toString(),
     externalLeagueId: league.externalId,
     isActive: activeSet.has(t.team.id),
+    reminderEnabled: existingLinks.find(tl => tl.team.externalId === t.team.id)?.reminderEnabled ?? false,
     _id: dbMap.get(t.team.id) ?? null,
   }));
 
@@ -53,7 +54,12 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { externalId, name, logo, leagueId, externalLeagueId, isActive } = await req.json();
+  const { externalId, name, logo, leagueId, externalLeagueId, isActive, reminderEnabled } = await req.json();
+
+  if (typeof reminderEnabled === 'boolean') {
+    const { team, teamLeague } = await TeamService.setReminderEnabled({ externalId, name, logo, leagueId: Number(leagueId), externalLeagueId, enabled: reminderEnabled });
+    return NextResponse.json({ ...team, _id: team.id.toString(), leagueId: teamLeague.leagueId.toString(), externalLeagueId: teamLeague.externalLeagueId, isActive: teamLeague.isActive, reminderEnabled: teamLeague.reminderEnabled });
+  }
 
   if (isActive) {
     const { team, teamLeague } = await TeamService.syncTeamWithLeague({
@@ -69,6 +75,7 @@ export async function PATCH(req: NextRequest) {
       leagueId: teamLeague.leagueId.toString(),
       externalLeagueId: teamLeague.externalLeagueId,
       isActive: teamLeague.isActive,
+      reminderEnabled: teamLeague.reminderEnabled,
     });
   } else {
     await TeamService.deactivateInLeague(externalId, Number(leagueId));

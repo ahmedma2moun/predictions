@@ -16,7 +16,7 @@ export default async function MatchesPage() {
   const isAdmin = role === "admin";
 
   const matches = await MatchRepository.findMany({
-    where: { status: { in: ["scheduled", "live"] } },
+    where: { predictionsEnabled: true, status: { in: ["scheduled", "live"] } },
     orderBy: { kickoffTime: "asc" },
     include: { league: { select: { name: true } }, season: { select: { name: true } } },
   });

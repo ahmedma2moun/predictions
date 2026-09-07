@@ -49,6 +49,13 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
     logger.info('[live-goals] tick: no Match row for this externalId — chain dies here', { externalId });
     return { outcome: 'match_not_found' };
   }
+  // Reminder-only fixtures must never enter the score polling chain. This
+  // guard also stops any legacy QStash tick that was queued before a team was
+  // removed from prediction eligibility.
+  if (!match.predictionsEnabled) {
+    logger.info('[live-goals] tick: predictions disabled — chain stops', { matchId: match.id, externalId });
+    return { outcome: 'skipped_predictions_disabled' };
+  }
 
   const fixture = await fetchFixtureById(externalId).catch(e => {
     logger.warn('[live-goals] fetchFixtureById failed, will retry next tick', {

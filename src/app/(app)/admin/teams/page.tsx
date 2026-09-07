@@ -23,6 +23,7 @@ type Team = {
   name: string;
   logo?: string;
   isActive: boolean;
+  reminderEnabled: boolean;
 };
 
 export default function AdminTeamsPage() {
@@ -81,7 +82,7 @@ export default function AdminTeamsPage() {
     const r = await fetch("/api/admin/teams", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...team, isActive }),
+      body: JSON.stringify({ externalId: team.externalId, name: team.name, logo: team.logo, leagueId: selectedLeagueId, isActive }),
     });
     if (r.ok) {
       const data = await r.json();
@@ -94,6 +95,14 @@ export default function AdminTeamsPage() {
     } else {
       await toastApiError(r, "Failed to update team");
     }
+  }
+
+  async function toggleReminder(team: Team, reminderEnabled: boolean) {
+    const r = await fetch("/api/admin/teams", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ externalId: team.externalId, name: team.name, logo: team.logo, leagueId: selectedLeagueId, reminderEnabled }) });
+    if (r.ok) {
+      setTeams(prev => prev.map(t => t.externalId === team.externalId ? { ...t, reminderEnabled } : t));
+      toast.success(reminderEnabled ? "Reminder team enabled" : "Reminder team disabled");
+    } else await toastApiError(r, "Failed to update reminder setting");
   }
 
   const filtered = teams.filter(t =>
@@ -200,7 +209,10 @@ export default function AdminTeamsPage() {
                     {team.logo && <Image src={team.logo} alt={team.name} width={24} height={24} className="object-contain" />}
                     <p className="font-medium text-sm">{team.name}</p>
                   </div>
-                  <Switch checked={!!team.isActive} onCheckedChange={v => toggleTeam(team, v)} />
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <label className="flex items-center gap-2">Predictions <Switch checked={!!team.isActive} onCheckedChange={v => toggleTeam(team, v)} /></label>
+                    <label className="flex items-center gap-2">Reminders <Switch checked={!!team.reminderEnabled} onCheckedChange={v => toggleReminder(team, v)} /></label>
+                  </div>
                 </div>
               ))}
             </>

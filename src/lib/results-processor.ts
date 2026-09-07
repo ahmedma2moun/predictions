@@ -340,6 +340,7 @@ export async function processMatchResults(logPrefix: string): Promise<ProcessRes
 
   const pendingMatches = await MatchRepository.findMany({
     where: {
+      predictionsEnabled: true,
       kickoffTime: { lt: now },
       status: { notIn: ['finished', 'cancelled'] },
     },

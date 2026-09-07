@@ -44,34 +44,35 @@ enum Winner {
 }
 
 enum ChampionBonusStatus {
-  OPEN     // picks editable
-  LOCKED   // picks frozen, awards accruing
+  OPEN // picks editable
+  LOCKED // picks frozen, awards accruing
 }
 
 model User {
-  id                Int           @id @default(autoincrement())
-  name              String
-  email             String        @unique
-  password          String
-  role              Role          @default(user)
-  avatarUrl         String?
-  notificationEmail String?
-  currentStreak     Int           @default(0)
-  longestStreak     Int           @default(0)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  predictions       Prediction[]
-  groupMembers      GroupMember[]
-  deviceTokens      DeviceToken[]
-  badges            UserBadge[]
-  seasonStandings   SeasonStanding[]
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  email              String              @unique
+  password           String
+  role               Role                @default(user)
+  avatarUrl          String?
+  notificationEmail  String?
+  currentStreak      Int                 @default(0)
+  longestStreak      Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  predictions        Prediction[]
+  groupMembers       GroupMember[]
+  deviceTokens       DeviceToken[]
+  badges             UserBadge[]
+  seasonStandings    SeasonStanding[]
   championBonusPicks ChampionBonusPick[]
-  rivalId           Int?
-  rival             User?         @relation("PlayerRival", fields: [rivalId], references: [id], onDelete: SetNull)
-  followedBy        User[]        @relation("PlayerRival")
-  equippedTitle     String?
-  achievements      PlayerAchievement[]
-  activityReactions ActivityReaction[]
+  rivalId            Int?
+  rival              User?               @relation("PlayerRival", fields: [rivalId], references: [id], onDelete: SetNull)
+  followedBy         User[]              @relation("PlayerRival")
+  equippedTitle      String?
+  achievements       PlayerAchievement[]
+  activityReactions  ActivityReaction[]
+  reminderTeams      UserReminderTeam[]
 }
 
 model UserBadge {
@@ -86,83 +87,97 @@ model UserBadge {
 }
 
 model League {
-  id          Int          @id @default(autoincrement())
-  externalId  Int          @unique
-  name        String
-  country     String
-  logo        String?
-  season      Int
-  isActive    Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  teamLeagues TeamLeague[]
-  matches     Match[]
+  id              Int             @id @default(autoincrement())
+  externalId      Int             @unique
+  name            String
+  country         String
+  logo            String?
+  season          Int
+  isActive        Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  teamLeagues     TeamLeague[]
+  matches         Match[]
   championBonuses ChampionBonus[]
 }
 
 model Team {
-  id          Int          @id @default(autoincrement())
-  externalId  Int          @unique
-  name        String
-  logo        String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  teamLeagues TeamLeague[]
-  championBonusTeams ChampionBonusTeam[]
-  championBonusPicks ChampionBonusPick[]
+  id                  Int                  @id @default(autoincrement())
+  externalId          Int                  @unique
+  name                String
+  logo                String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  teamLeagues         TeamLeague[]
+  championBonusTeams  ChampionBonusTeam[]
+  championBonusPicks  ChampionBonusPick[]
   championBonusAwards ChampionBonusAward[]
 }
 
 model TeamLeague {
-  id               Int      @id @default(autoincrement())
-  teamId           Int
-  team             Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  leagueId         Int
-  league           League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  externalLeagueId Int
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                Int                @id @default(autoincrement())
+  teamId            Int
+  team              Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  leagueId          Int
+  league            League             @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  externalLeagueId  Int
+  isActive          Boolean            @default(true)
+  reminderEnabled   Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  userReminderTeams UserReminderTeam[]
 
   @@unique([teamId, leagueId])
   @@index([leagueId])
   @@index([externalLeagueId])
 }
 
+model UserReminderTeam {
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamLeagueId Int
+  teamLeague   TeamLeague @relation(fields: [teamLeagueId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@id([userId, teamLeagueId])
+  @@index([teamLeagueId])
+}
+
 model Match {
-  id               Int          @id @default(autoincrement())
-  externalId       Int?         @unique
-  leagueId         Int?
-  league           League?      @relation(fields: [leagueId], references: [id], onDelete: SetNull)
-  externalLeagueId Int
-  homeTeamExtId    Int
-  homeTeamName     String
-  homeTeamLogo     String?
-  awayTeamExtId    Int
-  awayTeamName     String
-  awayTeamLogo     String?
-  kickoffTime      DateTime
-  status           MatchStatus  @default(scheduled)
-  matchday         Int?
-  stage            String?
-  leg              Int?
-  venue            String?
+  id                     Int                  @id @default(autoincrement())
+  externalId             Int?                 @unique
+  leagueId               Int?
+  league                 League?              @relation(fields: [leagueId], references: [id], onDelete: SetNull)
+  externalLeagueId       Int
+  homeTeamExtId          Int
+  homeTeamName           String
+  homeTeamLogo           String?
+  awayTeamExtId          Int
+  awayTeamName           String
+  awayTeamLogo           String?
+  kickoffTime            DateTime
+  predictionsEnabled     Boolean              @default(true)
+  status                 MatchStatus          @default(scheduled)
+  matchday               Int?
+  stage                  String?
+  leg                    Int?
+  venue                  String?
   resultHomeScore        Int?
   resultAwayScore        Int?
   resultPenaltyHomeScore Int?
   resultPenaltyAwayScore Int?
   resultWinner           Winner?
-  liveHomeScore    Int?
-  liveAwayScore    Int?
-  scoresProcessed  Boolean      @default(false)
-  weekStart        DateTime
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  seasonId         Int?
-  season           Season?      @relation(fields: [seasonId], references: [id], onDelete: SetNull)
-  predictions      Prediction[]
-  matchOdds        MatchOdds?
-  championBonusAwards ChampionBonusAward[]
+  liveHomeScore          Int?
+  liveAwayScore          Int?
+  scoresProcessed        Boolean              @default(false)
+  weekStart              DateTime
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  seasonId               Int?
+  season                 Season?              @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  predictions            Prediction[]
+  matchOdds              MatchOdds?
+  championBonusAwards    ChampionBonusAward[]
 
   @@index([status, kickoffTime])
   @@index([externalLeagueId, kickoffTime])
@@ -204,13 +219,13 @@ model ScoringRule {
 }
 
 model Group {
-  id        Int           @id @default(autoincrement())
-  name      String
-  isDefault Boolean       @default(false)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  members         GroupMember[]
-  seasonStandings SeasonStanding[]
+  id                Int                @id @default(autoincrement())
+  name              String
+  isDefault         Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  members           GroupMember[]
+  seasonStandings   SeasonStanding[]
   activityReactions ActivityReaction[]
 }
 
@@ -257,21 +272,21 @@ model DeviceToken {
 }
 
 model Season {
-  id          Int              @id @default(autoincrement())
-  name        String
-  description String?
-  status      SeasonStatus     @default(DRAFT)
-  startDate   DateTime
-  startedAt   DateTime?
-  endedAt     DateTime?
-  oddsEnabled Boolean          @default(false)
-  oddsMin     Decimal          @default(1.1) @db.Decimal(4, 2)
-  oddsMax     Decimal          @default(5.0) @db.Decimal(4, 2)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  matches     Match[]
-  standings   SeasonStanding[]
-  championBonus ChampionBonus?
+  id                Int                @id @default(autoincrement())
+  name              String
+  description       String?
+  status            SeasonStatus       @default(DRAFT)
+  startDate         DateTime
+  startedAt         DateTime?
+  endedAt           DateTime?
+  oddsEnabled       Boolean            @default(false)
+  oddsMin           Decimal            @default(1.1) @db.Decimal(4, 2)
+  oddsMax           Decimal            @default(5.0) @db.Decimal(4, 2)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  matches           Match[]
+  standings         SeasonStanding[]
+  championBonus     ChampionBonus?
   activityReactions ActivityReaction[]
 }
 
@@ -301,18 +316,18 @@ model ActivityReaction {
 }
 
 model MatchOdds {
-  id             Int       @id @default(autoincrement())
-  matchId        Int       @unique
-  match          Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  homeWinVotes   Int       @default(0)
-  drawVotes      Int       @default(0)
-  awayWinVotes   Int       @default(0)
-  homeWinOdds    Decimal   @default(1.10) @db.Decimal(4, 2)
-  drawOdds       Decimal   @default(3.05) @db.Decimal(4, 2)
-  awayWinOdds    Decimal   @default(5.00) @db.Decimal(4, 2)
-  lockedAt       DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id           Int       @id @default(autoincrement())
+  matchId      Int       @unique
+  match        Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  homeWinVotes Int       @default(0)
+  drawVotes    Int       @default(0)
+  awayWinVotes Int       @default(0)
+  homeWinOdds  Decimal   @default(1.10) @db.Decimal(4, 2)
+  drawOdds     Decimal   @default(3.05) @db.Decimal(4, 2)
+  awayWinOdds  Decimal   @default(5.00) @db.Decimal(4, 2)
+  lockedAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model SeasonStanding {
@@ -334,21 +349,21 @@ model SeasonStanding {
 }
 
 model ChampionBonus {
-  id        Int                 @id @default(autoincrement())
-  seasonId  Int                 @unique          // one config (one league) per season
-  season    Season              @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  id        Int                  @id @default(autoincrement())
+  seasonId  Int                  @unique // one config (one league) per season
+  season    Season               @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   leagueId  Int
-  league    League              @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  status    ChampionBonusStatus @default(OPEN)
+  league    League               @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  status    ChampionBonusStatus  @default(OPEN)
   lockedAt  DateTime?
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
   teams     ChampionBonusTeam[]
   picks     ChampionBonusPick[]
   awards    ChampionBonusAward[]
 }
 
-model ChampionBonusTeam {          // admin-selected allowed subset
+model ChampionBonusTeam {
   id              Int           @id @default(autoincrement())
   championBonusId Int
   championBonus   ChampionBonus @relation(fields: [championBonusId], references: [id], onDelete: Cascade)
@@ -369,11 +384,11 @@ model ChampionBonusPick {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  @@unique([championBonusId, userId])   // one pick per user
+  @@unique([championBonusId, userId]) // one pick per user
   @@index([championBonusId, teamId])
 }
 
-model ChampionBonusAward {            // ONE row per (team, counted match) — not per user
+model ChampionBonusAward {
   id              Int           @id @default(autoincrement())
   championBonusId Int
   championBonus   ChampionBonus @relation(fields: [championBonusId], references: [id], onDelete: Cascade)
@@ -381,9 +396,9 @@ model ChampionBonusAward {            // ONE row per (team, counted match) — n
   team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
   matchId         Int
   match           Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  gameNumber      Int           // Nth counted game since lock, 1-based
-  isWin           Boolean       // based on resultWinner (penalty wins count)
-  points          Int           // isWin ? 2^min(gameNumber, 20) : 0   (cap prevents Int overflow)
+  gameNumber      Int // Nth counted game since lock, 1-based
+  isWin           Boolean // based on resultWinner (penalty wins count)
+  points          Int // isWin ? 2^min(gameNumber, 20) : 0   (cap prevents Int overflow)
 
   @@unique([championBonusId, teamId, matchId])
   @@index([championBonusId, teamId])

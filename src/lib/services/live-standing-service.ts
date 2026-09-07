@@ -67,6 +67,7 @@ export async function getLiveGroupStanding(filters: LiveStandingFilters): Promis
     getLeaderboard({ groupId, seasonId }),
     MatchRepository.findMany({
       where: {
+        predictionsEnabled: true,
         seasonId,
         externalId: { not: null },
         status: { in: ['scheduled', 'live'] },

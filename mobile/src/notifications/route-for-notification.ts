@@ -30,7 +30,7 @@ export function routeForNotification(data: unknown): Href {
     case 'match_started':
           return matchId ? ROUTES.matchDetail(matchId) : ROUTES.matches;
     case 'match_reminder':
-      return ROUTES.slip;
+      return matchId ? ROUTES.matchDetail(matchId) : ROUTES.matches;
     case 'new_matches':
     case 'prediction_reminder':
     case 'daily_reminder':

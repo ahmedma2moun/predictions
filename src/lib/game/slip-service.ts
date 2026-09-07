@@ -9,7 +9,7 @@ export async function getSlip(userId: number): Promise<SlipData> {
   const day = cairoDay(now);
   const from = cairoDayStart(day);
   const to = cairoDayStart(shiftDay(day, 7));
-  const matches = await prisma.match.findMany({ where: { kickoffTime: { gte: from, lt: to }, status: { in: ['scheduled', 'live'] } }, include: { league: { select: { name: true } }, predictions: { where: { userId }, select: { homeScore: true, awayScore: true } } }, orderBy: [{ kickoffTime: 'asc' }, { id: 'asc' }] });
+  const matches = await prisma.match.findMany({ where: { predictionsEnabled: true, kickoffTime: { gte: from, lt: to }, status: { in: ['scheduled', 'live'] } }, include: { league: { select: { name: true } }, predictions: { where: { userId }, select: { homeScore: true, awayScore: true } } }, orderBy: [{ kickoffTime: 'asc' }, { id: 'asc' }] });
   const rows = matches.map(m => ({ id: m.id, homeTeamName: m.homeTeamName, awayTeamName: m.awayTeamName, kickoffTime: m.kickoffTime.toISOString(), league: m.league?.name ?? 'Others', homeScore: m.predictions[0]?.homeScore ?? null, awayScore: m.predictions[0]?.awayScore ?? null, locked: m.status !== 'scheduled' || m.kickoffTime <= now }));
   return { matches: rows, remaining: rows.filter(m => !m.locked && m.homeScore === null).length, from: from.toISOString(), to: to.toISOString() };
 }

@@ -72,6 +72,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen name="club" options={{ title: 'Club', tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="reminders" options={{ title: 'Reminders', tabBarIcon: ({ color, size }) => <Ionicons name="notifications-outline" color={color} size={size} /> }} />
       {/* Champion tab is hidden from the tab bar; the screen stays routable. */}
       <Tabs.Screen name="champion" options={{ href: null }} />
       <Tabs.Screen

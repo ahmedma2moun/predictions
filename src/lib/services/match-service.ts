@@ -70,7 +70,7 @@ export async function getMatches(
   filters: MatchFilters,
   opts: { userId: number; isAdmin: boolean; withStandings?: boolean },
 ): Promise<MatchListItem[]> {
-  const where: Prisma.MatchWhereInput = {};
+  const where: Prisma.MatchWhereInput = { predictionsEnabled: true };
   if (filters.leagueId) where.externalLeagueId = filters.leagueId;
   if (filters.status) {
     where.status = filters.status as MatchStatus;
