@@ -111,6 +111,8 @@ export default function AdminTeamsPage() {
 
   const allActive = filtered.length > 0 && filtered.every(t => t.isActive);
   const someActive = filtered.some(t => t.isActive);
+  const allReminders = filtered.length > 0 && filtered.every(t => t.reminderEnabled);
+  const someReminders = filtered.some(t => t.reminderEnabled);
 
   async function selectAll(activate: boolean) {
     if (!filtered.length) return;
@@ -126,6 +128,19 @@ export default function AdminTeamsPage() {
     } else {
       toast.success(activate ? `Activated all ${filtered.length} teams` : `Deactivated all ${filtered.length} teams`);
     }
+    setBulkLoading(false);
+  }
+
+  async function selectAllReminders(enable: boolean) {
+    if (!filtered.length) return;
+    setBulkLoading(true);
+    const ops = filtered
+      .filter(t => !!t.reminderEnabled !== enable)
+      .map(team => toggleReminder(team, enable));
+    const results = await Promise.allSettled(ops);
+    const failed = results.filter(r => r.status === "rejected").length;
+    if (failed > 0) toast.error(`${failed} team${failed !== 1 ? "s" : ""} failed to update`);
+    else toast.success(enable ? `Enabled reminders for all ${filtered.length} teams` : `Removed reminders for all ${filtered.length} teams`);
     setBulkLoading(false);
   }
 
@@ -200,6 +215,12 @@ export default function AdminTeamsPage() {
                     onClick={() => selectAll(false)}
                   >
                     Deactivate All
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={bulkLoading || allReminders} onClick={() => selectAllReminders(true)}>
+                    Remind All
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={bulkLoading || !someReminders} onClick={() => selectAllReminders(false)}>
+                    Remove All Reminders
                   </Button>
                 </div>
               </div>
