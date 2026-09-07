@@ -3,6 +3,7 @@ import { BlurView } from 'expo-blur';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { font } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,9 @@ import { ODDS_FEATURE_ENABLED } from '@/constants/featureFlags';
 
 export default function TabsLayout() {
   const { colors, mode } = useTheme();
+  const insets = useSafeAreaInsets();
+  // Keep the buttons above both gesture navigation and Android's three-button bar.
+  const bottomPadding = Math.max(insets.bottom, 8);
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(colors.background);
@@ -28,9 +32,9 @@ export default function TabsLayout() {
           borderTopColor: colors.border,
           borderTopWidth: StyleSheet.hairlineWidth,
           elevation: 0,
-          height: 78,
+          height: 58 + bottomPadding,
           paddingTop: 8,
-          paddingBottom: 28,
+          paddingBottom: bottomPadding,
         },
         tabBarBackground: () => (
           <BlurView
