@@ -1,12 +1,15 @@
 import XCTest
+import SwiftUI
 @testable import FootballPredictionAdmin
 
 final class StubProtocol: URLProtocol {
     static var status = 200
     static var response = "{}"
+    static var onRequest: ((URLRequest) -> Void)?
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
+        Self.onRequest?(request)
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: Self.status, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(Self.response.utf8))
@@ -16,6 +19,42 @@ final class StubProtocol: URLProtocol {
 }
 
 @MainActor final class AdminAPITests: XCTestCase {
+    func testLeaguePickerLoadsWhenTeamsSectionAppears() async {
+        StubProtocol.status = 200
+        StubProtocol.response = #"[{"_id":"42","name":"Premier League","isActive":true}]"#
+        let requested = expectation(description: "Visible league picker requests leagues")
+        StubProtocol.onRequest = { request in
+            if request.url?.path == "/api/admin/leagues" { requested.fulfill() }
+        }
+        let controller = UIHostingController(rootView:
+            NavigationStack { List { Section { LeaguePicker(selection: .constant("")) } } }
+                .environmentObject(api()))
+        let window = UIWindow(windowScene: UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first!)
+        window.frame = window.windowScene!.screen.bounds
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil; StubProtocol.onRequest = nil }
+        await fulfillment(of: [requested], timeout: 3)
+    }
+
+    func testTeamSelectionLoadsWhenSectionAppears() async {
+        StubProtocol.status = 200
+        StubProtocol.response = "[]"
+        let requested = expectation(description: "Visible team selection requests its league teams")
+        StubProtocol.onRequest = { request in
+            if request.url?.path == "/api/admin/teams", request.url?.query == "leagueId=42" { requested.fulfill() }
+        }
+        let controller = UIHostingController(rootView:
+            NavigationStack { Form { Section { TeamSelection(leagueID: "42", selected: .constant([])) } } }
+                .environmentObject(api()))
+        let window = UIWindow(windowScene: UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first!)
+        window.frame = window.windowScene!.screen.bounds
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil; StubProtocol.onRequest = nil }
+        await fulfillment(of: [requested], timeout: 3)
+    }
+
     private func api() -> AdminAPI {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubProtocol.self]

@@ -77,9 +77,16 @@ struct LeaguePicker: View {
             Text("Select a league").tag("")
             ForEach(data.value.array.filter { !activeOnly || $0["isActive"].flag }, id: \.id) { league in Text(league.title).tag(league.id) }
         }
+        .pickerStyle(.navigationLink)
+        .disabled(data.busy)
+        .task { await data.load(api, "/api/admin/leagues") }
         StatusRows(data: data)
+        if data.value != .null && !data.busy && data.error == nil &&
+            data.value.array.filter({ !activeOnly || $0["isActive"].flag }).isEmpty {
+            Text(activeOnly ? "No active leagues. Enable a league in Leagues first." : "No leagues available. Fetch leagues in Leagues first.")
+                .foregroundStyle(.secondary)
+        }
         if data.error != nil { Button("Retry leagues") { Task { await data.load(api, "/api/admin/leagues") } } }
-        EmptyView().task { await data.load(api, "/api/admin/leagues") }
     }
 }
 
@@ -90,15 +97,21 @@ struct TeamSelection: View {
     @Binding var selected: Set<String>
     var activeOnly = true
     var body: some View {
-        StatusRows(data: data)
-        ForEach(data.value.array.filter { !$0.id.isEmpty && (!activeOnly || $0["isActive"].flag) }, id: \.id) { team in
-            Toggle(team.title, isOn: Binding(get: { selected.contains(team.id) }, set: { on in
-                if on { selected.insert(team.id) } else { selected.remove(team.id) }
-            }))
+        VStack(alignment: .leading, spacing: 12) {
+            StatusRows(data: data)
+            if leagueID.isEmpty { Text("Select a league to see its teams.").foregroundStyle(.secondary) }
+            ForEach(data.value.array.filter { !$0.id.isEmpty && (!activeOnly || $0["isActive"].flag) }, id: \.id) { team in
+                Toggle(team.title, isOn: Binding(get: { selected.contains(team.id) }, set: { on in
+                    if on { selected.insert(team.id) } else { selected.remove(team.id) }
+                }))
+            }
+            if !leagueID.isEmpty && data.value.array.isEmpty && !data.busy {
+                Text(data.value == .null ? "Loading teams…" : "No teams. Enable teams in Teams first.").foregroundStyle(.secondary)
+            }
+            if data.error != nil { Button("Retry teams") { Task { await data.load(api, "/api/admin/teams?leagueId=\(leagueID)") } } }
         }
-        if !leagueID.isEmpty && data.value.array.isEmpty && !data.busy { Text("No teams. Enable teams in Teams first.").foregroundStyle(.secondary) }
-        if data.error != nil { Button("Retry teams") { Task { await data.load(api, "/api/admin/teams?leagueId=\(leagueID)") } } }
-        EmptyView().task(id: leagueID) {
+        .task(id: leagueID) {
+            data.value = .null
             if !leagueID.isEmpty { await data.load(api, "/api/admin/teams?leagueId=\(leagueID)") }
         }
     }

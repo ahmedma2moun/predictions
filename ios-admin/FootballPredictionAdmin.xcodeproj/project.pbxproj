@@ -51,7 +51,7 @@
 		B321996915E0EF08B35837E1 /* FootballPredictionAdminApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FootballPredictionAdminApp.swift; sourceTree = "<group>"; };
 		B3749FA387593E57CC4A8BD3 /* API.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = API.swift; sourceTree = "<group>"; };
 		C746609B0E3471D3C6D3CD9D /* LoginUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginUITests.swift; sourceTree = "<group>"; };
-		DDF5E2BC10879F721A4B03B6 /* FootballPredictionAdmin.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FootballPredictionAdmin.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DDF5E2BC10879F721A4B03B6 /* FootballPredictionAdmin.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FootballPredictionAdmin.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F6C745B7C72DC29C51B27C61 /* SeasonViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeasonViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -465,6 +465,7 @@
 				ADMIN_API_BASE_URL = "https://predictions-virid.vercel.app";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = JH2RL79XCP;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Football Prediction Admin";
@@ -488,6 +489,7 @@
 				ADMIN_API_BASE_URL = "https://predictions-virid.vercel.app";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = JH2RL79XCP;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Football Prediction Admin";
