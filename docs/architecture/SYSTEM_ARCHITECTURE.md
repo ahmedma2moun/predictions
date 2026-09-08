@@ -356,6 +356,15 @@ Key files: `src/lib/live-goal-config.ts` (tunable constants), `src/lib/qstash.ts
 
 ## Match Kickoff Reminders
 
+Saving reminder selections (web or mobile) commits the preferences, then publishes
+one QStash refresh job per selected league. The signed
+`/api/webhooks/qstash/reminder-fixtures` callback fetches today through the next six
+days using the same eligibility filter as the weekly cron, with new-match
+broadcasts disabled. This covers selections made after the weekly fetch. Fetch or
+reminder-scheduling failures return HTTP 500 for QStash retries; existing fixtures
+are also scheduled on retry. If publishing fails, the save response explicitly
+asks the user to save again (the preferences have already been persisted).
+
 Same self-chaining-schedule idea as Live Goal Notifications, but one-shot QStash messages instead of a chain — two reminders per fixture (60 minutes before kickoff, and at kickoff). Recipients are resolved at delivery time from each user's reminder team selections (`UserReminderTeam`): a user is reminded about a match only when they selected **both** of its teams on the Reminders page (`getReminderRecipientIds()` in `src/lib/services/reminder-service.ts`). Prediction status is ignored, unlike `prediction-reminder`/`daily-reminder`, which only nudge users with missing predictions:
 
 ```

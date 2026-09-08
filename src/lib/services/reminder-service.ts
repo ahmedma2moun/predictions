@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { enqueueReminderFixtureRefresh } from '@/lib/reminder-fixture-refresh';
 
 export type ReminderLeague = {
   id: number;
@@ -57,6 +58,13 @@ export async function saveUserReminderPreferences(userId: number, selections: un
     await tx.userReminderTeam.deleteMany({ where: { userId } });
     if (eligible.length) await tx.userReminderTeam.createMany({ data: eligible.map(row => ({ userId, teamLeagueId: row.id })) });
   });
+  // Publish only after commit, so the worker sees the saved selections. Queue
+  // every selected league on retries too, including when preferences are unchanged.
+  try {
+    for (const leagueId of byLeague.keys()) await enqueueReminderFixtureRefresh(leagueId);
+  } catch {
+    throw new Error('Preferences saved, but reminder setup could not be queued. Please save again to retry.');
+  }
   return getUserReminderPreferences(userId);
 }
 
