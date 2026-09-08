@@ -81,6 +81,7 @@ export async function fetchAndInsertMatches(params: {
   filterByTeams?: boolean;
   teamExternalIds?: Set<number>;
   sendNotifications?: boolean;
+  strictReminderScheduling?: boolean;
   logPrefix: string;
 }): Promise<FetchMatchesSummary> {
   const { from, to, fromDate, leagueId, filterByTeams = false, teamExternalIds, sendNotifications = true, logPrefix } = params;
@@ -191,7 +192,7 @@ export async function fetchAndInsertMatches(params: {
       }
       // Re-registering is safe because QStash deduplicates by external fixture id;
       // this also covers fixtures that were ingested before a user enabled reminders.
-      await registerMatchReminderChains(fixtures, logPrefix);
+      await registerMatchReminderChains(fixtures, logPrefix, params.strictReminderScheduling);
     } catch (e: unknown) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${league.externalId}):`, { error: e instanceof Error ? e.message : String(e) });
       debug.push({ league: league.name, externalId: league.externalId, error: e instanceof Error ? e.message : String(e) });
@@ -366,17 +367,18 @@ async function registerLiveGoalChains(fixtures: APIFixture[], logPrefix: string)
   );
 }
 
-/** Registers the pre-kickoff reminder QStash job for each newly-inserted future fixture. Never throws — a scheduling failure must not fail match insertion. */
-async function registerMatchReminderChains(fixtures: APIFixture[], logPrefix: string): Promise<void> {
+/** Schedules upcoming fixtures, including existing ones. Strict mode propagates failures so queued refreshes can retry. */
+async function registerMatchReminderChains(fixtures: APIFixture[], logPrefix: string, strict = false): Promise<void> {
   const now = new Date();
   const upcoming = fixtures.filter(f => new Date(f.fixture.date) > now);
   await Promise.all(
     upcoming.map(f =>
-      registerMatchReminderChain({ externalId: f.fixture.id, kickoffTime: new Date(f.fixture.date) }).catch(e =>
+      registerMatchReminderChain({ externalId: f.fixture.id, kickoffTime: new Date(f.fixture.date) }).catch(e => {
         logger.error(`[${logPrefix}] Failed to register match reminder for fixture ${f.fixture.id}:`, {
           error: e instanceof Error ? e.message : String(e),
-        }),
-      ),
+        });
+        if (strict) throw e;
+      }),
     ),
   );
 }
