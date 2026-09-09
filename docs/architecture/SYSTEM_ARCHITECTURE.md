@@ -365,28 +365,14 @@ reminder-scheduling failures return HTTP 500 for QStash retries; existing fixtur
 are also scheduled on retry. If publishing fails, the save response explicitly
 asks the user to save again (the preferences have already been persisted).
 
-Same self-chaining-schedule idea as Live Goal Notifications, but one-shot QStash messages instead of a chain — two reminders per fixture (60 minutes before kickoff, and at kickoff). Recipients are resolved at delivery time from each user's reminder team selections (`UserReminderTeam`): a user is reminded about a match only when they selected **both** of its teams on the Reminders page (`getReminderRecipientIds()` in `src/lib/services/reminder-service.ts`). Prediction status is ignored, unlike `prediction-reminder`/`daily-reminder`, which only nudge users with missing predictions:
+Two one-shot QStash messages are scheduled per fixture: 60 minutes before kickoff and at kickoff (each is skipped if its scheduled time has already passed). The signed webhook calls `sendMatchKickoffReminder(externalId, kind)`; missing or non-scheduled matches are skipped.
 
-```
-fetchAndInsertMatches() inserts new fixtures
-    │
-    └─ registerMatchReminderChain() — publishes one QStash message per fixture,
-       notBefore = kickoffTime - 60min, body = { externalId }
-       (skipped if kickoff is already inside the 60-minute window)
-                        │
-                        ▼
-   QStash delivers → POST /api/webhooks/qstash/match-reminder
-   (Upstash-Signature verified against QSTASH_CURRENT/NEXT_SIGNING_KEY)
-                        │
-                        ▼
-              sendMatchKickoffReminder(externalId)
-    │
-    ├─ match missing or status no longer 'scheduled' (postponed/cancelled) → no-op
-    ├─ getReminderRecipientIds(match) → users who selected BOTH of this
-    │  match's teams; none → no-op ('no_subscribers')
-    └─ otherwise: email those recipients with a notificationEmail set, and
-       push those recipients' registered devices — prediction status ignored
-```
+Recipients are resolved at delivery time:
+
+- **Prediction-game 60-minute reminders** (`predictionsEnabled = true`, `kind = 'before'`) email all users with a notification email and independently push all users with registered devices. Team selections are not required.
+- **Reminder-only fixtures and all kickoff-time alerts** require the user to have selected both teams in the league (`getReminderRecipientIds()`). No matching selections returns `no_subscribers`.
+
+Whether the user has already submitted a prediction is ignored. Older queued messages without `kind` default to `before` and retain the prediction-game broadcast behavior.
 
 No re-arming — each of the two messages fires exactly once per match. A `flowControl` key (`match-reminders`, parallelism 3) keeps several fixtures sharing the same kickoff slot from all firing their full email/push broadcast in the same instant.
 
