@@ -1,5 +1,6 @@
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { UserRepository } from '@/lib/repositories/user-repository';
+import { DeviceTokenRepository } from '@/lib/repositories/device-repository';
 import { sendKickoffReminderEmail, type MatchForEmail } from '@/lib/email';
 import { sendPushToUsers } from '@/lib/fcm';
 import { getQStashClient, matchReminderWebhookUrl } from '@/lib/qstash';
@@ -12,8 +13,9 @@ const FLOW_CONTROL_PARALLELISM = 3; // several fixtures can share a kickoff slot
 
 /**
  * Registers two reminders for a fixture: one 60 minutes before kickoff and one
- * at kickoff. Recipients are resolved at delivery
- * time from each user's selected team pairs. Called from matches-processor.ts right after a fixture
+ * at kickoff. Prediction-game pre-kickoff reminders reach all notification users;
+ * other reminders use each user's selected team pairs at delivery time.
+ * Called from matches-processor.ts right after a fixture
  * with a real externalId is inserted, alongside registerLiveGoalChain.
  */
 export async function registerMatchReminderChain(match: { externalId: number; kickoffTime: Date }): Promise<void> {
@@ -52,12 +54,14 @@ export async function sendMatchKickoffReminder(externalId: number, kind: 'before
     leagueName: match.externalLeagueId === 0 ? 'Others' : (match.league?.name ?? 'Unknown League'),
   };
 
-  const recipientIds = await getReminderRecipientIds(match);
-  if (recipientIds.length === 0) return { outcome: 'no_subscribers' };
+  // Restore the original prediction-game 60-minute broadcast. Kickoff alerts
+  // and reminder-only fixtures remain opt-in, requiring both teams selected.
+  const broadcast = match.predictionsEnabled && kind === 'before';
+  const recipientIds = broadcast ? null : await getReminderRecipientIds(match);
+  if (recipientIds?.length === 0) return { outcome: 'no_subscribers' };
 
-  // Email — only users who selected both teams in this league.
   const recipients = await UserRepository.findMany({
-    where: { id: { in: recipientIds }, notificationEmail: { not: null } },
+    where: { ...(recipientIds === null ? {} : { id: { in: recipientIds } }), notificationEmail: { not: null } },
     select: { id: true, notificationEmail: true },
   });
   let emailCount = 0;
@@ -75,10 +79,14 @@ export async function sendMatchKickoffReminder(externalId: number, kind: 'before
     }
   }
 
-  // Push — only subscribed users; FCM resolves their registered devices.
-  if (recipientIds.length > 0) {
+  // Resolve devices independently of email so push-only users are included.
+  const pushRecipientIds = recipientIds ?? (await DeviceTokenRepository.findMany({
+    select: { userId: true },
+    distinct: ['userId'],
+  })).map(device => device.userId);
+  if (pushRecipientIds.length > 0) {
     try {
-      await sendPushToUsers(recipientIds, {
+      await sendPushToUsers(pushRecipientIds, {
         title: kind === 'kickoff' ? 'Kickoff now!' : 'Kickoff in 60 minutes!',
         body: kind === 'kickoff' ? `${match.homeTeamName} vs ${match.awayTeamName} is starting now.` : `${match.homeTeamName} vs ${match.awayTeamName} kicks off soon.`,
         data: { type: 'match_reminder', matchId: String(match.id) },
@@ -88,6 +96,6 @@ export async function sendMatchKickoffReminder(externalId: number, kind: 'before
     }
   }
 
-  logger.info('[match-reminder] Reminder sent', { matchId: match.id, emailCount, pushCount: recipientIds.length });
+  logger.info('[match-reminder] Reminder sent', { matchId: match.id, emailCount, pushCount: pushRecipientIds.length });
   return { outcome: 'sent' };
 }
