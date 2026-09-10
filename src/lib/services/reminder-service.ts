@@ -91,15 +91,15 @@ export async function getReminderRecipientIds(match: { externalLeagueId: number;
 
 export interface ReminderRecipient {
   name: string;
-  email: string;
+  email: string | null;
 }
 
-/** Resolves the users who will receive a kickoff reminder for a match (name + notification email). */
+/** Lists current subscribers for the cron summary, including users without a notification email who may receive push reminders. */
 export async function getReminderRecipients(match: { externalLeagueId: number; homeTeamExtId: number; awayTeamExtId: number }): Promise<ReminderRecipient[]> {
   const userIds = await getReminderRecipientIds(match);
   if (!userIds.length) return [];
   const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { name: true, notificationEmail: true } });
-  return users.filter(u => u.notificationEmail).map(u => ({ name: u.name, email: u.notificationEmail as string }));
+  return users.map(u => ({ name: u.name, email: u.notificationEmail }));
 }
 
 export interface UserReminderSelection {

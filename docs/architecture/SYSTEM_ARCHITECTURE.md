@@ -362,8 +362,11 @@ one QStash refresh job per selected league. The signed
 `/api/webhooks/qstash/reminder-fixtures` callback fetches today through the next six
 days using the same eligibility filter as the weekly cron, with new-match
 broadcasts disabled. This covers selections made after the weekly fetch. Fetch or
-reminder-scheduling failures return HTTP 500 for QStash retries; existing fixtures
-are also scheduled on retry. If publishing fails, the save response explicitly
+reminder-scheduling failures return HTTP 500. Only newly inserted fixtures publish
+match reminders, for both prediction and reminder-only games; repeated fetches
+skip scheduling existing fixtures. A failed initial reminder publish therefore
+requires separate recovery; re-fetching an existing match does not requeue it.
+If publishing the refresh job fails, the save response explicitly
 asks the user to save again (the preferences have already been persisted).
 
 Two one-shot QStash messages are scheduled per fixture: 60 minutes before kickoff and at kickoff (each is skipped if its scheduled time has already passed). The signed webhook calls `sendMatchKickoffReminder(externalId, kind)`; missing or non-scheduled matches are skipped.

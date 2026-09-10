@@ -202,9 +202,10 @@ export async function fetchAndInsertMatches(params: {
         await assignKnockoutLegs(league.externalId);
         await registerLiveGoalChains(toCreate.filter(f => !filterByTeams || predictionTeamIds.has(f.teams.home.id) || predictionTeamIds.has(f.teams.away.id)), logPrefix);
       }
-      // Re-registering is safe because QStash deduplicates by external fixture id;
-      // this also covers fixtures that were ingested before a user enabled reminders.
-      await registerMatchReminderChains(fixtures, logPrefix, params.strictReminderScheduling);
+      // Both prediction and reminder-only games are scheduled on insertion only.
+      // Subscribers are resolved at delivery time, so preference changes do not
+      // require publishing another reminder for an existing fixture.
+      await registerMatchReminderChains(toCreate, logPrefix, params.strictReminderScheduling);
     } catch (e: unknown) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${league.externalId}):`, { error: e instanceof Error ? e.message : String(e) });
       debug.push({ league: league.name, externalId: league.externalId, error: e instanceof Error ? e.message : String(e) });
@@ -391,7 +392,7 @@ async function registerLiveGoalChains(fixtures: APIFixture[], logPrefix: string)
   );
 }
 
-/** Schedules upcoming fixtures, including existing ones. Strict mode propagates failures so queued refreshes can retry. */
+/** Schedules newly inserted upcoming fixtures. Strict mode surfaces scheduling failures to the caller. */
 async function registerMatchReminderChains(fixtures: APIFixture[], logPrefix: string, strict = false): Promise<void> {
   const now = new Date();
   const upcoming = fixtures.filter(f => new Date(f.fixture.date) > now);

@@ -593,7 +593,7 @@ export interface CronMatchItem {
 }
 
 export interface ReminderOnlyMatchItem extends CronMatchItem {
-  recipients: { name: string; email: string }[];
+  recipients: { name: string; email: string | null }[];
 }
 
 export async function sendFetchMatchesCronEmail(params: {
@@ -649,7 +649,7 @@ export async function sendFetchMatchesCronEmail(params: {
       .sort((a, b) => a.kickoffTime.getTime() - b.kickoffTime.getTime())
       .map(m => {
         const recipientsStr = m.recipients.length
-          ? m.recipients.map(r => `${r.name} (${r.email})`).join(', ')
+          ? m.recipients.map(r => `${r.name} (${r.email || 'no notification email configured'})`).join(', ')
           : '<em style="color:#aaa;">no one selected both teams</em>';
         return `
         <tr>
@@ -673,7 +673,7 @@ export async function sendFetchMatchesCronEmail(params: {
               <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">League</th>
               <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">Match</th>
               <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">Kickoff (CLT)</th>
-              <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">Reminded</th>
+              <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">Current subscribers</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
