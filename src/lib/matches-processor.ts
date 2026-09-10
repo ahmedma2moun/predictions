@@ -9,6 +9,7 @@ import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
 import { sendPushToUsers } from './fcm';
 import { registerLiveGoalChain } from '@/lib/live-goal-service';
 import { registerMatchReminderChain } from '@/lib/match-reminder-service';
+import { planMatchReminders } from '@/lib/reminders/planner';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { SeasonService } from '@/lib/services/season-service';
 import { requireString, requireDate } from '@/lib/validation';
@@ -97,6 +98,7 @@ export async function fetchAndInsertMatches(params: {
   const activeSeasonId = activeSeason?.id ?? null;
 
   let inserted = 0, skipped = 0, errors = 0;
+  let newPredictionCount = 0;
   const debug: Record<string, unknown>[] = [];
   const insertedMatches: MatchSummaryItem[] = [];
   const skippedMatches: MatchSummaryItem[] = [];
@@ -134,11 +136,20 @@ export async function fetchAndInsertMatches(params: {
       const existingRows = await MatchRepository.findMany({ where: { externalId: { in: fixtureIds } }, select: { id: true, externalId: true, predictionsEnabled: true } });
       const existing = new Set(existingRows.map(m => m.externalId));
       const predictionState = new Map(fixtures.map(f => [f.fixture.id, !filterByTeams || predictionTeamIds.has(f.teams.home.id) || predictionTeamIds.has(f.teams.away.id)]));
-      const stateUpdates = existingRows
-        .map(row => ({ row, enabled: row.externalId == null ? row.predictionsEnabled : (predictionState.get(row.externalId) ?? row.predictionsEnabled) }))
-        .filter(({ row, enabled }) => row.predictionsEnabled !== enabled)
-        .map(({ row, enabled }) => MatchRepository.update({ where: { id: row.id }, data: { predictionsEnabled: enabled } }));
+      // Existing prediction eligibility is authoritative; an opt-in reminder
+      // refresh or narrower admin filter must never demote an enabled game.
+      const promotedIds = new Set(existingRows.filter(row => !row.predictionsEnabled && row.externalId != null && predictionState.get(row.externalId)).map(row => row.externalId));
+      const factsById = new Map(fixtures.map(f => [f.fixture.id, f]));
+      const stateUpdates = existingRows.map(row => {
+        const f = row.externalId == null ? undefined : factsById.get(row.externalId);
+        return MatchRepository.update({ where: { id: row.id }, data: {
+          ...(promotedIds.has(row.externalId) ? { predictionsEnabled: true, seasonId: activeSeasonId, weekStart: fromDate } : {}),
+          ...(f ? { kickoffTime: new Date(f.fixture.date), status: ['scheduled', 'postponed', 'cancelled'].includes(mapFixtureStatus(f.fixture.status.short)) ? mapFixtureStatus(f.fixture.status.short) : undefined } : {}),
+        } });
+      });
       if (stateUpdates.length) await MatchRepository.transaction(stateUpdates);
+      newPredictionCount += promotedIds.size;
+      await registerLiveGoalChains(fixtures.filter(f => promotedIds.has(f.fixture.id)), logPrefix);
 
       const toCreate = fixtures.filter((f: APIFixture) => !existing.has(f.fixture.id));
       const alreadyExisting = fixtures.filter((f: APIFixture) => existing.has(f.fixture.id));
@@ -155,6 +166,7 @@ export async function fetchAndInsertMatches(params: {
 
       if (toCreate.length > 0) {
         await MatchRepository.createMany({
+          skipDuplicates: true,
           data: toCreate.map((f: APIFixture) => ({
             externalId: f.fixture.id,
             leagueId: league.id,
@@ -177,6 +189,7 @@ export async function fetchAndInsertMatches(params: {
           })),
         });
         inserted += toCreate.length;
+        newPredictionCount += toCreate.filter(f => predictionState.get(f.fixture.id)).length;
         for (const f of toCreate) {
           insertedMatches.push({
             leagueName: league.name,
@@ -190,8 +203,7 @@ export async function fetchAndInsertMatches(params: {
         await assignKnockoutLegs(league.externalId);
         await registerLiveGoalChains(toCreate.filter(f => !filterByTeams || predictionTeamIds.has(f.teams.home.id) || predictionTeamIds.has(f.teams.away.id)), logPrefix);
       }
-      // Re-registering is safe because QStash deduplicates by external fixture id;
-      // this also covers fixtures that were ingested before a user enabled reminders.
+      // Planning upserts durable jobs; repeated fetches cannot create new logical reminders.
       await registerMatchReminderChains(fixtures, logPrefix, params.strictReminderScheduling);
     } catch (e: unknown) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${league.externalId}):`, { error: e instanceof Error ? e.message : String(e) });
@@ -201,7 +213,7 @@ export async function fetchAndInsertMatches(params: {
   }
 
   if (sendNotifications) {
-    await sendNewMatchNotifications(fromDate, inserted, logPrefix);
+    await sendNewMatchNotifications(fromDate, newPredictionCount, logPrefix);
   }
 
   return { inserted, skipped, errors, debug, insertedMatches, skippedMatches };
@@ -339,6 +351,8 @@ export async function createCustomMatch(input: CreateCustomMatchInput) {
       scoresProcessed: false,
     },
   });
+
+  await planMatchReminders(match.id);
 
   // Fire-and-forget: a notification failure must not fail match creation.
   notifyUsersOfNewMatches(

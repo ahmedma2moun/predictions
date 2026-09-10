@@ -1,3 +1,4 @@
+import { predictionDigestWhere } from '@/lib/reminders/prediction-digest';
 import { NextRequest, NextResponse } from 'next/server';
 import { UserService } from '@/lib/services/user-service';
 import { DeviceTokenService } from '@/lib/services/device-service';
@@ -18,10 +19,7 @@ export async function GET(req: NextRequest) {
 
   // Scheduled matches kicking off in the next 24 hours
   const todayMatches = await MatchRepository.findMany({
-    where: {
-      status:      'scheduled',
-      kickoffTime: { gte: now, lte: in24Hours },
-    },
+    where: predictionDigestWhere(now, in24Hours),
     include: { league: { select: { name: true } } },
     orderBy: { kickoffTime: 'asc' },
   });

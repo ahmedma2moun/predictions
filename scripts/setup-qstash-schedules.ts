@@ -21,6 +21,12 @@ async function main() {
 
   const schedules = [
     {
+      scheduleId: 'predictions-reminder-reconcile',
+      destination: `${baseUrl.replace(/\/$/, '')}/api/cron/reminder-reconcile`,
+      cron: '* * * * *',
+      method: 'GET' as const,
+    },
+    {
       scheduleId:  'predictions-fetch-matches',
       destination: `${baseUrl.replace(/\/$/, '')}/api/cron/fetch-matches`,
       cron:        'CRON_TZ=Africa/Cairo 0 20 * * 4', // every Thursday, 8 PM Cairo local (DST-aware)

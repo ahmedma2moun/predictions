@@ -356,27 +356,20 @@ Key files: `src/lib/live-goal-config.ts` (tunable constants), `src/lib/qstash.ts
 
 ## Match Kickoff Reminders
 
-Saving reminder selections (web or mobile) commits the preferences, then publishes
-one QStash refresh job per selected league. The signed
-`/api/webhooks/qstash/reminder-fixtures` callback fetches today through the next six
-days using the same eligibility filter as the weekly cron, with new-match
-broadcasts disabled. This covers selections made after the weekly fetch. Fetch or
-reminder-scheduling failures return HTTP 500 for QStash retries; existing fixtures
-are also scheduled on retry. If publishing fails, the save response explicitly
-asks the user to save again (the preferences have already been persisted).
+Reminder policies, subscription lookup, planning, delivery and recovery are separate modules under `src/lib/reminders/`. See [REMINDER_RELIABILITY.md](REMINDER_RELIABILITY.md) for deployment and operating details.
 
-Two one-shot QStash messages are scheduled per fixture: 60 minutes before kickoff and at kickoff (each is skipped if its scheduled time has already passed). The signed webhook calls `sendMatchKickoffReminder(externalId, kind)`; missing or non-scheduled matches are skipped.
+- Prediction-enabled games: all notification-email users and registered-device users receive the pre-kickoff reminder.
+- Followed-team fixtures: a user must select both teams in the same active, reminder-enabled league. They receive pre-kickoff and kickoff alerts.
+- Prediction-game kickoff alerts remain opt-in. Overlapping policies share one delivery per timing/channel/target.
+- Daily and weekly missing-prediction digests query only prediction-enabled games.
 
-Recipients are resolved at delivery time:
+`ReminderJob` is uniquely keyed by internal match ID, kickoff time and timing. This includes custom matches without an external ID. QStash publishes `{ jobId }`, while the database is the authority for duplicate protection and schedule validity. Already-queued external-ID messages use a compatibility facade and cannot create new schedules.
 
-- **Prediction-game 60-minute reminders** (`predictionsEnabled = true`, `kind = 'before'`) email all users with a notification email and independently push all users with registered devices. Team selections are not required.
-- **Reminder-only fixtures and all kickoff-time alerts** require the user to have selected both teams in the league (`getReminderRecipientIds()`). No matching selections returns `no_subscribers`.
+`ReminderDelivery` records each recipient/channel/target separately, with atomic claims, leases, bounded retries, continuations and provider acceptance outcomes. Superseded or expired jobs do not send. A five-minute transport grace prevents stale notifications long after the nominal time; subscriptions made after that nominal time do not replay it.
 
-Whether the user has already submitted a prediction is ignored. Older queued messages without `kind` default to `before` and retain the prediction-game broadcast behavior.
+Preference saves write a per-league `ReminderRefresh` outbox revision in the same transaction. A best-effort QStash wake-up accelerates processing; the minute reconciliation schedule repairs missing jobs/publications and drains pending requests. Hourly refresh requests synchronize fixture timing and status, with no prediction-eligibility changes or new-game announcements.
 
-No re-arming — each of the two messages fires exactly once per match. A `flowControl` key (`match-reminders`, parallelism 3) keeps several fixtures sharing the same kickoff slot from all firing their full email/push broadcast in the same instant.
-
-Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `src/app/api/webhooks/qstash/match-reminder/route.ts`, `sendKickoffReminderEmail()` in `src/lib/email.ts`. Mobile push type `match_reminder` (like `goal`) routes straight to that match's detail screen via `data.matchId`, falling back to the Matches tab if `matchId` is missing (`mobile/src/notifications/route-for-notification.ts`).
+The admin reminder-health page and API expose job/delivery counts, overdue jobs and recent errors. Provider acceptance is not proof of device delivery. Delivery is at-least-once at the provider boundary: a crash after provider acceptance but before the database acknowledgment can still cause a duplicate. See the runbook for this unavoidable SMTP/FCM ambiguity.
 
 **Mobile tap-routing gotcha**: the Android build links both `@react-native-firebase/messaging` (native module, used only for iOS FCM token minting in JS) and `expo-notifications`. Both declare a `com.google.firebase.MESSAGING_EVENT` service in the manifest, but Expo's own service is registered at `android:priority="-1"` — lower than RNFirebase's default — so RNFirebase always wins the race and is the library that actually receives a tapped notification on Android. `mobile/app/_layout.tsx` therefore routes taps through `messaging().onNotificationOpenedApp()` / `messaging().getInitialNotification()` (exposed via `getMessaging()` in `mobile/src/notifications/push.ts`) rather than `expo-notifications`' own response listeners, falling back to the latter only when the native RNFirebase module isn't present (Expo Go). Using the expo-notifications listeners as the primary path silently drops `data` on every tap, regardless of type — a past regression.
 

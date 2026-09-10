@@ -1,3 +1,4 @@
+import { predictionDigestWhere } from '@/lib/reminders/prediction-digest';
 import { NextRequest, NextResponse } from 'next/server';
 import { UserService } from '@/lib/services/user-service';
 import { DeviceTokenService } from '@/lib/services/device-service';
@@ -19,10 +20,7 @@ export async function GET(req: NextRequest) {
 
   // Find all scheduled matches in the next 7 days
   const upcomingMatches = await MatchRepository.findMany({
-    where: {
-      status:      'scheduled',
-      kickoffTime: { gte: now, lte: in7Days },
-    },
+    where: predictionDigestWhere(now, in7Days),
     include: { league: { select: { name: true } } },
     orderBy: { kickoffTime: 'asc' },
   });

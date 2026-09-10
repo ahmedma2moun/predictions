@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getQStashReceiver } from '@/lib/qstash';
-import { refreshReminderFixtures } from '@/lib/reminder-fixture-refresh';
+import { drainReminderRefreshes } from '@/lib/reminders/outbox';
 import { logger } from '@/lib/logger';
+
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -19,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid leagueId' }, { status: 400 });
   }
   try {
-    await refreshReminderFixtures(leagueId);
+    await drainReminderRefreshes();
     return NextResponse.json({ ok: true });
   } catch (error) {
     logger.error('[reminder-fixture-refresh] Failed', { leagueId, error: error instanceof Error ? error.message : String(error) });

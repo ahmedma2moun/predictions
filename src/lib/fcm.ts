@@ -39,46 +39,59 @@ export async function sendPushToUsers(
   });
   if (deviceTokens.length === 0) return [];
 
-  const response = await getMessaging().sendEachForMulticast({
-    tokens: deviceTokens.map(d => d.token),
-    notification: { title: notification.title, body: notification.body },
-    data: notification.data ?? {},
-    android: {
-      priority: 'high',
-      notification: { channelId: 'predictions' },
-    },
-    apns: {
-      headers: {
-        'apns-push-type': 'alert',
-        'apns-priority': '10',
+  return sendPushToDevices(deviceTokens, notification);
+}
+
+/** Send bounded batches; retain individual provider outcomes for durable retries. */
+export async function sendPushToDevices(
+  deviceTokens: Array<{ id: number; token: string }>,
+  notification: { title: string; body: string; data?: Record<string, string> },
+): Promise<FCMResult[]> {
+  if (!deviceTokens.length) return [];
+  initFirebase();
+  const results: FCMResult[] = [];
+  for (let offset = 0; offset < deviceTokens.length; offset += 500) {
+    const batch = deviceTokens.slice(offset, offset + 500);
+    const staleIds: number[] = [];
+    const response = await getMessaging().sendEachForMulticast({
+      tokens: batch.map(d => d.token),
+      notification: { title: notification.title, body: notification.body },
+      data: notification.data ?? {},
+      android: {
+        priority: 'high',
+        notification: { channelId: 'predictions' },
       },
-      payload: {
-        aps: {
-          sound: 'default',
-          badge: 1,
+      apns: {
+        headers: {
+          'apns-push-type': 'alert',
+          'apns-priority': '10',
+        },
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
         },
       },
-    },
-  });
-
-  const results: FCMResult[] = [];
-  const staleIds: number[] = [];
-
-  response.responses.forEach((r, i) => {
-    const token = deviceTokens[i].token;
-    results.push({
-      token: token.slice(0, 20) + '...',
-      success: r.success,
-      errorCode: r.error?.code,
-      errorMessage: r.error?.message,
     });
-    if (!r.success && r.error?.code === 'messaging/registration-token-not-registered') {
-      staleIds.push(deviceTokens[i].id);
-    }
-  });
 
-  if (staleIds.length > 0) {
-    await prisma.deviceToken.deleteMany({ where: { id: { in: staleIds } } });
+
+    response.responses.forEach((r, i) => {
+      const token = batch[i].token;
+      results.push({
+        token: token.slice(0, 20) + '...',
+        success: r.success,
+        errorCode: r.error?.code,
+        errorMessage: r.error?.message,
+      });
+      if (!r.success && r.error?.code === 'messaging/registration-token-not-registered') {
+        staleIds.push(batch[i].id);
+      }
+    });
+
+    if (staleIds.length > 0) {
+      await prisma.deviceToken.deleteMany({ where: { id: { in: staleIds } } });
+    }
   }
 
   return results;
