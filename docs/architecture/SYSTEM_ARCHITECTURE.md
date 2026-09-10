@@ -270,10 +270,18 @@ fetch-matches cron runs
 **fetch-matches** (QStash schedule, Thursday 8 PM Cairo local):
 1. Load all active leagues
 2. For each: call football-data.org `/competitions/{id}/matches?dateFrom=…&dateTo=…`
-3. Check `externalId` existence, then `createMany()` — never overwrites existing
-4. Send "new matches" email to each user with `notificationEmail` set (prediction-enabled matches only)
-5. Send the admin cron-summary email (`sendFetchMatchesCronEmail`), which now includes a "Reminder-only games" section — for each fetched match with `predictionsEnabled: false`, `buildReminderOnlyNotices()` resolves and lists the users who selected both teams for reminders
-6. Returns `{ inserted, skipped, errors }`
+3. Filter fixtures to those that are eligible — a fixture is kept when either:
+   - one of its teams is an **active** (prediction) team in the league, or
+   - at least **one user has selected both of its teams** on the Reminders page
+     (`getReminderPairsByLeagueMap()` in `src/lib/services/reminder-service.ts`).
+     Admin-enabling a team for reminders (`TeamLeague.reminderEnabled`) only makes it
+     selectable — it does not by itself cause its fixtures to be ingested, so enabling
+     a whole league does not flood the DB with every fixture.
+   Reminder-only fixtures are inserted with `predictionsEnabled = false`.
+4. Check `externalId` existence, then `createMany()` — never overwrites existing
+5. Send "new matches" email to each user with `notificationEmail` set (prediction-enabled matches only)
+6. Send the admin cron-summary email (`sendFetchMatchesCronEmail`), which includes a "Reminder-only games" section — for each fetched match with `predictionsEnabled: false`, `buildReminderOnlyNotices()` resolves and lists the users who selected both teams for reminders
+7. Returns `{ inserted, skipped, errors }`
 
 **fetch-results** (unscheduled — no QStash schedule or cron trigger; kept only as a manually-invoked safety net):
 1. Queries any match with `kickoffTime < now` and `status NOT IN (finished, cancelled)`
@@ -349,28 +357,25 @@ Key files: `src/lib/live-goal-config.ts` (tunable constants), `src/lib/qstash.ts
 
 ## Match Kickoff Reminders
 
-Same self-chaining-schedule idea as Live Goal Notifications, but a single one-shot QStash message instead of a chain — every user gets reminded about every upcoming match 60 minutes before kickoff, regardless of whether they've predicted it (this is deliberately unfiltered, unlike `prediction-reminder`/`daily-reminder`, which only nudge users with missing predictions):
+Saving reminder selections (web or mobile) commits the preferences, then publishes
+one QStash refresh job per selected league. The signed
+`/api/webhooks/qstash/reminder-fixtures` callback fetches today through the next six
+days using the same eligibility filter as the weekly cron, with new-match
+broadcasts disabled. This covers selections made after the weekly fetch. Fetch or
+reminder-scheduling failures return HTTP 500 for QStash retries; existing fixtures
+are also scheduled on retry. If publishing fails, the save response explicitly
+asks the user to save again (the preferences have already been persisted).
 
-```
-fetchAndInsertMatches() inserts new fixtures
-    │
-    └─ registerMatchReminderChain() — publishes one QStash message per fixture,
-       notBefore = kickoffTime - 60min, body = { externalId }
-       (skipped if kickoff is already inside the 60-minute window)
-                        │
-                        ▼
-   QStash delivers → POST /api/webhooks/qstash/match-reminder
-   (Upstash-Signature verified against QSTASH_CURRENT/NEXT_SIGNING_KEY)
-                        │
-                        ▼
-              sendMatchKickoffReminder(externalId)
-    │
-    ├─ match missing or status no longer 'scheduled' (postponed/cancelled) → no-op
-    └─ otherwise: email every user with a notificationEmail set, and push
-       every user with a registered device token — prediction status ignored
-```
+Two one-shot QStash messages are scheduled per fixture: 60 minutes before kickoff and at kickoff (each is skipped if its scheduled time has already passed). The signed webhook calls `sendMatchKickoffReminder(externalId, kind)`; missing or non-scheduled matches are skipped.
 
-No re-arming — this fires exactly once per match. A `flowControl` key (`match-reminders`, parallelism 3) keeps several fixtures sharing the same kickoff slot from all firing their full email/push broadcast in the same instant.
+Recipients are resolved at delivery time:
+
+- **Prediction-game 60-minute reminders** (`predictionsEnabled = true`, `kind = 'before'`) email all users with a notification email and independently push all users with registered devices. Team selections are not required.
+- **Reminder-only fixtures and all kickoff-time alerts** require the user to have selected both teams in the league (`getReminderRecipientIds()`). No matching selections returns `no_subscribers`.
+
+Whether the user has already submitted a prediction is ignored. Older queued messages without `kind` default to `before` and retain the prediction-game broadcast behavior.
+
+No re-arming — each of the two messages fires exactly once per match. A `flowControl` key (`match-reminders`, parallelism 3) keeps several fixtures sharing the same kickoff slot from all firing their full email/push broadcast in the same instant.
 
 Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `src/app/api/webhooks/qstash/match-reminder/route.ts`, `sendKickoffReminderEmail()` in `src/lib/email.ts`. Mobile push type `match_reminder` (like `goal`) routes straight to that match's detail screen via `data.matchId`, falling back to the Matches tab if `matchId` is missing (`mobile/src/notifications/route-for-notification.ts`).
 

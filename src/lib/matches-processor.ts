@@ -1,5 +1,5 @@
 import { TeamService } from '@/lib/services/team-service';
-import { getReminderTeamsByLeagueMap, getReminderRecipients } from '@/lib/services/reminder-service';
+import { getReminderPairsByLeagueMap, reminderPairKey, getReminderRecipients } from '@/lib/services/reminder-service';
 import { LeagueService } from '@/lib/services/league-service';
 import { logger } from '@/lib/logger';
 import { UserRepository } from '@/lib/repositories/user-repository';
@@ -85,16 +85,17 @@ export async function fetchAndInsertMatches(params: {
   filterByTeams?: boolean;
   teamExternalIds?: Set<number>;
   sendNotifications?: boolean;
+  strictReminderScheduling?: boolean;
   logPrefix: string;
 }): Promise<FetchMatchesSummary> {
   const { from, to, fromDate, leagueId, filterByTeams = false, teamExternalIds, sendNotifications = true, logPrefix } = params;
 
-  const [leagues, activeTeamsByLeague, reminderTeamsByLeague, activeSeason] = await Promise.all([
+  const [leagues, activeTeamsByLeague, reminderPairsByLeague, activeSeason] = await Promise.all([
     leagueId
       ? LeagueService.getById({ where: { id: leagueId } }).then(l => (l ? [l] : []))
       : LeagueService.getAll({ where: { isActive: true } }),
     filterByTeams && !teamExternalIds ? getActiveTeamsByLeague() : Promise.resolve(new Map<number, Set<number>>()),
-    filterByTeams ? getReminderTeamsByLeagueMap() : Promise.resolve(new Map<number, Set<number>>()),
+    filterByTeams ? getReminderPairsByLeagueMap() : Promise.resolve(new Map<number, Set<string>>()),
     SeasonService.getActiveSeason(),
   ]);
   const activeSeasonId = activeSeason?.id ?? null;
@@ -109,17 +110,16 @@ export async function fetchAndInsertMatches(params: {
   for (const league of leagues) {
     try {
       const predictionTeamIds = teamExternalIds ?? activeTeamsByLeague.get(league.externalId) ?? new Set<number>();
-      const reminderTeamIds = teamExternalIds ? new Set<number>() : (reminderTeamsByLeague.get(league.externalId) ?? new Set<number>());
-      const eligibleTeamIds = new Set([...predictionTeamIds, ...reminderTeamIds]);
-      if (filterByTeams && !eligibleTeamIds.size) {
-        logger.info(`[${logPrefix}] ${league.name}: skipped — no active teams`);
-        debug.push({ league: league.name, externalId: league.externalId, skippedReason: 'no active teams' });
+      const reminderPairs = teamExternalIds ? new Set<string>() : (reminderPairsByLeague.get(league.externalId) ?? new Set<string>());
+      if (filterByTeams && !predictionTeamIds.size && !reminderPairs.size) {
+        logger.info(`[${logPrefix}] ${league.name}: skipped — no active teams or reminder selections`);
+        debug.push({ league: league.name, externalId: league.externalId, skippedReason: 'no active teams or reminder selections' });
         continue;
       }
 
       const allFixtures = await fetchFixtures({ league: league.externalId, season: league.season, from, to });
       const fixtures = filterByTeams
-        ? filterByActiveTeams(allFixtures, eligibleTeamIds)
+        ? filterEligibleFixtures(allFixtures, predictionTeamIds, reminderPairs)
         : allFixtures;
 
       debug.push({
@@ -129,7 +129,8 @@ export async function fetchAndInsertMatches(params: {
         from,
         to,
         allFixtures: allFixtures.length,
-        activeTeams: filterByTeams ? eligibleTeamIds.size : 'unfiltered',
+        activeTeams: filterByTeams ? predictionTeamIds.size : 'unfiltered',
+        reminderPairs: filterByTeams ? reminderPairs.size : 'unfiltered',
         filtered: fixtures.length,
       });
 
@@ -203,7 +204,7 @@ export async function fetchAndInsertMatches(params: {
       }
       // Re-registering is safe because QStash deduplicates by external fixture id;
       // this also covers fixtures that were ingested before a user enabled reminders.
-      await registerMatchReminderChains(fixtures, logPrefix);
+      await registerMatchReminderChains(fixtures, logPrefix, params.strictReminderScheduling);
     } catch (e: unknown) {
       logger.error(`[${logPrefix}] ERROR league ${league.name} (${league.externalId}):`, { error: e instanceof Error ? e.message : String(e) });
       debug.push({ league: league.name, externalId: league.externalId, error: e instanceof Error ? e.message : String(e) });
@@ -390,17 +391,18 @@ async function registerLiveGoalChains(fixtures: APIFixture[], logPrefix: string)
   );
 }
 
-/** Registers the pre-kickoff reminder QStash job for each newly-inserted future fixture. Never throws — a scheduling failure must not fail match insertion. */
-async function registerMatchReminderChains(fixtures: APIFixture[], logPrefix: string): Promise<void> {
+/** Schedules upcoming fixtures, including existing ones. Strict mode propagates failures so queued refreshes can retry. */
+async function registerMatchReminderChains(fixtures: APIFixture[], logPrefix: string, strict = false): Promise<void> {
   const now = new Date();
   const upcoming = fixtures.filter(f => new Date(f.fixture.date) > now);
   await Promise.all(
     upcoming.map(f =>
-      registerMatchReminderChain({ externalId: f.fixture.id, kickoffTime: new Date(f.fixture.date) }).catch(e =>
+      registerMatchReminderChain({ externalId: f.fixture.id, kickoffTime: new Date(f.fixture.date) }).catch(e => {
         logger.error(`[${logPrefix}] Failed to register match reminder for fixture ${f.fixture.id}:`, {
           error: e instanceof Error ? e.message : String(e),
-        }),
-      ),
+        });
+        if (strict) throw e;
+      }),
     ),
   );
 }
@@ -409,8 +411,15 @@ async function getActiveTeamsByLeague(): Promise<Map<number, Set<number>>> {
   return TeamService.getActiveTeamsByLeagueMap();
 }
 
-function filterByActiveTeams(fixtures: APIFixture[], activeTeamIds: Set<number>) {
+/**
+ * A fixture is kept when it involves an active (prediction) team, or when at
+ * least one user has selected BOTH of its teams for reminders. A reminder team
+ * on only one side of a fixture is never enough — nobody would be reminded.
+ */
+function filterEligibleFixtures(fixtures: APIFixture[], predictionTeamIds: Set<number>, reminderPairs: Set<string>) {
   return fixtures.filter(f =>
-    activeTeamIds.has(f.teams.home.id) || activeTeamIds.has(f.teams.away.id)
+    predictionTeamIds.has(f.teams.home.id) ||
+    predictionTeamIds.has(f.teams.away.id) ||
+    reminderPairs.has(reminderPairKey(f.teams.home.id, f.teams.away.id))
   );
 }

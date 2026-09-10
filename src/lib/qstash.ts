@@ -46,3 +46,7 @@ export function testNotificationWebhookUrl(): string {
 export function matchReminderWebhookUrl(): string {
   return absoluteWebhookUrl('/api/webhooks/qstash/match-reminder');
 }
+
+export function reminderFixtureRefreshWebhookUrl(): string {
+  return absoluteWebhookUrl('/api/webhooks/qstash/reminder-fixtures');
+}

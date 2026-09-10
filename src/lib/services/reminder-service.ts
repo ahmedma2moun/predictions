@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { enqueueReminderFixtureRefresh } from '@/lib/reminder-fixture-refresh';
 
 export type ReminderLeague = {
   id: number;
@@ -57,6 +58,13 @@ export async function saveUserReminderPreferences(userId: number, selections: un
     await tx.userReminderTeam.deleteMany({ where: { userId } });
     if (eligible.length) await tx.userReminderTeam.createMany({ data: eligible.map(row => ({ userId, teamLeagueId: row.id })) });
   });
+  // Publish only after commit, so the worker sees the saved selections. Queue
+  // every selected league on retries too, including when preferences are unchanged.
+  try {
+    for (const leagueId of byLeague.keys()) await enqueueReminderFixtureRefresh(leagueId);
+  } catch {
+    throw new Error('Preferences saved, but reminder setup could not be queued. Please save again to retry.');
+  }
   return getUserReminderPreferences(userId);
 }
 
@@ -119,10 +127,38 @@ export async function getAllUserReminderSelections(): Promise<UserReminderSelect
   return [...byUser.values()];
 }
 
-export async function getReminderTeamsByLeagueMap() {
-  const rows = await prisma.teamLeague.findMany({ where: { reminderEnabled: true, league: { isActive: true } }, select: { externalLeagueId: true, team: { select: { externalId: true } } } });
-  const map = new Map<number, Set<number>>();
-  for (const row of rows) map.set(row.externalLeagueId, new Set([...(map.get(row.externalLeagueId) ?? []), row.team.externalId]));
+/** Canonical key for an unordered pair of team externalIds. */
+export function reminderPairKey(teamA: number, teamB: number): string {
+  return teamA < teamB ? `${teamA}:${teamB}` : `${teamB}:${teamA}`;
+}
+
+/**
+ * Per external league id, the set of team-pair keys where at least ONE user has
+ * selected BOTH teams for reminders. Admin-enabling a team is not enough on its
+ * own — the fetch flow only ingests a reminder-driven fixture when some user's
+ * selection covers both of its teams, mirroring getReminderRecipientIds().
+ */
+export async function getReminderPairsByLeagueMap(): Promise<Map<number, Set<string>>> {
+  const rows = await prisma.userReminderTeam.findMany({
+    where: { teamLeague: { reminderEnabled: true, league: { isActive: true } } },
+    select: { userId: true, teamLeague: { select: { externalLeagueId: true, team: { select: { externalId: true } } } } },
+  });
+  const teamsByLeagueUser = new Map<number, Map<number, number[]>>();
+  for (const row of rows) {
+    const byUser = teamsByLeagueUser.get(row.teamLeague.externalLeagueId) ?? new Map<number, number[]>();
+    byUser.set(row.userId, [...(byUser.get(row.userId) ?? []), row.teamLeague.team.externalId]);
+    teamsByLeagueUser.set(row.teamLeague.externalLeagueId, byUser);
+  }
+  const map = new Map<number, Set<string>>();
+  for (const [externalLeagueId, byUser] of teamsByLeagueUser) {
+    const pairs = new Set<string>();
+    for (const teamIds of byUser.values()) {
+      for (let i = 0; i < teamIds.length; i++) {
+        for (let j = i + 1; j < teamIds.length; j++) pairs.add(reminderPairKey(teamIds[i], teamIds[j]));
+      }
+    }
+    map.set(externalLeagueId, pairs);
+  }
   return map;
 }
 
