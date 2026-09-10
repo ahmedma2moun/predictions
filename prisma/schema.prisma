@@ -73,6 +73,7 @@ model User {
   achievements       PlayerAchievement[]
   activityReactions  ActivityReaction[]
   reminderTeams      UserReminderTeam[]
+  reminderDeliveries ReminderDelivery[]
 }
 
 model UserBadge {
@@ -99,6 +100,7 @@ model League {
   teamLeagues     TeamLeague[]
   matches         Match[]
   championBonuses ChampionBonus[]
+  reminderRefresh ReminderRefresh?
 }
 
 model Team {
@@ -177,6 +179,7 @@ model Match {
   season                 Season?              @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   predictions            Prediction[]
   matchOdds              MatchOdds?
+  reminderJobs           ReminderJob[]
   championBonusAwards    ChampionBonusAward[]
 
   @@index([status, kickoffTime])
@@ -402,4 +405,60 @@ model ChampionBonusAward {
 
   @@unique([championBonusId, teamId, matchId])
   @@index([championBonusId, teamId])
+}
+
+// One logical reminder per fixture revision and timing. QStash is only transport.
+model ReminderJob {
+  id          Int      @id @default(autoincrement())
+  matchId     Int
+  match       Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  kickoffTime DateTime
+  kind        String
+  dueAt       DateTime
+  expiresAt   DateTime
+  status      String   @default("pending")
+  queuedAt    DateTime?
+  lastError   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deliveries  ReminderDelivery[]
+
+  @@unique([matchId, kickoffTime, kind])
+  @@index([status, dueAt])
+}
+
+// A separate row per email recipient or device makes partial retries independent.
+model ReminderDelivery {
+  id            Int      @id @default(autoincrement())
+  jobId         Int
+  job           ReminderJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel       String
+  targetKey     String
+  status        String   @default("pending")
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+  leaseUntil    DateTime?
+  leaseToken    String?
+  acceptedAt    DateTime?
+  lastError     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([jobId, userId, channel, targetKey])
+  @@index([jobId, status, nextAttemptAt])
+}
+
+// Transactional outbox, coalesced per league. Revision prevents lost saves while processing.
+model ReminderRefresh {
+  leagueId      Int      @id
+  league        League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  revision      Int      @default(1)
+  completedRevision Int  @default(0)
+  nextAttemptAt DateTime @default(now())
+  leaseUntil    DateTime?
+  leaseToken    String?
+  lastError     String?
+  updatedAt     DateTime @updatedAt
 }

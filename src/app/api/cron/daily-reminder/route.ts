@@ -1,3 +1,4 @@
+import { predictionDigestWhere } from '@/lib/reminders/prediction-digest';
 import { NextRequest, NextResponse } from 'next/server';
 import { UserService } from '@/lib/services/user-service';
 import { DeviceTokenService } from '@/lib/services/device-service';
@@ -18,10 +19,7 @@ export async function GET(req: NextRequest) {
 
   // Scheduled matches kicking off in the next 24 hours
   const todayMatches = await MatchRepository.findMany({
-    where: {
-      status:      'scheduled',
-      kickoffTime: { gte: now, lte: in24Hours },
-    },
+    where: predictionDigestWhere(now, in24Hours),
     include: { league: { select: { name: true } } },
     orderBy: { kickoffTime: 'asc' },
   });
@@ -100,7 +98,7 @@ export async function GET(req: NextRequest) {
       by: ['userId'],
       where: { userId: { in: allMobileUserIds }, matchId: { in: todayMatchIds } },
       _count: { matchId: true },
-    })) as any[];
+    })) as Array<{ userId: number; _count: { matchId: number } }>;
     const fullyPredicted = new Set(
       predCounts
         .filter(u => u._count.matchId >= todayMatchIds.length)
