@@ -89,7 +89,7 @@ struct AdminHome: View {
         TabView {
             AdminDashboard()
                 .tabItem { Label("Admin", systemImage: "square.grid.2x2") }
-            NavigationStack { MatchesView() }
+            NavigationStack { UpcomingMatchesView() }
                 .tabItem { Label("Matches", systemImage: "soccerball") }
         }
     }
