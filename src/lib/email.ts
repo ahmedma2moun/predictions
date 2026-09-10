@@ -592,17 +592,22 @@ export interface CronMatchItem {
   kickoffTime: Date;
 }
 
+export interface ReminderOnlyMatchItem extends CronMatchItem {
+  recipients: { name: string; email: string }[];
+}
+
 export async function sendFetchMatchesCronEmail(params: {
   inserted: number;
   skipped: number;
   errors: number;
   insertedMatches: CronMatchItem[];
   skippedMatches: CronMatchItem[];
+  reminderOnlyMatches?: ReminderOnlyMatchItem[];
   from: string;
   to: string;
 }): Promise<void> {
   const to = 'ahmed.m.maamoun94@gmail.com';
-  const { inserted, skipped, errors, insertedMatches, skippedMatches, from, to: windowTo } = params;
+  const { inserted, skipped, errors, insertedMatches, skippedMatches, reminderOnlyMatches = [], from, to: windowTo } = params;
   const timestamp = new Date().toUTCString();
 
   function matchRows(matches: CronMatchItem[]): string {
@@ -638,6 +643,44 @@ export async function sendFetchMatchesCronEmail(params: {
       </div>`;
   }
 
+  function reminderOnlySection(matches: ReminderOnlyMatchItem[]): string {
+    if (!matches.length) return '';
+    const rows = matches
+      .sort((a, b) => a.kickoffTime.getTime() - b.kickoffTime.getTime())
+      .map(m => {
+        const recipientsStr = m.recipients.length
+          ? m.recipients.map(r => `${r.name} (${r.email})`).join(', ')
+          : '<em style="color:#aaa;">no one selected both teams</em>';
+        return `
+        <tr>
+          <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#888;">${m.leagueName}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;font-weight:500;white-space:nowrap;">${m.homeTeamName} <span style="color:#aaa;font-weight:400;">vs</span> ${m.awayTeamName}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#888;white-space:nowrap;">${formatShortDate(m.kickoffTime)}</td>
+          <td style="padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;">${recipientsStr}</td>
+        </tr>`;
+      })
+      .join('');
+
+    return `
+      <div style="margin-top:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#a855f7;"></span>
+          <span style="font-size:13px;font-weight:600;color:#333;">Reminder-only games (${matches.length})</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f8f8f8;">
+              <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">League</th>
+              <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">Match</th>
+              <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">Kickoff (CLT)</th>
+              <th style="padding:6px 12px;text-align:left;font-size:11px;color:#888;font-weight:500;">Reminded</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
   const html = `
     <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a;">
       <div style="background:#6366f1;padding:16px 24px;border-radius:8px 8px 0 0;">
@@ -664,6 +707,7 @@ export async function sendFetchMatchesCronEmail(params: {
         </table>
         ${matchTable('Inserted matches', '#16a34a', insertedMatches, inserted)}
         ${skipped > 0 ? matchTable('Already in DB', '#9ca3af', skippedMatches, skipped) : ''}
+        ${reminderOnlySection(reminderOnlyMatches)}
       </div>
     </div>`;
 

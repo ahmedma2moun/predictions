@@ -1,11 +1,11 @@
 import { TeamService } from '@/lib/services/team-service';
-import { getReminderTeamsByLeagueMap } from '@/lib/services/reminder-service';
+import { getReminderTeamsByLeagueMap, getReminderRecipients } from '@/lib/services/reminder-service';
 import { LeagueService } from '@/lib/services/league-service';
 import { logger } from '@/lib/logger';
 import { UserRepository } from '@/lib/repositories/user-repository';
 import { DeviceTokenRepository } from '@/lib/repositories/device-repository';
 import { fetchFixtures, mapFixtureStatus, type APIFixture } from '@/lib/football/service';
-import { sendNewMatchesEmail, type MatchForEmail } from '@/lib/email';
+import { sendNewMatchesEmail, type MatchForEmail, type ReminderOnlyMatchItem } from '@/lib/email';
 import { sendPushToUsers } from './fcm';
 import { registerLiveGoalChain } from '@/lib/live-goal-service';
 import { registerMatchReminderChain } from '@/lib/match-reminder-service';
@@ -48,6 +48,10 @@ export interface MatchSummaryItem {
   homeTeamName: string;
   awayTeamName: string;
   kickoffTime: Date;
+  predictionsEnabled: boolean;
+  externalLeagueId: number;
+  homeTeamExtId: number;
+  awayTeamExtId: number;
 }
 
 export interface FetchMatchesSummary {
@@ -149,6 +153,10 @@ export async function fetchAndInsertMatches(params: {
           homeTeamName: f.teams.home.name,
           awayTeamName: f.teams.away.name,
           kickoffTime: new Date(f.fixture.date),
+          predictionsEnabled: predictionState.get(f.fixture.id) ?? true,
+          externalLeagueId: league.externalId,
+          homeTeamExtId: f.teams.home.id,
+          awayTeamExtId: f.teams.away.id,
         });
       }
 
@@ -182,6 +190,10 @@ export async function fetchAndInsertMatches(params: {
             homeTeamName: f.teams.home.name,
             awayTeamName: f.teams.away.name,
             kickoffTime: new Date(f.fixture.date),
+            predictionsEnabled: predictionState.get(f.fixture.id) ?? true,
+            externalLeagueId: league.externalId,
+            homeTeamExtId: f.teams.home.id,
+            awayTeamExtId: f.teams.away.id,
           });
         }
         logger.info(`[${logPrefix}] ${league.name}: inserted=${toCreate.length}, skipped=${alreadyExisting.length}`);
@@ -204,6 +216,18 @@ export async function fetchAndInsertMatches(params: {
   }
 
   return { inserted, skipped, errors, debug, insertedMatches, skippedMatches };
+}
+
+/** Resolves who will be reminded for each reminder-only fixture (predictions disabled) in a fetch batch, for the fetch-matches cron summary email. */
+export async function buildReminderOnlyNotices(matches: MatchSummaryItem[]): Promise<ReminderOnlyMatchItem[]> {
+  const reminderOnly = matches.filter(m => !m.predictionsEnabled);
+  return Promise.all(reminderOnly.map(async m => ({
+    leagueName: m.leagueName,
+    homeTeamName: m.homeTeamName,
+    awayTeamName: m.awayTeamName,
+    kickoffTime: m.kickoffTime,
+    recipients: await getReminderRecipients({ externalLeagueId: m.externalLeagueId, homeTeamExtId: m.homeTeamExtId, awayTeamExtId: m.awayTeamExtId }),
+  })));
 }
 
 export async function sendNewMatchNotifications(fromDate: Date, insertedCount: number, logPrefix: string) {

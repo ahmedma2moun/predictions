@@ -14,6 +14,7 @@ const adminLinks = [
   { href: "/admin/groups", label: "Groups" },
   { href: "/admin/scoring", label: "Scoring" },
   { href: "/admin/notifications", label: "Notifications" },
+  { href: "/admin/reminders", label: "Reminders" },
 ];
 
 export function AdminNav() {

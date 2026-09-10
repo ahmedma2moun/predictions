@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAndInsertMatches } from '@/lib/matches-processor';
+import { fetchAndInsertMatches, buildReminderOnlyNotices } from '@/lib/matches-processor';
 import { logger } from '@/lib/logger';
 import { sendFetchMatchesCronEmail } from '@/lib/email';
 import { format, addDays } from 'date-fns';
@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
   logger.info('[cron/fetch-matches] Done —', JSON.parse(JSON.stringify(summary)));
 
   try {
-    await sendFetchMatchesCronEmail({ inserted, skipped, errors, insertedMatches, skippedMatches, from, to });
+    const reminderOnlyMatches = await buildReminderOnlyNotices([...insertedMatches, ...skippedMatches]);
+    await sendFetchMatchesCronEmail({ inserted, skipped, errors, insertedMatches, skippedMatches, reminderOnlyMatches, from, to });
   } catch (e) {
     logger.error('[cron/fetch-matches] Failed to send cron notification email:', { error: e instanceof Error ? e.message : String(e) });
   }

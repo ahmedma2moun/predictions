@@ -228,6 +228,10 @@ Manually set the result for a single match and trigger its scoring.
 - **GET** — All scoring rules sorted by priority
 - **PATCH `{id, points?, isActive?}`** — Update rule points or activation
 
+### GET/PATCH /api/admin/reminders
+- **GET** — Every user's current kickoff-reminder team selections (`ReminderService.getAllUserReminderSelections()`), grouped by user: `[{ userId, userName, userEmail, teams: [{ teamLeagueId, teamName, teamLogo, leagueName }] }]`. Powers the admin Reminders page/tab (web and `ios-admin`).
+- **PATCH `{teamLeagueId, enabled}`** — Enable/disable a team-league as reminder-eligible (`TeamLeague.reminderEnabled`) — this is the toggle exposed on the admin Teams page, separate from users' own selections above.
+
 ### POST /api/admin/recalculate
 Recalculate all predictions for all finished matches using current active rules. Processes in batches of 100.
 Returns `{ updated: number }`.

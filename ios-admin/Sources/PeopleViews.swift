@@ -66,6 +66,34 @@ struct UserEditor: View {
     }
 }
 
+struct RemindersView: View {
+    @EnvironmentObject private var api: AdminAPI
+    @StateObject private var data = Resource()
+    @State private var search = ""
+    private var filtered: [Value] {
+        data.value.array.filter { search.isEmpty || ($0.title + $0["userEmail"].text).localizedCaseInsensitiveContains(search) }
+    }
+    var body: some View {
+        List {
+            StatusRows(data: data)
+            ForEach(filtered, id: \.id) { entry in
+                Section {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.title).font(.headline)
+                        Text(entry["userEmail"].text).font(.caption).foregroundStyle(.secondary)
+                    }
+                    ForEach(entry["teams"].array, id: \.id) { team in
+                        LabeledContent(team.title, value: team["leagueName"].text)
+                    }
+                }
+            }
+            if filtered.isEmpty && !data.busy { Text("No users have enabled reminders yet.").foregroundStyle(.secondary) }
+        }
+        .navigationTitle("Reminders").searchable(text: $search)
+        .task { await data.load(api, "/api/admin/reminders") }.refreshable { await data.load(api, "/api/admin/reminders") }
+    }
+}
+
 struct GroupsView: View {
     @EnvironmentObject private var api: AdminAPI
     @StateObject private var data = Resource()

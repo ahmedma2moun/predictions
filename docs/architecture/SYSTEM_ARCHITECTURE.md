@@ -94,7 +94,7 @@ src/
 │   ├── api-handler.ts      # withErrorHandling() — shared route try/catch: ValidationError → 400, else logged + generic 500
 │   ├── query-params.ts     # parseLeaderboardQuery() — shared leagueId/groupId/from/to searchParams parsing
 │   ├── leaderboard.ts      # Leaderboard aggregation logic
-│   ├── matches-processor.ts  # fetchAndInsertMatches(), fetchThisWeekFixtures(), fetchNextMonthFixtures(), createCustomMatch(), notifyUsersOfNewMatches() (fetch-matches cron + admin/matches)
+│   ├── matches-processor.ts  # fetchAndInsertMatches(), fetchThisWeekFixtures(), fetchNextMonthFixtures(), createCustomMatch(), notifyUsersOfNewMatches(), buildReminderOnlyNotices() (fetch-matches cron + admin/matches)
 │   ├── results-processor.ts  # Result update + scoring (fetch-results cron + admin)
 │   ├── standings.ts        # TeamStanding cache + football-data.org standings fetch
 │   ├── client-api.ts       # Typed fetch helpers for client components
@@ -271,8 +271,9 @@ fetch-matches cron runs
 1. Load all active leagues
 2. For each: call football-data.org `/competitions/{id}/matches?dateFrom=…&dateTo=…`
 3. Check `externalId` existence, then `createMany()` — never overwrites existing
-4. Send "new matches" email to each user with `notificationEmail` set
-5. Returns `{ inserted, skipped, errors }`
+4. Send "new matches" email to each user with `notificationEmail` set (prediction-enabled matches only)
+5. Send the admin cron-summary email (`sendFetchMatchesCronEmail`), which now includes a "Reminder-only games" section — for each fetched match with `predictionsEnabled: false`, `buildReminderOnlyNotices()` resolves and lists the users who selected both teams for reminders
+6. Returns `{ inserted, skipped, errors }`
 
 **fetch-results** (unscheduled — no QStash schedule or cron trigger; kept only as a manually-invoked safety net):
 1. Queries any match with `kickoffTime < now` and `status NOT IN (finished, cancelled)`
@@ -372,6 +373,8 @@ fetchAndInsertMatches() inserts new fixtures
 No re-arming — this fires exactly once per match. A `flowControl` key (`match-reminders`, parallelism 3) keeps several fixtures sharing the same kickoff slot from all firing their full email/push broadcast in the same instant.
 
 Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `src/app/api/webhooks/qstash/match-reminder/route.ts`, `sendKickoffReminderEmail()` in `src/lib/email.ts`. Mobile push type `match_reminder` (like `goal`) routes straight to that match's detail screen via `data.matchId`, falling back to the Matches tab if `matchId` is missing (`mobile/src/notifications/route-for-notification.ts`).
+
+**Admin overview**: `GET /api/admin/reminders` (`ReminderService.getAllUserReminderSelections()`) lists every user and the teams they've selected for reminders. Surfaced as a "Reminders" tab/page on both the web admin (`src/app/(app)/admin/reminders/page.tsx`) and the native `ios-admin` app (`RemindersView` in `ios-admin/Sources/PeopleViews.swift`) — read-only; users manage their own selections at `/reminders`, admins toggle which teams are reminder-eligible at all via the existing `PATCH /api/admin/reminders` (`TeamLeague.reminderEnabled`, exposed on the admin Teams page).
 
 **Mobile tap-routing gotcha**: the Android build links both `@react-native-firebase/messaging` (native module, used only for iOS FCM token minting in JS) and `expo-notifications`. Both declare a `com.google.firebase.MESSAGING_EVENT` service in the manifest, but Expo's own service is registered at `android:priority="-1"` — lower than RNFirebase's default — so RNFirebase always wins the race and is the library that actually receives a tapped notification on Android. `mobile/app/_layout.tsx` therefore routes taps through `messaging().onNotificationOpenedApp()` / `messaging().getInitialNotification()` (exposed via `getMessaging()` in `mobile/src/notifications/push.ts`) rather than `expo-notifications`' own response listeners, falling back to the latter only when the native RNFirebase module isn't present (Expo Go). Using the expo-notifications listeners as the primary path silently drops `data` on every tap, regardless of type — a past regression.
 

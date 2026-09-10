@@ -81,6 +81,44 @@ export async function getReminderRecipientIds(match: { externalLeagueId: number;
   return [...teamsByUser].filter(([, teams]) => teams.has(match.homeTeamExtId) && teams.has(match.awayTeamExtId)).map(([userId]) => userId);
 }
 
+export interface ReminderRecipient {
+  name: string;
+  email: string;
+}
+
+/** Resolves the users who will receive a kickoff reminder for a match (name + notification email). */
+export async function getReminderRecipients(match: { externalLeagueId: number; homeTeamExtId: number; awayTeamExtId: number }): Promise<ReminderRecipient[]> {
+  const userIds = await getReminderRecipientIds(match);
+  if (!userIds.length) return [];
+  const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { name: true, notificationEmail: true } });
+  return users.filter(u => u.notificationEmail).map(u => ({ name: u.name, email: u.notificationEmail as string }));
+}
+
+export interface UserReminderSelection {
+  userId: number;
+  userName: string;
+  userEmail: string;
+  teams: Array<{ teamLeagueId: number; teamName: string; teamLogo: string | null; leagueName: string }>;
+}
+
+/** Every user's current reminder team selections, for the admin reminders overview. */
+export async function getAllUserReminderSelections(): Promise<UserReminderSelection[]> {
+  const rows = await prisma.userReminderTeam.findMany({
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      teamLeague: { include: { team: { select: { name: true, logo: true } }, league: { select: { name: true } } } },
+    },
+    orderBy: [{ user: { name: 'asc' } }, { teamLeague: { team: { name: 'asc' } } }],
+  });
+  const byUser = new Map<number, UserReminderSelection>();
+  for (const row of rows) {
+    const entry = byUser.get(row.userId) ?? { userId: row.userId, userName: row.user.name, userEmail: row.user.email, teams: [] };
+    entry.teams.push({ teamLeagueId: row.teamLeagueId, teamName: row.teamLeague.team.name, teamLogo: row.teamLeague.team.logo, leagueName: row.teamLeague.league.name });
+    byUser.set(row.userId, entry);
+  }
+  return [...byUser.values()];
+}
+
 export async function getReminderTeamsByLeagueMap() {
   const rows = await prisma.teamLeague.findMany({ where: { reminderEnabled: true, league: { isActive: true } }, select: { externalLeagueId: true, team: { select: { externalId: true } } } });
   const map = new Map<number, Set<number>>();

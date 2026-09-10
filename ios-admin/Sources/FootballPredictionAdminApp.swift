@@ -66,7 +66,7 @@ struct LoginView: View {
 
 enum AdminSection: String, CaseIterable, Identifiable {
     case seasons = "Seasons", leagues = "Leagues", teams = "Teams", matches = "Matches", results = "Results"
-    case users = "Users", groups = "Groups", scoring = "Scoring", notifications = "Notifications"
+    case users = "Users", groups = "Groups", scoring = "Scoring", notifications = "Notifications", reminders = "Reminders"
     var id: String { rawValue }
     var icon: String {
         switch self {
@@ -79,6 +79,7 @@ enum AdminSection: String, CaseIterable, Identifiable {
         case .groups: "person.3"
         case .scoring: "sum"
         case .notifications: "bell"
+        case .reminders: "bell.badge"
         }
     }
 }
@@ -124,6 +125,7 @@ struct AdminHome: View {
                 case .groups: GroupsView()
                 case .scoring: ScoringView()
                 case .notifications: NotificationsView()
+                case .reminders: RemindersView()
                 }
             }
             .task { await data.load(api, "/api/admin/dashboard") }
