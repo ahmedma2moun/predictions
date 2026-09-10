@@ -85,6 +85,17 @@ enum AdminSection: String, CaseIterable, Identifiable {
 }
 
 struct AdminHome: View {
+    var body: some View {
+        TabView {
+            AdminDashboard()
+                .tabItem { Label("Admin", systemImage: "square.grid.2x2") }
+            NavigationStack { MatchesView() }
+                .tabItem { Label("Matches", systemImage: "soccerball") }
+        }
+    }
+}
+
+struct AdminDashboard: View {
     @EnvironmentObject private var api: AdminAPI
     @StateObject private var data = Resource()
     @State private var confirmChampions = false
