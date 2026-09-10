@@ -9,6 +9,13 @@ struct MatchesView: View {
     @State private var action: String?
     @State private var deleting = false
     private var path: String { "/api/admin/matches?page=\(page)" }
+    private var visibleMatches: [Value] {
+        data.value["matches"].array
+            .filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) }
+            .sorted { (parseDate($0["kickoffTime"].text) ?? .distantPast) > (parseDate($1["kickoffTime"].text) ?? .distantPast) }
+    }
+    private var visibleIDs: Set<String> { Set(visibleMatches.map(\.id)) }
+    private var allVisibleSelected: Bool { !visibleIDs.isEmpty && visibleIDs.isSubset(of: selected) }
     var body: some View {
         List {
             StatusRows(data: data)
@@ -20,16 +27,33 @@ struct MatchesView: View {
                 Button("Fetch results") { action = "fetch-results" }
             }.disabled(data.busy)
             Section("Matches") {
-                ForEach(data.value["matches"].array.filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) }, id: \.id) { match in
+                if !visibleMatches.isEmpty {
+                    Button(allVisibleSelected ? "Deselect visible matches" : "Select all visible matches") {
+                        if allVisibleSelected { selected.subtract(visibleIDs) }
+                        else { selected.formUnion(visibleIDs) }
+                    }.disabled(data.busy)
+                }
+                ForEach(visibleMatches, id: \.id) { match in
                     HStack {
                         Button {
                             if selected.contains(match.id) { selected.remove(match.id) } else { selected.insert(match.id) }
                         } label: { Image(systemName: selected.contains(match.id) ? "checkmark.circle.fill" : "circle") }
                             .buttonStyle(.borderless).accessibilityLabel("Select \(match.title)")
-                        NavigationLink { List { DetailRows(value: match) }.navigationTitle("Match details") } label: { RecordRow(value: match) }
+                        NavigationLink { List { DetailRows(value: match) }.navigationTitle("Match details") } label: {
+                            VStack(alignment: .leading, spacing: 5) {
+                                RecordRow(value: match)
+                                if match["externalId"] == .null {
+                                    Text("Custom match").font(.caption).foregroundStyle(.secondary)
+                                }
+                                if match["result"] != .null {
+                                    Text("Result: \(match["result"]["homeScore"].text)–\(match["result"]["awayScore"].text)")
+                                        .font(.subheadline.monospacedDigit())
+                                }
+                            }
+                        }
                     }
                 }
-                if data.value["matches"].array.isEmpty && !data.busy { Text("No matches to display.").foregroundStyle(.secondary) }
+                if visibleMatches.isEmpty && !data.busy { Text(search.isEmpty ? "No matches to display." : "No matches found on this page.").foregroundStyle(.secondary) }
             }
             Section {
                 HStack {
@@ -40,7 +64,9 @@ struct MatchesView: View {
                 if !selected.isEmpty { Button("Delete \(selected.count) selected matches", role: .destructive) { deleting = true }.disabled(data.busy) }
             }
         }.navigationTitle("Matches").searchable(text: $search, prompt: "Search this page")
-        .task(id: page) { await data.load(api, path) }.refreshable { await data.load(api, path) }
+        .task(id: page) { await data.load(api, path); reconcileSelection() }
+        .refreshable { await data.load(api, path); reconcileSelection() }
+        .onChange(of: data.value) { _, _ in reconcileSelection() }
         .confirmationDialog("Run \(action == "fetch-results" ? "result update and scoring" : "fixture import")?", isPresented: Binding(get: { action != nil }, set: { if !$0 { action = nil } }), titleVisibility: .visible) {
             if let action { Button("Continue") { Task { await data.perform(api, "/api/admin/matches", body: ["action": .string(action)], reload: path) } } }
         } message: { Text("This updates the shared game and may send the website’s configured notifications.") }
@@ -49,6 +75,9 @@ struct MatchesView: View {
                 if await data.perform(api, "/api/admin/matches", method: "DELETE", body: ["ids": .array(selected.sorted().map(Value.string))], reload: path) { selected.removeAll() }
             } }
         }
+    }
+    private func reconcileSelection() {
+        selected.formIntersection(Set(data.value["matches"].array.map(\.id)))
     }
 }
 
