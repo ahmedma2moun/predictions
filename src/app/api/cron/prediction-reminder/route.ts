@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
       by: ['userId'],
       where: { userId: { in: allMobileUserIds }, matchId: { in: upcomingMatchIds } },
       _count: { matchId: true },
-    })) as any[];
+    })) as Array<{ userId: number; _count: { matchId: number } }>;
     const fullyPredicted = new Set(
       predCounts
         .filter(u => u._count.matchId >= upcomingMatchIds.length)

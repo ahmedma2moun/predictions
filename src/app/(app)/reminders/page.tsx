@@ -27,7 +27,12 @@ export default function RemindersPage() {
   }, []);
 
   function toggle(id: number, checked: boolean) {
-    setSelected(previous => { const next = new Set(previous); checked ? next.add(id) : next.delete(id); return next; });
+    setSelected(previous => {
+      const next = new Set(previous);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
   }
 
   async function save() {
