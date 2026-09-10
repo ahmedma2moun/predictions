@@ -7,6 +7,8 @@ import { serializeBreakdown } from '@/models/Prediction';
 import { isKnockoutStage } from '@/lib/utils';
 import { getTeamForm } from '@/lib/team-form';
 import { fetchFixtureById, mapFixtureStatus } from '@/lib/football/service';
+import { getUserGroups } from '@/lib/services/group-service';
+import { getGroupPredictionsForMatch } from '@/lib/services/prediction-service';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
   const session = await auth();
@@ -17,6 +19,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ matc
   if (!data) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
   const { match, homeStanding, awayStanding, allPredictions, odds } = data;
   const section = req.nextUrl.searchParams.get('section');
+  if (section === 'predictions') {
+    const groupId = Number(req.nextUrl.searchParams.get('groupId'));
+    if (!Number.isSafeInteger(groupId) || groupId <= 0) return NextResponse.json({ error: 'Invalid group ID' }, { status: 400 });
+    const result = await getGroupPredictionsForMatch(id, groupId, getSessionUser(session).id, true, null);
+    if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json(result.entries.map(e => ({ ...e, scoringBreakdown: serializeBreakdown(e.scoringBreakdown) })));
+  }
   if (section === 'form') {
     if (!match.externalId) return NextResponse.json({ home: null, away: null });
     try {
@@ -38,6 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ matc
   return NextResponse.json({
     ...serializeMatchForMobile({ ...match, leagueName: match.league?.name ?? (match as typeof match & { season?: { name: string } | null }).season?.name }),
     homeStanding, awayStanding, odds, isKnockout: isKnockoutStage(match.stage),
+    groups: await getUserGroups(getSessionUser(session).id, true),
     predictions: allPredictions?.map(p => ({ ...p, scoringBreakdown: serializeBreakdown(p.rawBreakdown), rawBreakdown: undefined })) ?? [],
   });
 }

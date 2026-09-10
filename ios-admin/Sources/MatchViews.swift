@@ -98,9 +98,12 @@ struct UpcomingMatchDetail: View {
     @StateObject private var data = Resource()
     @StateObject private var form = Resource()
     @StateObject private var live = Resource()
+    @StateObject private var groupPredictions = Resource()
+    @State private var groupID = ""
     let matchID: String
     private var path: String { "/api/mobile/admin/upcoming/\(matchID)" }
     private var match: Value { data.value }
+    private var predictions: [Value] { groupID.isEmpty ? match["predictions"].array : groupPredictions.value.array }
     var body: some View {
         List {
             StatusRows(data: data)
@@ -136,14 +139,19 @@ struct UpcomingMatchDetail: View {
                         Section("League standings") { standingRows("home"); standingRows("away") }
                     }
                 }
-                Section("Predictions (\(match["predictions"].array.count))") {
-                    if match["predictions"].array.isEmpty { Text("No predictions yet.").foregroundStyle(.secondary) }
-                    ForEach(Array(match["predictions"].array.enumerated()), id: \.offset) { _, prediction in
+                Section("Group predictions") {
+                    Picker("Group", selection: $groupID) {
+                        Text("All predictions").tag("")
+                        ForEach(match["groups"].array, id: \.id) { group in Text(group["name"].text).tag(group.id) }
+                    }
+                    StatusRows(data: groupPredictions)
+                    if predictions.isEmpty && !groupPredictions.busy { Text("No predictions yet.").foregroundStyle(.secondary) }
+                    ForEach(Array(predictions.enumerated()), id: \.offset) { _, prediction in
                         NavigationLink { List { DetailRows(value: prediction) }.navigationTitle(prediction["userName"].text) } label: {
                             HStack {
                                 Text(prediction["userName"].text)
                                 Spacer()
-                                Text("\(prediction["homeScore"].text)–\(prediction["awayScore"].text)").monospacedDigit()
+                                Text(prediction["homeScore"] == .null ? "No prediction" : "\(prediction["homeScore"].text)–\(prediction["awayScore"].text)").monospacedDigit()
                                 if prediction["pointsAwarded"] != .null { Text("\(prediction["pointsAwarded"].text) pts").foregroundStyle(.green) }
                             }.font(.subheadline)
                         }
@@ -159,6 +167,7 @@ struct UpcomingMatchDetail: View {
         }
         .navigationTitle("Match details").navigationBarTitleDisplayMode(.inline)
         .task { await reload() }
+        .task(id: groupID) { await reloadPredictions() }
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
             while !Task.isCancelled {
@@ -175,12 +184,18 @@ struct UpcomingMatchDetail: View {
     }
     private func reload() async {
         await data.load(api, path)
+        await reloadPredictions()
         guard data.error == nil, match["externalId"] != .null else { return }
         async let loadForm: () = form.load(api, path + "?section=form")
         if let kickoff = parseDate(match["kickoffTime"].text), kickoff <= Date() {
             await live.load(api, path + "?section=live")
         }
         await loadForm
+    }
+    private func reloadPredictions() async {
+        guard !groupID.isEmpty else { groupPredictions.value = .null; groupPredictions.error = nil; return }
+        groupPredictions.value = .null
+        await groupPredictions.load(api, path + "?section=predictions&groupId=\(groupID)")
     }
     private var resultEditorMatch: Value {
         var value = match.object

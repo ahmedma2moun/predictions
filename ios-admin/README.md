@@ -26,6 +26,8 @@ The app uses `https://predictions-virid.vercel.app`. **Deploy the backend change
 | Scoring | Edit points/active rules, recalculate all scores |
 | Notifications | Send supported push types, inspect devices, live-goal and delayed-push tests |
 
+The standalone Matches tab mirrors the website’s upcoming matches: scheduled/live fixtures with predictions enabled, ordered by kickoff and grouped by day. Tap a card for native match details, recent form, standings, live scores/events, group predictions, and result editing. Fixture management remains under Admin → Matches. Deploy the `/api/mobile/admin/upcoming` endpoints with this app update.
+
 The website's odds feature is currently disabled, so new seasons use `oddsEnabled: false`. Player features such as making predictions and browsing the player leaderboard are not included.
 
 ## Authentication
