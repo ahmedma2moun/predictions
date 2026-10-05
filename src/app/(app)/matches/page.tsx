@@ -9,6 +9,7 @@ import { DeadlineCountdown } from "@/components/DeadlineCountdown";
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { cn } from "@/lib/utils";
+import { LiveMatchScore } from "./LiveMatchScore";
 
 export default async function MatchesPage() {
   const session = await auth();
@@ -72,7 +73,7 @@ export default async function MatchesPage() {
               const isLive = match.status === "live";
 
               // Competition label: "MATCHDAY 35 · PREMIER LEAGUE"
-              const leagueName = ((match as any).league?.name ?? (match as any).season?.name) as string | undefined;
+              const leagueName = match.league?.name ?? match.season?.name;
               const compParts: string[] = [];
               if (match.matchday) {
                 compParts.push(`MATCHDAY ${match.matchday}`);
@@ -143,13 +144,18 @@ export default async function MatchesPage() {
 
                       {/* Score chip */}
                       <div className="flex flex-col items-center justify-center">
-                        {prediction ? (
+                        {isLive ? (
+                          <LiveMatchScore
+                            matchId={serialized._id}
+                            hasExternalId={match.externalId != null}
+                            initialScore={match.resultHomeScore != null && match.resultAwayScore != null
+                              ? { homeScore: match.resultHomeScore, awayScore: match.resultAwayScore }
+                              : null}
+                            prediction={prediction}
+                          />
+                        ) : prediction ? (
                           <div className="min-w-[70px] px-[14px] py-1 rounded-md text-center bg-primary-soft border border-primary-soft-border text-primary font-mono-nums score-glow text-[19px] font-bold">
                             {prediction.homeScore}–{prediction.awayScore}
-                          </div>
-                        ) : isLive ? (
-                          <div className="min-w-[70px] px-[14px] py-1 rounded-md text-center bg-card-elevated border border-border text-foreground font-mono-nums text-xl font-bold">
-                            –
                           </div>
                         ) : (
                           <span className="text-xs font-semibold uppercase text-muted-foreground">VS</span>

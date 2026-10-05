@@ -16,6 +16,7 @@ import { Button, Card, LiveDot, Muted, Pill } from '@/components/ui';
 import { AppHeader } from '@/components/AppHeader';
 import { ROUTES } from '@/constants/routes';
 import { useMatches } from '@/hooks/useMatches';
+import { useLiveMatchScore } from '@/hooks/useLiveMatchScore';
 import { font, radius, spacing } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
 import type { MatchListItem } from '@/types/api';
@@ -106,9 +107,11 @@ export default function MatchesScreen() {
 
 const MatchCard = memo(function MatchCard({ match, onPress }: { match: MatchListItem; onPress: () => void }) {
   const { colors } = useTheme();
+  const liveScore = useLiveMatchScore(match);
   const locked = isMatchLocked(match.kickoffTime);
-  const isLive = match.status === 'live';
-  const isFinished = match.status === 'finished';
+  const isFinished = match.status === 'finished' || liveScore?.status === 'finished';
+  const isLive = match.status === 'live' && !isFinished;
+  const showLiveScore = match.status === 'live';
   const knockout = isKnockoutStage(match.stage);
   const leagueSuffix = match.leagueName ? ` · ${match.leagueName.toUpperCase()}` : '';
   const competitionLabel = knockout
@@ -158,23 +161,33 @@ const MatchCard = memo(function MatchCard({ match, onPress }: { match: MatchList
             style={[
               styles.scoreChip,
               {
-                backgroundColor: isLive
+                backgroundColor: showLiveScore
                   ? colors.cardElevated
                   : match.prediction
                   ? colors.primarySoft
                   : 'transparent',
-                borderWidth: (isLive || match.prediction) ? 1 : 0,
-                borderColor: match.prediction ? colors.primarySoftBorder : colors.border,
+                borderWidth: (showLiveScore || match.prediction) ? 1 : 0,
+                borderColor: showLiveScore ? colors.live : match.prediction ? colors.primarySoftBorder : colors.border,
               },
             ]}
           >
-            {match.prediction ? (
+            {showLiveScore ? (
+              <>
+                <Text style={[styles.liveScoreLabel, { color: colors.live }]}>
+                  {isFinished ? 'FULL TIME' : 'LIVE SCORE'}
+                </Text>
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={[styles.scoreText, { color: colors.live, fontFamily: 'JetBrainsMono', fontSize: 20 }]}
+                >
+                  {liveScore?.homeScore != null && liveScore?.awayScore != null
+                    ? `${liveScore.homeScore}–${liveScore.awayScore}`
+                    : '–'}
+                </Text>
+              </>
+            ) : match.prediction ? (
               <Text style={[styles.scoreText, { color: colors.primary, fontFamily: 'JetBrainsMono', fontSize: 19 }]}>
                 {match.prediction.homeScore}–{match.prediction.awayScore}
-              </Text>
-            ) : isLive ? (
-              <Text style={[styles.scoreText, { color: colors.foreground, fontFamily: 'JetBrainsMono', fontSize: 20 }]}>
-                –
               </Text>
             ) : (
               <Text style={[styles.vsText, { color: colors.mutedForeground }]}>VS</Text>
@@ -335,6 +348,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scoreText: { fontVariant: ['tabular-nums'], fontWeight: '700' },
+  liveScoreLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5, marginBottom: 2 },
   vsText: { fontSize: font.size.xs, fontWeight: '600', letterSpacing: 1 },
   footer: {
     flexDirection: 'row',
