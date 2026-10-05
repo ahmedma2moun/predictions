@@ -122,10 +122,11 @@ bid = next((b for b in bid if b["attributes"]["identifier"] == bundle), None)
 if not bid:
     sys.exit(f"::error::Bundle ID {bundle} is not registered in the Apple developer account.")
 
-profiles = api("GET", f"/bundleIds/{bid['id']}/profiles?filter[profileType]=IOS_APP_STORE&limit=200")["data"]
+# This related-resource endpoint rejects filter[...] params, so filter client-side.
+profiles = api("GET", f"/bundleIds/{bid['id']}/profiles?limit=200")["data"]
 profile = None
 for p in profiles:
-    if p["attributes"]["profileState"] != "ACTIVE":
+    if p["attributes"]["profileType"] != "IOS_APP_STORE" or p["attributes"]["profileState"] != "ACTIVE":
         continue
     certs = api("GET", f"/profiles/{p['id']}/certificates?limit=200")["data"]
     if any(c["id"] == cert_id for c in certs):
