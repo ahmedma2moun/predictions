@@ -397,7 +397,7 @@ Manual trigger (GitHub Actions)
 The workflow is in `.github/workflows/ios-publish.yml` and triggered manually from the Actions tab.
 
 **Signing (certificate created only once):** `.github/scripts/ios-signing.py` talks to the App Store Connect API and uses manual signing, so Xcode never creates certificates during a build.
-- `IOS_CERTIFICATE_P12_BASE64` set → that distribution certificate is verified against the Apple account and reused.
+- `IOS_CERTIFICATE_P12_BASE64` set → that distribution certificate ("Apple Distribution" `DISTRIBUTION` or legacy `IOS_DISTRIBUTION` type) is verified against the Apple account by serial number and reused. On a mismatch the job logs the secret's subject, serial and expiry next to the account's certificates.
 - Secret empty and no distribution certificate exists in the account → one is created and stored back into the `IOS_CERTIFICATE_P12_BASE64` / `IOS_CERTIFICATE_PASSWORD` repo secrets (requires a `GH_PAT` secret with repo-secrets write access).
 - Secret empty but a certificate already exists in the account → the job fails rather than creating another (its private key is unrecoverable; supply the `.p12` or revoke it).
 - The App Store provisioning profile is reused if an active one contains the certificate, otherwise created.

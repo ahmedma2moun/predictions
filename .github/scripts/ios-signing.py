@@ -38,19 +38,29 @@ def import_p12(path):
         stdout=subprocess.DEVNULL)
 
 
-def p12_serial(path):
+def p12_cert_pem(path):
     pem = subprocess.run(["openssl", "pkcs12", "-in", path, "-nokeys", "-passin", f"pass:{password}",
                           "-legacy"], capture_output=True, text=True)
     if pem.returncode:  # OpenSSL 1.x has no -legacy flag
         pem = subprocess.run(["openssl", "pkcs12", "-in", path, "-nokeys", "-passin", f"pass:{password}"],
                              capture_output=True, text=True, check=True)
-    out = subprocess.run(["openssl", "x509", "-noout", "-serial"], input=pem.stdout,
+    return pem.stdout
+
+
+def p12_serial(path):
+    out = subprocess.run(["openssl", "x509", "-noout", "-serial"], input=p12_cert_pem(path),
                          capture_output=True, text=True, check=True).stdout
     return out.strip().split("=")[1].upper()
 
 
+def p12_describe(path):
+    return subprocess.run(["openssl", "x509", "-noout", "-subject", "-enddate"], input=p12_cert_pem(path),
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
 def list_certs():
-    return api("GET", "/certificates?filter[certificateType]=IOS_DISTRIBUTION&limit=200")["data"]
+    # DISTRIBUTION = "Apple Distribution" (current); IOS_DISTRIBUTION = legacy "iPhone Distribution".
+    return api("GET", "/certificates?filter[certificateType]=DISTRIBUTION,IOS_DISTRIBUTION&limit=200")["data"]
 
 
 def create_cert():
@@ -66,7 +76,7 @@ def create_cert():
     run("openssl", "req", "-new", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", csr,
         "-subj", "/CN=Football Predictions Distribution/O=CI")
     body = {"data": {"type": "certificates", "attributes": {
-        "certificateType": "IOS_DISTRIBUTION", "csrContent": open(csr).read()}}}
+        "certificateType": "DISTRIBUTION", "csrContent": open(csr).read()}}}
     data = api("POST", "/certificates", json=body)["data"]
     cer = f"{tmp}/dist.cer"
     open(cer, "wb").write(base64.b64decode(data["attributes"]["certificateContent"]))
@@ -87,9 +97,17 @@ def create_cert():
 if E.get("CERTIFICATE_P12_BASE64"):
     p12 = f"{tmp}/cert.p12"
     open(p12, "wb").write(base64.b64decode(E["CERTIFICATE_P12_BASE64"]))
-    cert_id = next((c["id"] for c in list_certs()
-                    if c["attributes"]["serialNumber"].upper().lstrip("0") == p12_serial(p12).lstrip("0")), None)
+    serial = p12_serial(p12).lstrip("0")
+    certs = list_certs()
+    cert_id = next((c["id"] for c in certs
+                    if c["attributes"]["serialNumber"].upper().lstrip("0") == serial), None)
     if not cert_id:
+        print(f"Certificate in secret: {p12_describe(p12)}, serial={serial}")
+        print("Distribution certificates in the Apple account:")
+        for c in certs:
+            a = c["attributes"]
+            print(f"  - {a.get('certificateType')} '{a.get('name')}' serial={a['serialNumber'].upper().lstrip('0')} "
+                  f"expires={a.get('expirationDate')}")
         sys.exit("::error::The certificate in IOS_CERTIFICATE_P12_BASE64 is not an active distribution "
                  "certificate in this Apple account (revoked/expired?). Remove the secret to have a new one created.")
     print("Reusing existing distribution certificate.")
