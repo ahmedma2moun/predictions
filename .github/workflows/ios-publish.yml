@@ -121,8 +121,12 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           BUNDLE_ID: com.maamoun.footballpredictions
         run: |
-          pip3 install --quiet pyjwt cryptography requests
-          python3 .github/scripts/ios-signing.py
+          # The runner's Homebrew Python is "externally managed" (PEP 668) and
+          # refuses system-wide pip installs, so use a throwaway virtualenv.
+          VENV="$RUNNER_TEMP/signing-venv"
+          python3 -m venv "$VENV"
+          "$VENV/bin/pip" install --quiet --disable-pip-version-check pyjwt cryptography requests
+          "$VENV/bin/python" .github/scripts/ios-signing.py
 
       - name: Configure app target signing (manual, distribution)
         env:
