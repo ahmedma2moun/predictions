@@ -163,6 +163,19 @@ jobs:
           puts "Manual signing configured on target #{target_name}."
           EOF
 
+      - name: Set build number (highest uploaded + 1)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
+          BUNDLE_ID: com.maamoun.footballpredictions
+        run: |
+          # TestFlight rejects a CFBundleVersion that is not higher than the last upload.
+          BUILD_NUMBER=$("$RUNNER_TEMP/signing-venv/bin/python" .github/scripts/ios-build-number.py)
+          PLIST=mobile/ios/FootballPredictions/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
+          echo "Build number: $BUILD_NUMBER"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+
       - name: Write ExportOptions.plist
         run: |
           cat > $RUNNER_TEMP/ExportOptions.plist << EOF
@@ -201,7 +214,8 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             -archivePath $RUNNER_TEMP/FootballPredictions.xcarchive \
-            -destination "generic/platform=iOS"
+            -destination "generic/platform=iOS" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
 
       - name: Export IPA
         env:

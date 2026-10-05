@@ -98,6 +98,7 @@ Write down: `STACK`, `APP_DIR`, `WORKSPACE_OR_PROJECT`, `SCHEME`, `TARGET`, `BUN
 .github/
   workflows/ios-publish.yml      # Section 3 (template + stack-specific "Prepare" steps from Section 4)
   scripts/ios-signing.py         # Section 6 (copy verbatim)
+  scripts/ios-build-number.py    # Section 6.1 (copy verbatim)
 ```
 
 Also add `__pycache__/` to `.gitignore` if it isn't there.
@@ -209,14 +210,21 @@ jobs:
           project.save
           EOF
 
-      - name: Set build number
+      - name: Set build number (highest uploaded + 1)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
         run: |
-          # TestFlight rejects duplicate build numbers; use the run number.
+          # TestFlight rejects a CFBundleVersion that is not higher than the last upload. Don't use
+          # github.run_number: builds uploaded earlier (EAS, Xcode, another workflow) may already be higher.
+          BUILD_NUMBER=$("$RUNNER_TEMP/signing-venv/bin/python" .github/scripts/ios-build-number.py)
           PLIST=$(xcodebuild -showBuildSettings $XC_CONTAINER -scheme "$SCHEME" -configuration Release 2>/dev/null \
                   | awk -F' = ' '/ INFOPLIST_FILE /{print $2; exit}')
-          PROJ_DIR=$(dirname "$XC_PROJECT")
-          [ -f "$PROJ_DIR/$PLIST" ] && /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PROJ_DIR/$PLIST" || true
-          echo "BUILD_NUMBER=${{ github.run_number }}" >> "$GITHUB_ENV"
+          PLIST_PATH="$(dirname "$XC_PROJECT")/$PLIST"
+          # Info.plist may hold a literal CFBundleVersion (Expo prebuild writes one) — overwrite it.
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST_PATH"
+          echo "Build number: $BUILD_NUMBER"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
 
       - name: Write ExportOptions.plist
         env:
@@ -353,7 +361,7 @@ If the app uses Firebase, make sure `GoogleService-Info.plist` is produced (comm
         with: { channel: stable, cache: true }     # or flutter-version from .fvmrc / pubspec
       - run: flutter pub get
       - name: Flutter iOS config (no codesign)
-        run: flutter build ios --release --no-codesign --build-number=${{ github.run_number }}
+        run: flutter build ios --release --no-codesign   # build number is set later from App Store Connect
       - name: Install CocoaPods
         working-directory: ios
         run: pod install
@@ -391,7 +399,7 @@ Add the Pods patch (4.0) to `ios/Podfile`'s existing `post_install` block.
 
 ### 4.6 .NET MAUI / .NET iOS (replaces Configure signing → Export IPA)
 
-Keep the keychain, API key and **signing** steps (they import the cert and install the profile, and export `PROFILE_NAME`). Then:
+Keep the keychain, API key, **signing** and **Set build number** steps (drop the PlistBuddy line; the build number goes to `ApplicationVersion`). Then:
 
 ```yaml
       - uses: actions/setup-dotnet@v4
@@ -402,7 +410,7 @@ Keep the keychain, API key and **signing** steps (they import the cert and insta
           dotnet publish <path/App.csproj> -f net9.0-ios -c Release \
             -p:ArchiveOnBuild=true -p:RuntimeIdentifier=ios-arm64 \
             -p:CodesignKey="Apple Distribution" -p:CodesignProvision="$PROFILE_NAME" \
-            -p:ApplicationVersion=${{ github.run_number }} -o "$RUNNER_TEMP/export"
+            -p:ApplicationVersion="$BUILD_NUMBER" -o "$RUNNER_TEMP/export"
 ```
 Then the same **Upload to TestFlight** step.
 
@@ -613,20 +621,68 @@ with open(E["GITHUB_ENV"], "a") as f:
     f.write(f"PROFILE_NAME={info['Name']}\nPROFILE_UUID={info['UUID']}\n")
 ```
 
+### 6.1 Build number script — `.github/scripts/ios-build-number.py`
+
+Prints the highest `CFBundleVersion` already uploaded to App Store Connect for the app, plus one. Runs in the venv
+created by the signing step.
+
+```python
+#!/usr/bin/env python3
+"""Print the next iOS build number (CFBundleVersion) for CI.
+
+Asks App Store Connect for the highest build number already uploaded for the app
+and prints that + 1, so TestFlight never rejects the upload as a duplicate.
+
+Env: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH, BUNDLE_ID
+"""
+import os, sys, time
+import jwt, requests  # pip install pyjwt cryptography requests
+
+API = "https://api.appstoreconnect.apple.com/v1"
+E = os.environ
+
+
+def api(path):
+    token = jwt.encode(
+        {"iss": E["ASC_ISSUER_ID"], "exp": int(time.time()) + 600, "aud": "appstoreconnect-v1"},
+        open(E["ASC_KEY_PATH"]).read(), algorithm="ES256", headers={"kid": E["ASC_KEY_ID"]})
+    r = requests.get(API + path, headers={"Authorization": f"Bearer {token}"}, timeout=60)
+    if not r.ok:
+        sys.exit(f"::error::ASC API GET {path} -> {r.status_code}: {r.text}")
+    return r.json()
+
+
+bundle = E["BUNDLE_ID"]
+apps = [a for a in api(f"/apps?filter[bundleId]={bundle}&limit=200")["data"]
+        if a["attributes"]["bundleId"] == bundle]
+if not apps:
+    sys.exit(f"::error::No App Store Connect app record for {bundle}. Create it under Apps -> New App.")
+
+highest = 0
+for b in api(f"/builds?filter[app]={apps[0]['id']}&sort=-uploadedDate&limit=200")["data"]:
+    version = b["attributes"]["version"]  # CFBundleVersion, e.g. "36"
+    if version.isdigit():
+        highest = max(highest, int(version))
+
+print(f"Highest uploaded build number: {highest}", file=sys.stderr)
+print(highest + 1)
+```
+
 ---
 
 ## 7. Verify before handing over
 
 Agent checks (local, no Apple access needed):
 - [ ] `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ios-publish.yml'))"` passes.
-- [ ] `python3 -m py_compile .github/scripts/ios-signing.py` passes (then delete `__pycache__`).
+- [ ] `python3 -m py_compile .github/scripts/ios-signing.py .github/scripts/ios-build-number.py` passes (then delete `__pycache__`).
 - [ ] No `<PLACEHOLDER>` left: `grep -n '<[A-Z_]*>' .github/workflows/ios-publish.yml` is empty.
 - [ ] `BUNDLE_ID`, `SCHEME`, `TARGET`, `XC_CONTAINER`, `XC_PROJECT` match what Section 1.4 found.
 - [ ] No `-allowProvisioningUpdates`, no `pip3 install` outside a venv, no secret values in files.
 
 Owner first-run checklist: add the secrets (Section 5) → *Actions → iOS — Archive → TestFlight → Run workflow*. Expected log lines in
 the signing step: `1 identity imported.`, `Reusing existing distribution certificate.` (or `Created new …`),
-`Reusing existing provisioning profile.` (or `Created new provisioning profile.`).
+`Reusing existing provisioning profile.` (or `Created new provisioning profile.`), then in the build-number step
+`Highest uploaded build number: N` / `Build number: N+1`.
 
 ---
 
@@ -644,7 +700,7 @@ the signing step: `1 identity imported.`, `Reusing existing distribution certifi
 | `No signing certificate "Apple Distribution" found` | Cert not in the build keychain search list, or legacy "iPhone Distribution" cert | Keychain step adds it to the list; for a legacy cert set identity to `iPhone Distribution` in Configure + ExportOptions. |
 | Pods fail with signing errors | Pods inherit signing | Podfile patch (4.0). |
 | `IPHONEOS_DEPLOYMENT_TARGET is set to 9.0` warnings | Old pods | Harmless warning. |
-| Upload: `The bundle version must be higher than the previously uploaded version` | Duplicate build number | *Set build number* step / pass `CURRENT_PROJECT_VERSION`. |
+| Upload: `The bundle version must be higher than the previously uploaded version: 'N'` (409, `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`) | CFBundleVersion not set, or set from `github.run_number`, while earlier uploads already reached N | *Set build number* step with `ios-build-number.py` (highest uploaded + 1), written into Info.plist **and** passed as `CURRENT_PROJECT_VERSION`. |
 | Upload: `No suitable application records were found` | App record missing in App Store Connect | Create the app record (Section 5, prerequisite 3). |
 | SDK-version rejection on upload | Old Xcode image | Use the newest `macos-*` runner with the required Xcode. |
 

@@ -401,6 +401,7 @@ The workflow is in `.github/workflows/ios-publish.yml` and triggered manually fr
 - Secret empty and no distribution certificate exists in the account → one is created and stored back into the `IOS_CERTIFICATE_P12_BASE64` / `IOS_CERTIFICATE_PASSWORD` repo secrets (requires a `GH_PAT` secret with repo-secrets write access).
 - Secret empty but a certificate already exists in the account → the job fails rather than creating another (its private key is unrecoverable; supply the `.p12` or revoke it).
 - The App Store provisioning profile is reused if an active one contains the certificate, otherwise created.
+- **Build number:** `.github/scripts/ios-build-number.py` asks App Store Connect for the highest build already uploaded and sets `CFBundleVersion` (Info.plist + `CURRENT_PROJECT_VERSION`) to that + 1, so TestFlight never rejects the upload as a duplicate. `app.json` has no `ios.buildNumber`; CI owns it.
 - Reusable, repo-agnostic version of this setup (stack detection, workflow template, secrets): [`docs/IOS_PUBLISH_ACTION_GUIDE.md`](../IOS_PUBLISH_ACTION_GUIDE.md).
 
 ---
