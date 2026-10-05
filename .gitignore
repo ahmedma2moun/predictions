@@ -43,3 +43,6 @@ next-env.d.ts
 
 #android output
 /android
+
+# Python bytecode
+__pycache__/
