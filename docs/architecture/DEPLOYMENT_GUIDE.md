@@ -273,7 +273,9 @@ Use `--profile preview` for Firebase distribution builds.
 
 ## Auto-Publish Android APK on Mobile Changes (GitHub Actions)
 
-Every push that touches `football-predictions/mobile/**` automatically triggers an EAS build and distributes the APK via Firebase App Distribution.
+Every push to `master` that touches `mobile/**` (or the workflow file itself) automatically runs `.github/workflows/android-publish.yml`, which builds a debug APK with Gradle on the runner and distributes it via Firebase App Distribution. It can also be run manually from the Actions tab (`workflow_dispatch`). A newer push cancels an in-flight run for an older commit (`concurrency` with `cancel-in-progress`).
+
+> The EAS-based workflow below is the original design and is kept for reference; the live workflow file is the source of truth.
 
 ### How it works
 
@@ -375,7 +377,7 @@ jobs:
 
 ### Notes
 
-- The workflow only triggers on pushes to `main`. Add `develop` to `branches:` if you want pre-release builds from a dev branch.
+- The workflow only triggers on pushes to `master`. Add another branch to `branches:` if you want pre-release builds from it.
 - EAS builds run on Expo's cloud servers — no Android SDK needed on the GitHub runner.
 - Build minutes on the EAS free plan are limited (30 Android builds/month). The `preview` profile produces an APK suitable for direct installation; the `production` profile produces an AAB for Play Store submission.
 - If the EAS build step fails with "Project not found", confirm `EXPO_TOKEN` is valid and `eas.json` has `projectId: "9960a25c-d1cf-40e8-b03b-d1c3eb2c2950"` under `extra.eas`.
@@ -387,14 +389,14 @@ jobs:
 ### Overview
 
 ```
-Manual trigger (GitHub Actions)
+Push to master touching mobile/** — or manual trigger (GitHub Actions)
   └─► eas build --profile testflight --platform ios   (App Store-signed IPA, latest Xcode)
         └─► eas submit --profile testflight            (uploads to App Store Connect)
               └─► Apple processing (~5-15 min)
                     └─► TestFlight → Internal / External testers
 ```
 
-The workflow is in `.github/workflows/ios-publish.yml` and triggered manually from the Actions tab.
+The workflow is in `.github/workflows/ios-publish.yml`. It runs automatically on every push to `master` that touches `mobile/**`, the workflow file, or `.github/scripts/ios-*.py`, and can also be triggered manually from the Actions tab. A newer push cancels an in-flight run for an older commit.
 
 **Signing (certificate created only once):** `.github/scripts/ios-signing.py` talks to the App Store Connect API and uses manual signing, so Xcode never creates certificates during a build.
 - `IOS_CERTIFICATE_P12_BASE64` set → that distribution certificate ("Apple Distribution" `DISTRIBUTION` or legacy `IOS_DISTRIBUTION` type) is verified against the Apple account by serial number and reused. On a mismatch the job logs the secret's subject, serial and expiry next to the account's certificates.
