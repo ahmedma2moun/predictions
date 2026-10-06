@@ -117,3 +117,8 @@ export function serializeMatch(m: IMatch) {
     updatedAt: m.updatedAt,
   };
 }
+
+/** Prev/next link for match detail navigation — shared by web and mobile responses. */
+export function serializeAdjacentMatch(m: { id: number; homeTeamName: string; awayTeamName: string } | null) {
+  return m ? { _id: m.id.toString(), homeTeamName: m.homeTeamName, awayTeamName: m.awayTeamName } : null;
+}

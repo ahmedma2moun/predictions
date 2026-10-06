@@ -36,7 +36,7 @@ Returns matches with the user's prediction attached.
 ```
 
 ### GET /api/matches/[matchId]
-Single match with the user's prediction and all group members' predictions (when finished). Includes `odds` (`{ homeWin, draw, awayWin, locked, votes: { homeWin, draw, awayWin } }`) once the match is locked (always for admins); the UI shows the Prediction Odds card to all users from lock time onward. `odds` is `null` when the match's season has odds disabled.
+Single match with the user's prediction and all group members' predictions (when finished). Includes `odds` (`{ homeWin, draw, awayWin, locked, votes: { homeWin, draw, awayWin } }`) once the match is locked (always for admins); the UI shows the Prediction Odds card to all users from lock time onward. `odds` is `null` when the match's season has odds disabled. Also includes `prevMatch` / `nextMatch` (`{ _id, homeTeamName, awayTeamName } | null`) for stepping between matches on the detail screen without returning to the list: neighbours by `kickoffTime` (ties by `id`) among `predictionsEnabled` matches — scheduled/live matches page through scheduled/live matches (the same set as the matches list), finished matches through finished ones. `null` at either end.
 
 ### GET /api/matches/[matchId]/group-predictions
 Other users' predictions for a specific match (used to show group picks before and after kickoff).
@@ -372,7 +372,7 @@ Returns upcoming/live/finished matches with the user's prediction attached.
 **Query params**: `leagueId` (number), `status` (string), `week` (ISO date string)
 
 ### GET /api/mobile/matches/[matchId]
-Single match with prediction. Includes `odds` once the match is locked (always for admins), same shape as the web endpoint; the mobile match screen shows the Prediction Odds card to all users from lock time onward.
+Single match with prediction. Includes `odds` once the match is locked (always for admins), same shape as the web endpoint; the mobile match screen shows the Prediction Odds card to all users from lock time onward. Also includes `prevMatch` / `nextMatch` (`{ _id, homeTeamName, awayTeamName } | null`) for stepping between matches on the detail screen without returning to the list: neighbours by `kickoffTime` (ties by `id`) among `predictionsEnabled` matches — scheduled/live matches page through scheduled/live matches (the same set as the matches list), finished matches through finished ones. `null` at either end.
 
 ### GET /api/mobile/matches/[matchId]/group-predictions
 Other users' predictions for a match.
