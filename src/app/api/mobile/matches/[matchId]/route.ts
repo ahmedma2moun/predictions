@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMobileSession } from '@/lib/mobile-auth';
-import { serializeMatchForMobile } from '@/models/Match';
+import { serializeMatchForMobile, serializeAdjacentMatch } from '@/models/Match';
 import { isKnockoutStage } from '@/lib/utils';
 import { correctMatchResult } from '@/lib/results-processor';
 import { getMatchById } from '@/lib/services/match-service';
@@ -19,10 +19,10 @@ export async function GET(
   const isAdmin = session.role === 'admin';
   const userId  = Number(session.id);
 
-  const data = await getMatchById(Number(matchId), { userId, isAdmin });
+  const data = await getMatchById(Number(matchId), { userId, isAdmin, withAdjacent: true });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { match, prediction, allPredictions, homeStanding, awayStanding, odds } = data;
+  const { match, prevMatch, nextMatch, prediction, allPredictions, homeStanding, awayStanding, odds } = data;
 
   const formattedAllPredictions = allPredictions?.map(p => ({
     userId:    p.userId.toString(),
@@ -47,6 +47,8 @@ export async function GET(
     prediction,
     allPredictions: formattedAllPredictions,
     odds,
+    prevMatch: serializeAdjacentMatch(prevMatch),
+    nextMatch: serializeAdjacentMatch(nextMatch),
   });
 }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, getSessionUser } from '@/lib/auth';
-import { serializeMatch } from '@/models/Match';
+import { serializeMatch, serializeAdjacentMatch } from '@/models/Match';
 import { getMatchById } from '@/lib/services/match-service';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
@@ -11,10 +11,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
   const { id: userId, role } = getSessionUser(session);
   const isAdmin = role === 'admin';
 
-  const data = await getMatchById(Number(matchId), { userId, isAdmin });
+  const data = await getMatchById(Number(matchId), { userId, isAdmin, withAdjacent: true });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { match, prediction, allPredictions, homeStanding, awayStanding, odds } = data;
+  const { match, prevMatch, nextMatch, prediction, allPredictions, homeStanding, awayStanding, odds } = data;
 
   const formattedAllPredictions = allPredictions?.map(p => ({
     userId:    p.userId,
@@ -34,5 +34,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     prediction,
     allPredictions: formattedAllPredictions,
     odds,
+    prevMatch: serializeAdjacentMatch(prevMatch),
+    nextMatch: serializeAdjacentMatch(nextMatch),
   });
 }

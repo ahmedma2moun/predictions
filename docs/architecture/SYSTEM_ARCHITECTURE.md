@@ -100,7 +100,7 @@ src/
 │   ├── client-api.ts       # Typed fetch helpers for client components
 │   ├── email.ts            # Nodemailer (Gmail) — new-matches, results, reminders
 │   ├── services/           # Service layer — all DB query logic lives here
-│   │   ├── match-service.ts        # getMatches(), getMatchById()
+│   │   ├── match-service.ts        # getMatches(), getMatchById(), getAdjacentMatches()
 │   │   ├── prediction-service.ts   # getUserPredictions(), upsertPrediction(), getUserPredictionHistory()
 │   │   ├── leaderboard-service.ts  # getLeaderboard()
 │   │   ├── live-standing-service.ts # getLiveGroupStanding() — leaderboard + provisional in-play points + movement
@@ -170,7 +170,7 @@ All DB query logic lives in `src/lib/services/`. Route handlers (both `/api/*` a
 
 | Service | Key Methods | Used by |
 |---|---|---|
-| `match-service.ts` | `getMatches()`, `getMatchById()`, `getAdminMatches()` (paginated list + computed odds/vote pool, no raw Prisma in the route) | `/api/matches`, `/api/mobile/matches`, `/api/admin/matches` |
+| `match-service.ts` | `getMatches()`, `getMatchById()` (pass `withAdjacent: true` for prev/next links; the live-poll routes don't), `getAdjacentMatches()`, `getAdminMatches()` (paginated list + computed odds/vote pool, no raw Prisma in the route) | `/api/matches`, `/api/mobile/matches`, `/api/admin/matches` |
 | `prediction-service.ts` | `getUserPredictions()`, `upsertPrediction()`, `getUserPredictionHistory()` (supports `seasonId` filter; returns `baseScore`, `outcomeOdds`, locked `matchOdds`) | `/api/predictions`, `/api/mobile/predictions`, leaderboard routes |
 | `leaderboard-service.ts` | `getLeaderboard()` | `/api/leaderboard`, `/api/mobile/leaderboard` |
 | `live-standing-service.ts` | `getLiveGroupStanding()` — base leaderboard + provisional points from in-play matches (live scores via `fetchFixtureById` 30s cache), rank movement `up`/`down`/`same` | `/api/leaderboard/live`, `/api/mobile/leaderboard/live` |
@@ -222,13 +222,15 @@ Mobile-specific routes additionally exist for:
 User → matches/[matchId] page
   → fetch /api/matches/[matchId]
       → auth() check
-      → matchService.getMatchById(id, { userId, isAdmin })
+      → matchService.getMatchById(id, { userId, isAdmin, withAdjacent: true })
           → prisma.match.findUnique
           → prisma.prediction.findFirst
           → getStandingsMap()
-      → serializeMatch() + shape allPredictions
+          → getAdjacentMatches() (prev/next by kickoff)
+      → serializeMatch() + serializeAdjacentMatch() + shape allPredictions
+  → prev/next buttons (and ←/→ keys on web) router.replace() to the neighbouring match
   → user adjusts scores with +/- buttons
-  → POST /api/predictions
+  → POST /api/predictions (on success: go to nextMatch if any, else back to the list)
       → auth() check
       → predictionService.upsertPrediction(userId, matchId, homeScore, awayScore)
           → prisma.match.findUnique (existence + lock check)

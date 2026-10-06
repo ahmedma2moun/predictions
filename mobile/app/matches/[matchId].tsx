@@ -22,11 +22,17 @@ import { TeamColumn } from '@/components/TeamColumn';
 import { useRemoteData } from '@/hooks/useRemoteData';
 import { font, radius, spacing, type Palette } from '@/theme/colors';
 import { useTheme } from '@/theme/theme';
-import type { MatchDetail, MatchEvent, TeamFormMatch } from '@/types/api';
+import { ROUTES } from '@/constants/routes';
+import type { AdjacentMatch, MatchDetail, MatchEvent, TeamFormMatch } from '@/types/api';
 import { formatKickoff, formatMatchStatus, formatStage, isKnockoutStage, isMatchLocked } from '@/utils/format';
 
 export default function MatchPredictionScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
+  // Keyed by id so every piece of per-match state resets when stepping prev/next.
+  return <MatchDetailView key={matchId} matchId={matchId} />;
+}
+
+function MatchDetailView({ matchId }: { matchId: string }) {
   const router = useRouter();
   const { token } = useAuth();
   const { colors } = useTheme();
@@ -123,6 +129,11 @@ export default function MatchPredictionScreen() {
     ? `MD ${match.matchday}${leagueSuffix}`
     : (match.leagueName?.toUpperCase() ?? formatMatchStatus(match.status).toUpperCase());
 
+  // Replace (not push) so the back button still returns to the matches list.
+  function goToMatch(id: string) {
+    router.replace(ROUTES.matchDetail(id));
+  }
+
   async function handleSubmit() {
     if (!token || !match) return;
     setSaving(true);
@@ -133,7 +144,8 @@ export default function MatchPredictionScreen() {
         token,
       });
       Alert.alert('Prediction saved');
-      router.back();
+      if (match.nextMatch) goToMatch(match.nextMatch._id);
+      else router.back();
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : 'Failed to save prediction';
       Alert.alert('Save failed', msg);
@@ -170,6 +182,14 @@ export default function MatchPredictionScreen() {
         </Text>
         <View style={{ width: 36 }} />
       </View>
+
+      {/* Prev / next match */}
+      {(match.prevMatch || match.nextMatch) && (
+        <View style={[styles.navRow, { borderBottomColor: colors.border }]}>
+          <MatchNavButton match={match.prevMatch} direction="prev" onPress={goToMatch} />
+          <MatchNavButton match={match.nextMatch} direction="next" onPress={goToMatch} />
+        </View>
+      )}
 
       <ScrollView
         style={{ flex: 1 }}
@@ -374,6 +394,53 @@ export default function MatchPredictionScreen() {
   );
 }
 
+function MatchNavButton({ match, direction, onPress }: {
+  match: AdjacentMatch | null;
+  direction: 'prev' | 'next';
+  onPress: (id: string) => void;
+}) {
+  const { colors } = useTheme();
+  const isPrev = direction === 'prev';
+  if (!match) return <View style={{ flex: 1 }} />;
+  return (
+    <Pressable
+      onPress={() => onPress(match._id)}
+      accessibilityRole="button"
+      accessibilityLabel={`${isPrev ? 'Previous' : 'Next'} match: ${match.homeTeamName} vs ${match.awayTeamName}`}
+      style={({ pressed }) => [
+        navStyles.btn,
+        {
+          justifyContent: isPrev ? 'flex-start' : 'flex-end',
+          backgroundColor: colors.cardElevated,
+          borderColor: colors.border,
+          opacity: pressed ? 0.6 : 1,
+        },
+      ]}
+    >
+      {isPrev && <Ionicons name="chevron-back" size={16} color={colors.mutedForeground} />}
+      <Text style={[navStyles.label, { color: colors.mutedForeground }]} numberOfLines={1}>
+        {match.homeTeamName} v {match.awayTeamName}
+      </Text>
+      {!isPrev && <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />}
+    </Pressable>
+  );
+}
+
+const navStyles = StyleSheet.create({
+  btn: {
+    flex: 1,
+    minWidth: 0,
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  label: { flexShrink: 1, fontSize: font.size.xs },
+});
+
 function makeStyles(c: Palette) {
   return StyleSheet.create({
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
@@ -400,6 +467,13 @@ function makeStyles(c: Palette) {
       fontSize: 11.5,
       fontWeight: font.weight.bold,
       letterSpacing: 0.8,
+    },
+    navRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
     },
     content: { padding: spacing.lg, gap: spacing.md },
     heroCard: { padding: 0, overflow: 'hidden' },

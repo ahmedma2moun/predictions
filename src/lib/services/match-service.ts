@@ -57,8 +57,18 @@ export interface MatchOddsData {
   votes: { homeWin: number; draw: number; awayWin: number };
 }
 
+/** A neighbouring match, used for prev/next navigation on the match detail page. */
+export interface AdjacentMatch {
+  id: number;
+  homeTeamName: string;
+  awayTeamName: string;
+}
+
 export interface MatchDetailData {
   match: MatchWithLeague;
+  /** Only populated when `getMatchById` is called with `withAdjacent: true`. */
+  prevMatch: AdjacentMatch | null;
+  nextMatch: AdjacentMatch | null;
   prediction: PredictionData | null;
   allPredictions: MatchPredictionRow[] | null;
   homeStanding: StandingData | null;
@@ -127,7 +137,7 @@ export async function getMatches(
 
 export async function getMatchById(
   matchId: number,
-  opts: { userId: number; isAdmin: boolean },
+  opts: { userId: number; isAdmin: boolean; withAdjacent?: boolean },
 ): Promise<MatchDetailData | null> {
   const match = await MatchRepository.findUnique({
     where: { id: matchId },
@@ -148,7 +158,7 @@ export async function getMatchById(
 
   const adminOddsConfig: OddsConfig = { ...oddsConfig, oddsEnabled: ODDS_FEATURE_ENABLED };
 
-  const [prediction, standingMap, odds] = await Promise.all([
+  const [prediction, standingMap, odds, { prevMatch, nextMatch }] = await Promise.all([
     opts.isAdmin
       ? Promise.resolve(null)
       : PredictionRepository.findFirst({
@@ -161,6 +171,9 @@ export async function getMatchById(
     (opts.isAdmin || isMatchLocked(match.kickoffTime))
       ? getLiveMatchOdds(matchId, opts.isAdmin ? adminOddsConfig : oddsConfig)
       : Promise.resolve(null),
+    opts.withAdjacent
+      ? getAdjacentMatches(match)
+      : Promise.resolve({ prevMatch: null, nextMatch: null }),
   ]);
 
   let allPredictions: MatchPredictionRow[] | null = null;
@@ -185,6 +198,8 @@ export async function getMatchById(
 
   return {
     match,
+    prevMatch,
+    nextMatch,
     prediction: prediction
       ? { homeScore: prediction.homeScore, awayScore: prediction.awayScore, predictedWinner: prediction.predictedWinner, pointsAwarded: prediction.pointsAwarded }
       : null,
@@ -193,6 +208,52 @@ export async function getMatchById(
     awayStanding: awayStanding ? toStandingData(awayStanding) : null,
     odds,
   };
+}
+
+const ADJACENT_SELECT = { id: true, homeTeamName: true, awayTeamName: true } as const;
+
+/**
+ * Previous/next match in kickoff order (ties broken by id), so the detail page
+ * can step through matches without going back to the list. Upcoming/live
+ * matches page through the same set the matches list shows; finished matches
+ * page through other finished matches.
+ */
+export async function getAdjacentMatches(
+  match: Pick<Match, 'id' | 'kickoffTime' | 'status'>,
+): Promise<{ prevMatch: AdjacentMatch | null; nextMatch: AdjacentMatch | null }> {
+  const statuses: MatchStatus[] = match.status === 'scheduled' || match.status === 'live'
+    ? ['scheduled', 'live']
+    : [match.status];
+  const base: Prisma.MatchWhereInput = { predictionsEnabled: true, status: { in: statuses }, id: { not: match.id } };
+
+  const [prev, next] = await Promise.all([
+    MatchRepository.findMany({
+      where: {
+        ...base,
+        OR: [
+          { kickoffTime: { lt: match.kickoffTime } },
+          { kickoffTime: match.kickoffTime, id: { lt: match.id } },
+        ],
+      },
+      orderBy: [{ kickoffTime: 'desc' }, { id: 'desc' }],
+      select: ADJACENT_SELECT,
+      take: 1,
+    }),
+    MatchRepository.findMany({
+      where: {
+        ...base,
+        OR: [
+          { kickoffTime: { gt: match.kickoffTime } },
+          { kickoffTime: match.kickoffTime, id: { gt: match.id } },
+        ],
+      },
+      orderBy: [{ kickoffTime: 'asc' }, { id: 'asc' }],
+      select: ADJACENT_SELECT,
+      take: 1,
+    }),
+  ]);
+
+  return { prevMatch: prev[0] ?? null, nextMatch: next[0] ?? null };
 }
 
 export interface AdminMatchOdds {

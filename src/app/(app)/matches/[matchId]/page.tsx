@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { isMatchLocked, formatStage, isKnockoutStage, ordinal } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
-import { ChevronLeft, Minus, Plus, Lock, Pencil, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, Plus, Lock, Pencil, Loader2 } from "lucide-react";
 import { MatchForm } from "./MatchForm";
 import type { TeamFormMatch } from "./MatchForm";
 import { MatchStandings } from "./MatchStandings";
@@ -19,8 +19,12 @@ import type { MatchResult } from "./AdminResultEditor";
 import type { SerializedMatch } from "@/models/Match";
 import type { MatchOddsData, PredictionData } from "@/lib/services/match-service";
 
+type AdjacentMatch = { _id: string; homeTeamName: string; awayTeamName: string };
+
 type MatchDetailData = SerializedMatch & {
   leagueName: string | null;
+  prevMatch: AdjacentMatch | null;
+  nextMatch: AdjacentMatch | null;
   isAdmin: boolean;
   standings: { home: Standing | null; away: Standing | null };
   prediction: PredictionData | null;
@@ -51,8 +55,34 @@ function ScoreInput({ value, onChange, disabled }: { value: number; onChange: (v
   );
 }
 
+function MatchNavButton({ match, direction, onNavigate }: {
+  match: AdjacentMatch | null;
+  direction: "prev" | "next";
+  onNavigate: (id: string) => void;
+}) {
+  const isPrev = direction === "prev";
+  if (!match) return <div className="flex-1 min-w-0" />;
+  return (
+    <button
+      type="button"
+      onClick={() => onNavigate(match._id)}
+      className={`flex-1 min-w-0 flex items-center gap-1.5 h-9 px-2.5 rounded-md bg-card-elevated border border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors ${isPrev ? "justify-start" : "justify-end"}`}
+      aria-label={`${isPrev ? "Previous" : "Next"} match: ${match.homeTeamName} vs ${match.awayTeamName}`}
+    >
+      {isPrev && <ChevronLeft className="h-4 w-4 shrink-0" />}
+      <span className="truncate">{match.homeTeamName} v {match.awayTeamName}</span>
+      {!isPrev && <ChevronRight className="h-4 w-4 shrink-0" />}
+    </button>
+  );
+}
+
 export default function MatchPredictionPage() {
   const { matchId } = useParams();
+  // Keyed by id so every piece of per-match state resets when stepping prev/next.
+  return <MatchDetail key={String(matchId)} matchId={String(matchId)} />;
+}
+
+function MatchDetail({ matchId }: { matchId: string }) {
   const router = useRouter();
   const [match, setMatch] = useState<MatchDetailData | null>(null);
   const [homeScore, setHomeScore] = useState(0);
@@ -120,6 +150,23 @@ export default function MatchPredictionPage() {
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [match, matchId, locked]);
 
+  // Replace (not push) so the back button still returns to wherever the user came from.
+  const goToMatch = useCallback((id: string) => router.replace(`/matches/${id}`), [router]);
+
+  // Left/right arrow keys step between matches (ignored while typing in a field).
+  useEffect(() => {
+    if (!match) return;
+    const { prevMatch, nextMatch } = match;
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "ArrowLeft" && prevMatch) goToMatch(prevMatch._id);
+      if (e.key === "ArrowRight" && nextMatch) goToMatch(nextMatch._id);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [match, goToMatch]);
+
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   if (!match) return <div className="p-4">Match not found</div>;
 
@@ -158,7 +205,8 @@ export default function MatchPredictionPage() {
     setSaving(false);
     if (res.ok) {
       toast.success("Prediction saved!");
-      router.push("/matches");
+      if (match?.nextMatch) goToMatch(match.nextMatch._id);
+      else router.push("/matches");
     } else {
       const err = await res.json();
       toast.error(err.error || "Failed to save");
@@ -181,6 +229,14 @@ export default function MatchPredictionPage() {
         </span>
         <div className="h-9 w-9 shrink-0" />
       </div>
+
+      {/* Prev / next match */}
+      {(match.prevMatch || match.nextMatch) && (
+        <div className="flex items-center gap-2">
+          <MatchNavButton match={match.prevMatch} direction="prev" onNavigate={goToMatch} />
+          <MatchNavButton match={match.nextMatch} direction="next" onNavigate={goToMatch} />
+        </div>
+      )}
 
       {/* Hero predict card */}
       <div className="relative rounded-lg border border-border bg-card overflow-hidden p-0">

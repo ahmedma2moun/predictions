@@ -51,8 +51,16 @@ export interface MatchListItem {
   awayStanding: { position: number; points: number } | null;
 }
 
+export interface AdjacentMatch {
+  _id: string;
+  homeTeamName: string;
+  awayTeamName: string;
+}
+
 export interface MatchDetail extends MatchListItem {
   isAdmin: boolean;
+  prevMatch: AdjacentMatch | null;
+  nextMatch: AdjacentMatch | null;
   isKnockout: boolean;
   homeStanding: Standing | null;
   awayStanding: Standing | null;
