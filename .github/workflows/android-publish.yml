@@ -1,7 +1,17 @@
 name: Android — Debug APK → Firebase
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/android-publish.yml'
   workflow_dispatch:
+
+# A newer push supersedes an in-flight build of an older commit.
+concurrency:
+  group: android-publish-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-distribute:

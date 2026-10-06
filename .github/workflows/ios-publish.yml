@@ -1,7 +1,18 @@
 name: iOS — Archive → TestFlight
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/ios-publish.yml'
+      - '.github/scripts/ios-*.py'
   workflow_dispatch:
+
+# A newer push supersedes an in-flight build of an older commit.
+concurrency:
+  group: ios-publish-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-distribute:
