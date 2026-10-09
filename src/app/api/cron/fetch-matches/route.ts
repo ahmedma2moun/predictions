@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAndInsertMatches, buildReminderOnlyNotices } from '@/lib/matches-processor';
+import { fetchAndInsertMatches, buildReminderOnlyNotices, getWeeklyFetchWindow } from '@/lib/matches-processor';
 import { logger } from '@/lib/logger';
 import { sendFetchMatchesCronEmail } from '@/lib/email';
-import { format, addDays } from 'date-fns';
 import { verifyCronRequest } from '@/lib/cron-auth';
 
 export async function GET(req: NextRequest) {
@@ -10,10 +9,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const fromDate = new Date();
-  fromDate.setUTCHours(0, 0, 0, 0);
-  const from = format(fromDate, 'yyyy-MM-dd');
-  const to   = format(addDays(fromDate, 6), 'yyyy-MM-dd');
+  // Today + next 7 days: a Thursday run covers Thursday → next Thursday.
+  const { fromDate, from, to } = getWeeklyFetchWindow();
 
   const { inserted, skipped, errors, insertedMatches, skippedMatches } = await fetchAndInsertMatches({
     from,

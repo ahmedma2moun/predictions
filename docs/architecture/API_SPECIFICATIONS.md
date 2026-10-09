@@ -196,7 +196,7 @@ All admin handlers re-verify `role === 'admin'` inline — layout-level checks a
 
 ### GET/POST/DELETE /api/admin/matches
 - **GET** (query: `page`) — Paginated match list (50/page), each row includes computed odds (`match-service.ts` → `getAdminMatches()`)
-- **POST `{action: "fetch", leagueId?}`** — Fetch fixtures for the upcoming week for active leagues, via `matches-processor.ts` → `fetchThisWeekFixtures()`
+- **POST `{action: "fetch", leagueId?}`** — Fetch fixtures for today + the next 7 days (same 8-day window as the `fetch-matches` cron) for active leagues, via `matches-processor.ts` → `fetchThisWeekFixtures()`
 - **POST `{action: "fetch-next-month", leagueId?}`** — Fetch fixtures for next calendar month, via `fetchNextMonthFixtures()`. Returns `{ inserted, skipped, debug }`.
 - **POST `{action: "create-custom", homeTeamName, awayTeamName, kickoffTime}`** — Insert a non-external match and notify users, via `createCustomMatch()`. Returns `{ match }`, 201.
 - **POST `{action: "fetch-results"}`** — Trigger `processMatchResults()` for past matches without results. Returns `{ updated, scored }`.
@@ -310,7 +310,7 @@ Cron endpoints accept any of four auth sources (`src/lib/cron-auth.ts`):
 Recurring jobs run as QStash Schedules (`scripts/setup-qstash-schedules.ts`) — see [Scheduled Jobs](DEPLOYMENT_GUIDE.md#scheduled-jobs-upstash-qstash) for the full list and cron expressions.
 
 ### GET /api/cron/fetch-matches
-Fetches upcoming week's fixtures for all active leagues. Inserts new matches. Idempotent.
+Fetches fixtures for today + the next 7 days (8 days inclusive — a Thursday run covers Thursday → next Thursday, so the following Friday–Thursday is included) for all active leagues. Window comes from `getWeeklyFetchWindow()` in `matches-processor.ts`. Inserts new matches. Idempotent.
 Returns `{ inserted, skipped, errors, timestamp }`.
 QStash schedule: every Thursday, 8 PM Cairo local.
 

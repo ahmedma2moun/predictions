@@ -286,11 +286,23 @@ export async function notifyUsersOfNewMatches(matches: MatchForEmail[], pushBody
   }
 }
 
-export async function fetchThisWeekFixtures(leagueId?: number): Promise<FetchMatchesSummary> {
-  const fromDate = new Date();
+/**
+ * Weekly fetch window: today plus the next 7 days (8 days inclusive). The cron runs
+ * Thursday evening, so it covers Thursday → next Thursday; next week's run picks up
+ * from that Thursday again (duplicates are skipped by the externalId check).
+ */
+export const FETCH_WINDOW_DAYS = 8;
+
+export function getWeeklyFetchWindow(now = new Date()) {
+  const fromDate = new Date(now);
   fromDate.setUTCHours(0, 0, 0, 0);
   const from = format(fromDate, 'yyyy-MM-dd');
-  const to = format(addDays(fromDate, 6), 'yyyy-MM-dd');
+  const to = format(addDays(fromDate, FETCH_WINDOW_DAYS - 1), 'yyyy-MM-dd');
+  return { fromDate, from, to };
+}
+
+export async function fetchThisWeekFixtures(leagueId?: number): Promise<FetchMatchesSummary> {
+  const { fromDate, from, to } = getWeeklyFetchWindow();
   return fetchAndInsertMatches({ from, to, fromDate, leagueId, filterByTeams: true, logPrefix: 'admin/matches fetch' });
 }
 

@@ -118,7 +118,7 @@ All recurring jobs run as **QStash Schedules** — `vercel.json` stays empty (`{
 
 | Schedule ID | Endpoint | Cron | Fires | Purpose |
 |---|---|---|---|---|
-| `predictions-fetch-matches` | `/api/cron/fetch-matches` | `CRON_TZ=Africa/Cairo 0 20 * * 4` | Every Thursday, 8 PM Cairo local (DST-aware — QStash resolves the IANA offset itself) | Fetch fixtures for the upcoming week |
+| `predictions-fetch-matches` | `/api/cron/fetch-matches` | `CRON_TZ=Africa/Cairo 0 20 * * 4` | Every Thursday, 8 PM Cairo local (DST-aware — QStash resolves the IANA offset itself) | Fetch fixtures for today + the next 7 days (Thursday → next Thursday) |
 | `predictions-daily-reminder` | `/api/cron/daily-reminder` | `0 9 * * *` | Daily, 09:00 UTC | Remind users who haven't predicted a match kicking off in the next 24h — no-ops on days with no matches |
 | `predictions-db-export` | `/api/cron/db-export` | `0 9 * * *` | Daily, 09:00 UTC | JSON backup of all DB tables → email |
 

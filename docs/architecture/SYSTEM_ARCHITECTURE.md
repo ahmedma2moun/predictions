@@ -94,7 +94,7 @@ src/
 │   ├── api-handler.ts      # withErrorHandling() — shared route try/catch: ValidationError → 400, else logged + generic 500
 │   ├── query-params.ts     # parseLeaderboardQuery() — shared leagueId/groupId/from/to searchParams parsing
 │   ├── leaderboard.ts      # Leaderboard aggregation logic
-│   ├── matches-processor.ts  # fetchAndInsertMatches(), fetchThisWeekFixtures(), fetchNextMonthFixtures(), createCustomMatch(), notifyUsersOfNewMatches(), buildReminderOnlyNotices() (fetch-matches cron + admin/matches)
+│   ├── matches-processor.ts  # fetchAndInsertMatches(), getWeeklyFetchWindow(), fetchThisWeekFixtures(), fetchNextMonthFixtures(), createCustomMatch(), notifyUsersOfNewMatches(), buildReminderOnlyNotices() (fetch-matches cron + admin/matches)
 │   ├── results-processor.ts  # Result update + scoring (fetch-results cron + admin)
 │   ├── standings.ts        # TeamStanding cache + football-data.org standings fetch
 │   ├── client-api.ts       # Typed fetch helpers for client components
@@ -271,7 +271,7 @@ fetch-matches cron runs
 
 **fetch-matches** (QStash schedule, Thursday 8 PM Cairo local):
 1. Load all active leagues
-2. For each: call football-data.org `/competitions/{id}/matches?dateFrom=…&dateTo=…`
+2. For each: call football-data.org `/competitions/{id}/matches?dateFrom=…&dateTo=…` over `getWeeklyFetchWindow()` — today + the next 7 days (8 days inclusive), so the Thursday run covers Thursday → next Thursday
 3. Filter fixtures to those that are eligible — a fixture is kept when either:
    - one of its teams is an **active** (prediction) team in the league, or
    - at least **one user has selected both of its teams** on the Reminders page
