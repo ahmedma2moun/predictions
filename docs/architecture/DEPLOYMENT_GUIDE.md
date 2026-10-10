@@ -563,7 +563,7 @@ External testers do **not** need to be team members. Requires a one-time **Beta 
 
 The RN workflows (`ios-publish.yml`, `android-publish.yml`) still ship `mobile/` and keep triggering on `mobile/**`; both pipelines upload to the same TestFlight/Firebase apps, so the native ones stay manual until cutover (replace the RN workflows and uncomment the `push` triggers).
 
-**New secrets (Android):** `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Create once: `keytool -genkeypair -v -keystore release.keystore -alias football -keyalg RSA -keysize 2048 -validity 10000`, then `base64 -i release.keystore | pbcopy`. Back the keystore up — losing it means testers must reinstall again. iOS secrets are unchanged.
+**Android signing:** no new secrets. The native workflow builds the release variant (R8, production API) signed with the committed `native/android/app/debug.keystore` (the standard Android debug key, same as the RN build), so testers can update in place. To ship with a real key later, set `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` in the workflow env (`build.gradle.kts` already honours them). iOS secrets are unchanged.
 
 ## Vercel Plan Considerations
 

@@ -29,7 +29,15 @@ android {
     }
 
     signingConfigs {
-        // Release keystore comes from CI secrets; without them `assembleRelease` falls back to the debug key.
+        // Committed debug keystore (same one the React Native app used, so testers can update in place).
+        // Standard Android debug credentials — not a secret.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+        // Optional real release keystore from CI secrets; without it `assembleRelease` is signed with the debug key.
         create("release") {
             val path = System.getenv("ANDROID_KEYSTORE_PATH")
             if (path != null) {

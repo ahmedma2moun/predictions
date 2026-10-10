@@ -1,4 +1,4 @@
-name: Android (native) — Release APK → Firebase
+name: Android (native) — Debug-signed APK → Firebase
 
 # Manual-only while the React Native app (android-publish.yml) is still the shipping build — both distribute
 # to the same Firebase app. At cutover (plan §4 Phase 6): replace android-publish.yml with this file and
@@ -32,28 +32,15 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Decode release keystore
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "::error::ANDROID_KEYSTORE_BASE64 is not set. Create a release keystore and add the four ANDROID_* secrets (see docs/architecture/DEPLOYMENT_GUIDE.md)."
-            exit 1
-          fi
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
-          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
-
       - name: Run unit tests
         working-directory: native/android
         run: ./gradlew testDebugUnitTest --no-daemon
 
+      # Signed with the committed debug keystore (no secrets needed, like the RN workflow). We build the release
+      # variant because the debug variant targets the emulator loopback (10.0.2.2) instead of the production API.
       # versionCode was always 1 with the RN debug builds; run number + offset keeps it strictly increasing.
-      - name: Build signed release APK (R8)
+      - name: Build debug-signed APK (R8, production API)
         working-directory: native/android
-        env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon -PversionCodeOverride=$((GITHUB_RUN_NUMBER + 1000))
 
       - name: Distribute via Firebase App Distribution

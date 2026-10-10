@@ -28,7 +28,7 @@ Bump `native/VERSION` by hand. iOS build numbers are auto-incremented from App S
 ## Cutover checklist (plan §4 Phase 6)
 
 1. Complete device QA against `native/PARITY.md` (all 🟡 → ✅), including push taps from foreground/background/cold start.
-2. Create the Android keystore + secrets; verify the iOS profile includes Push Notifications.
+2. Verify the iOS profile includes Push Notifications.
 3. Replace `ios-publish.yml` / `android-publish.yml` with the native workflows and enable their `push` triggers.
 4. Ship; keep `mobile/` one release cycle, then delete it with `eas.json`, `mobile/scripts`, `docs/REACT_NATIVE_GUIDE.md`, `docs/MOBILE_BUILD_GUIDE.md`; rewrite `docs/IOS_PUBLISH_ACTION_GUIDE.md`.
 5. Replace `semantic-release` in `mobile/` with a step that writes `native/VERSION` (plan §7.5).
