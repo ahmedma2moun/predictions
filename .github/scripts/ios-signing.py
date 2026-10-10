@@ -122,11 +122,26 @@ bid = next((b for b in bid if b["attributes"]["identifier"] == bundle), None)
 if not bid:
     sys.exit(f"::error::Bundle ID {bundle} is not registered in the Apple developer account.")
 
+def profile_info(p):
+    raw = base64.b64decode(p["attributes"]["profileContent"])
+    decoded = subprocess.run(["security", "cms", "-D"], input=raw, capture_output=True, check=True).stdout
+    return raw, plistlib.loads(decoded)
+
+
+def has_push(p):
+    # A profile created before Push Notifications was enabled on the App ID has no aps-environment entitlement.
+    # Exporting with it silently strips the entitlement and the app can never get an APNs token.
+    return "aps-environment" in profile_info(p)[1].get("Entitlements", {})
+
+
 # This related-resource endpoint rejects filter[...] params, so filter client-side.
 profiles = api("GET", f"/bundleIds/{bid['id']}/profiles?limit=200")["data"]
 profile = None
 for p in profiles:
     if p["attributes"]["profileType"] != "IOS_APP_STORE" or p["attributes"]["profileState"] != "ACTIVE":
+        continue
+    if not has_push(p):
+        print(f"Skipping profile '{p['attributes']['name']}': no aps-environment entitlement (push).")
         continue
     certs = api("GET", f"/profiles/{p['id']}/certificates?limit=200")["data"]
     if any(c["id"] == cert_id for c in certs):
@@ -143,9 +158,10 @@ else:
             "certificates": {"data": [{"type": "certificates", "id": cert_id}]}}}})["data"]
     print("Created new provisioning profile.")
 
-raw = base64.b64decode(profile["attributes"]["profileContent"])
-decoded = subprocess.run(["security", "cms", "-D"], input=raw, capture_output=True, check=True).stdout
-info = plistlib.loads(decoded)
+raw, info = profile_info(profile)
+if "aps-environment" not in info.get("Entitlements", {}):
+    sys.exit(f"::error::Provisioning profile '{info['Name']}' has no aps-environment entitlement. Enable "
+             f"Push Notifications on the {bundle} App ID (developer.apple.com > Identifiers) and re-run.")
 dest = os.path.expanduser("~/Library/MobileDevice/Provisioning Profiles")
 os.makedirs(dest, exist_ok=True)
 open(f"{dest}/{info['UUID']}.mobileprovision", "wb").write(raw)

@@ -146,6 +146,16 @@ jobs:
             -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
             -exportPath $RUNNER_TEMP/export
 
+      - name: Verify the IPA is signed with the push entitlement
+        run: |
+          unzip -q $RUNNER_TEMP/export/FootballPredictions.ipa -d $RUNNER_TEMP/ipa
+          codesign -d --entitlements :- $RUNNER_TEMP/ipa/Payload/*.app 2>/dev/null > $RUNNER_TEMP/entitlements.plist
+          cat $RUNNER_TEMP/entitlements.plist
+          if ! grep -q "aps-environment" $RUNNER_TEMP/entitlements.plist; then
+            echo "::error::Signed IPA has no aps-environment entitlement — push notifications would not work."
+            exit 1
+          fi
+
       - name: Upload to TestFlight
         env:
           ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
