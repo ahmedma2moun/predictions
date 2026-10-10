@@ -45,14 +45,19 @@ class PushRegistrar(
     var requestPermission: suspend () -> Boolean = { false },
 ) {
     private var registeredFor: String? = null
+    private var inFlight = false
 
     private fun hasPermission(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
     suspend fun register(jwt: String): String? {
-        if (registeredFor == jwt) return null
-        registeredFor = jwt
+        if (registeredFor == jwt || inFlight) return null
+        inFlight = true
+        try { return doRegister(jwt) } finally { inFlight = false }
+    }
+
+    private suspend fun doRegister(jwt: String): String? {
         ensureNotificationChannel(context)
         if (!hasPermission() && !requestPermission()) return null
 
@@ -61,6 +66,7 @@ class PushRegistrar(
         return try {
             api.send("/api/mobile/devices", HttpMethod.POST, DeviceRegistrationRequest(token, AppConfig.PLATFORM), jwt)
             storage.set(LAST_TOKEN_KEY, token)
+            registeredFor = jwt   // only after success, so a failed attempt is retried next time
             token
         } catch (e: Exception) {
             Log.w("push", "device registration failed", e)

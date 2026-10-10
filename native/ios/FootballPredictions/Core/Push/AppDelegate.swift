@@ -31,6 +31,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Messaging.messaging().apnsToken = deviceToken
+        pushLog.notice("APNs device token received")
+    }
+
+    // Without this a missing push entitlement / provisioning profile fails silently.
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        pushLog.error("APNs registration failed: \(error.localizedDescription, privacy: .public)")
     }
 
     // Foreground presentation: show banner + sound like the RN handler (`shouldShowBanner/List/Sound`).
