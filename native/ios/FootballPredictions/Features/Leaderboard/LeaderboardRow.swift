@@ -215,7 +215,6 @@ struct Podium: View {
                                 .stroke(medal.border, lineWidth: 1))
                     }
                     .frame(maxWidth: .infinity)
-                    .layoutPriority(rank == 1 ? 1.2 : 1)
                 }
             }
             .padding(.horizontal, Tokens.Spacing.sm)

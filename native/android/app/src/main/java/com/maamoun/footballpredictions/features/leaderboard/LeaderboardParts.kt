@@ -294,7 +294,7 @@ fun Podium(entries: List<LeaderboardEntry>, highlightMe: String? = null, scoreSi
         order.forEachIndexed { i, entry ->
             val rank = ranks[i]
             val medal = medalColors(rank)
-            Column(Modifier.weight(if (rank == 1) 1.2f else 1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Avatar(entry.name, entry.avatarUrl, size = if (rank == 1) 48.dp else 40.dp)
                 Text(entry.name.split(" ").first(), color = c.foreground, maxLines = 1, overflow = TextOverflow.Ellipsis, style = appFont(11.5.sp, W.Semibold, align = TextAlign.Center))
                 Text("${entry.totalPoints}", color = if (highlightMe == entry.userId) c.primary else c.foreground, style = appFont(scoreSize, W.Bold, mono = true))
