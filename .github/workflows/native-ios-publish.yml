@@ -139,6 +139,19 @@ jobs:
             -clonedSourcePackagesDirPath ~/spm-packages \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
 
+      # Diagnostic: shows at which stage aps-environment is lost (profile -> archive -> export).
+      - name: Inspect entitlements (profile + archive)
+        run: |
+          echo "== Provisioning profile entitlements ($PROFILE_NAME)"
+          security cms -D -i "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision" \
+            | plutil -extract Entitlements xml1 -o - - || true
+          echo "== Archived app entitlements"
+          codesign -d --entitlements :- "$RUNNER_TEMP"/FootballPredictions.xcarchive/Products/Applications/*.app 2>/dev/null || true
+          echo "== Entitlements file in the project"
+          cat native/ios/FootballPredictions/FootballPredictions.entitlements
+          xcodebuild -showBuildSettings -project native/ios/FootballPredictions.xcodeproj -scheme FootballPredictions \
+            -configuration Release 2>/dev/null | grep -E "APS_ENVIRONMENT|CODE_SIGN_ENTITLEMENTS|PROVISIONING_PROFILE_SPECIFIER" || true
+
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
