@@ -188,6 +188,10 @@ Services return neutral data (raw Prisma models + derived fields). Serialization
 
 Services call repositories (`src/lib/repositories/`), not Prisma directly. Route handlers call services, never repositories.
 
+## Native Mobile Apps
+
+The mobile clients are two native codebases under `native/`: `ios/` (SwiftUI, XcodeGen, Firebase Messaging via SPM) and `android/` (Jetpack Compose, Gradle Kotlin DSL, OkHttp + kotlinx.serialization). Both consume the unchanged `/api/mobile/*` routes below, share the bundle ID / package `com.maamoun.footballpredictions`, and are kept equivalent by: mirrored folder/type names, generated design tokens (`native/design-tokens`), shared contract fixtures decoded by both test suites (`native/contract/fixtures`), `native/PARITY.md`, and the `native-checks.yml` CI guard. The legacy Expo app in `mobile/` stays until cutover. Details: `docs/NATIVE_MOBILE_GUIDE.md`.
+
 ## Mobile API Layer
 
 The mobile app (React Native / Expo) calls a parallel route tree `/api/mobile/*` that uses JWT Bearer authentication instead of NextAuth cookies. Both trees share the same service layer and database.
@@ -475,3 +479,7 @@ Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `s
 ### ADR-17: TheSportsDB `/livescore/{leagueId}` overrides `/lookup/event/{id}` for live status/score
 **Decision**: `TheSportsDBProvider.fetchFixtureById()` still calls `/lookup/event/{id}` first (for team/league/venue metadata), but when that call reports the fixture as `live`, a second call to `/livescore/{leagueId}` is made and, if the fixture is found in that feed, its `strStatus`/`intHomeScore`/`intAwayScore` overwrite the values from `/lookup/event`. If the fixture isn't in the livescore feed (e.g. a transient gap), the `/lookup/event` data is kept as-is — no error, no null result.
 **Rationale**: `/lookup/event/{id}` was observed lagging real match state by several minutes — confirmed by hand with two `curl` calls at the same moment against the same fixture: `/lookup/event` reported `HT` while `/livescore/{leagueId}` already reported `2H`. This directly caused stale scores in both the `/api/matches/[matchId]/live` polling routes and the QStash live-goal chain's goal-push detection (`live-goal-service.ts`), since both go through this same `fetchFixtureById()`. `/livescore` only lists matches TheSportsDB currently considers live, so it can't replace `/lookup/event` outright (no venue/league metadata, and finished/scheduled fixtures never appear there) — it's used strictly as a fresher overlay for the live case, with the original call's data as the fallback.
+
+### ADR-18: Native apps (SwiftUI + Jetpack Compose) replace React Native
+**Decision**: Replace the Expo/React Native app with two plain native apps against the same `/api/mobile/*` API — no shared-code framework, no OpenAPI codegen. Parity is enforced by process and CI (mirrored structure, token generator, contract fixtures, parity matrix + guard) rather than by shared code. Firebase Messaging stays on both platforms so the backend keeps sending through FCM unchanged.
+**Rationale**: iOS CI dropped the Expo prebuild/CocoaPods/React Native compile (~22 min) in favour of a Swift + Firebase build; native controls, haptics, Dynamic Type, predictive back and system pull-to-refresh come for free. The app is small (12 screens), so two plain codebases plus a parity system is simpler than a cross-platform layer. Cost: every mobile change is made twice (mitigated by the `/native-parity` workflow). Android release builds now use a proper release keystore, so testers reinstall once.

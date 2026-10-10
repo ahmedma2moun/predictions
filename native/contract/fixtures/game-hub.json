@@ -1,0 +1,168 @@
+{
+  "currentWeekKey": "2026-10-09",
+  "userId": 7,
+  "groups": [
+    {
+      "id": 3,
+      "name": "Office League"
+    }
+  ],
+  "groupId": 3,
+  "seasons": [
+    {
+      "id": 1,
+      "name": "2026/27",
+      "status": "ACTIVE"
+    }
+  ],
+  "seasonId": 1,
+  "players": [
+    {
+      "id": 7,
+      "name": "Sample User",
+      "title": null
+    },
+    {
+      "id": 8,
+      "name": "Friend Two",
+      "title": "Sharpshooter"
+    }
+  ],
+  "weeks": [
+    {
+      "key": "2026-10-09",
+      "end": "2026-10-16T00:00:00.000Z",
+      "state": "open",
+      "matchCount": 10,
+      "winnerIds": [],
+      "standings": [
+        {
+          "userId": 8,
+          "name": "Friend Two",
+          "points": 12,
+          "exact": 1,
+          "predicted": 5,
+          "rank": 1,
+          "title": "Sharpshooter"
+        },
+        {
+          "userId": 7,
+          "name": "Sample User",
+          "points": 9,
+          "exact": 0,
+          "predicted": 5,
+          "rank": 2,
+          "title": null
+        }
+      ]
+    },
+    {
+      "key": "2026-10-02",
+      "end": "2026-10-09T00:00:00.000Z",
+      "state": "complete",
+      "matchCount": 8,
+      "winnerIds": [
+        7
+      ],
+      "standings": [
+        {
+          "userId": 7,
+          "name": "Sample User",
+          "points": 15,
+          "exact": 2,
+          "predicted": 8,
+          "rank": 1,
+          "title": null
+        }
+      ]
+    }
+  ],
+  "feed": [
+    {
+      "key": "exact:55:7",
+      "at": "2026-10-03T17:00:00.000Z",
+      "kind": "exact",
+      "text": "Sample User nailed Arsenal 2-0 Spurs",
+      "matchId": 55,
+      "reactions": [
+        {
+          "emoji": "🔥",
+          "count": 2,
+          "mine": true
+        },
+        {
+          "emoji": "👏",
+          "count": 0,
+          "mine": false
+        }
+      ]
+    },
+    {
+      "key": "lead:1",
+      "at": "2026-10-04T09:00:00.000Z",
+      "kind": "lead",
+      "text": "Friend Two took the lead",
+      "matchId": null,
+      "reactions": []
+    }
+  ],
+  "challenges": [
+    {
+      "key": "sharp",
+      "name": "Sharpshooter",
+      "description": "Land 5 exact scores",
+      "title": "Sharpshooter",
+      "progress": 3,
+      "target": 5,
+      "unlocked": false
+    },
+    {
+      "key": "streak",
+      "name": "On fire",
+      "description": "Score 3 in a row",
+      "title": "Hot Streak",
+      "progress": 3,
+      "target": 3,
+      "unlocked": true
+    }
+  ],
+  "equippedTitle": "Hot Streak",
+  "unlockedTitles": [
+    {
+      "key": "streak",
+      "title": "Hot Streak"
+    }
+  ],
+  "rival": {
+    "userId": 8,
+    "name": "Friend Two",
+    "myPoints": 98,
+    "theirPoints": 120,
+    "gap": -22,
+    "wins": 4,
+    "losses": 6,
+    "draws": 1,
+    "myAccuracy": 60,
+    "theirAccuracy": 65
+  },
+  "recap": {
+    "name": "Sample User",
+    "seasonName": "2026/27",
+    "final": false,
+    "rank": 2,
+    "totalPoints": 98,
+    "predictions": 20,
+    "exactScores": 3,
+    "accuracy": 60,
+    "longestStreak": 4,
+    "weeklyWins": 1,
+    "biggestComeback": 2,
+    "bestPrediction": {
+      "matchId": 55,
+      "label": "Arsenal v Spurs",
+      "score": "2-0",
+      "points": 8
+    },
+    "shareText": "My 2026/27 recap: 98 pts"
+  }
+}

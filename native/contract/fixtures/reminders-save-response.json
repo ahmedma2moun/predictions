@@ -1,0 +1,18 @@
+{
+  "selections": [
+    {
+      "id": 1,
+      "name": "Premier League",
+      "teams": [
+        {
+          "teamLeagueId": 10,
+          "name": "Arsenal"
+        },
+        {
+          "teamLeagueId": 11,
+          "name": "Chelsea"
+        }
+      ]
+    }
+  ]
+}

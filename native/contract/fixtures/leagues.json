@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "externalId": 2021,
+    "name": "Premier League",
+    "country": "England",
+    "logo": "https://crests.football-data.org/2021.png"
+  },
+  {
+    "id": "2",
+    "externalId": 2001,
+    "name": "UEFA Champions League",
+    "country": "Europe",
+    "logo": null
+  }
+]

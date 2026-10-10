@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "status": "OPEN",
+  "league": {
+    "id": "1",
+    "name": "Premier League",
+    "logo": "https://crests.football-data.org/2021.png"
+  },
+  "allowedTeams": [
+    {
+      "teamId": "11",
+      "name": "Arsenal",
+      "logo": "https://crests.football-data.org/57.png"
+    },
+    {
+      "teamId": "12",
+      "name": "Chelsea",
+      "logo": null
+    }
+  ],
+  "pickCount": 3,
+  "myPick": {
+    "teamId": "11"
+  }
+}

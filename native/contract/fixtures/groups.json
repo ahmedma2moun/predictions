@@ -1,0 +1,12 @@
+[
+  {
+    "id": "3",
+    "name": "Office League",
+    "isDefault": false
+  },
+  {
+    "id": "1",
+    "name": "General",
+    "isDefault": true
+  }
+]

@@ -1,0 +1,74 @@
+{
+  "enabled": true,
+  "status": "LOCKED",
+  "league": {
+    "id": "1",
+    "name": "Premier League",
+    "logo": "https://crests.football-data.org/2021.png"
+  },
+  "lockedAt": "2026-09-01T00:00:00.000Z",
+  "myPick": {
+    "teamId": "11"
+  },
+  "teams": {
+    "11": {
+      "teamId": "11",
+      "name": "Arsenal",
+      "logo": "https://crests.football-data.org/57.png",
+      "awards": [
+        {
+          "matchId": "55",
+          "gameNumber": 1,
+          "opponentName": "Spurs",
+          "homeAway": "home",
+          "teamScore": 2,
+          "opponentScore": 0,
+          "kickoffTime": "2026-10-03T15:00:00.000Z",
+          "isWin": true,
+          "points": 2
+        },
+        {
+          "matchId": "56",
+          "gameNumber": 2,
+          "opponentName": "Spurs",
+          "homeAway": "home",
+          "teamScore": null,
+          "opponentScore": null,
+          "kickoffTime": "2026-10-03T15:00:00.000Z",
+          "isWin": false,
+          "points": 0
+        }
+      ],
+      "totalPoints": 2,
+      "nextWinPoints": 4
+    },
+    "12": {
+      "teamId": "12",
+      "name": "Chelsea",
+      "logo": null,
+      "awards": [],
+      "totalPoints": 0,
+      "nextWinPoints": 2
+    }
+  },
+  "picks": [
+    {
+      "userId": "7",
+      "name": "Sample User",
+      "avatarUrl": null,
+      "teamId": "11",
+      "teamName": "Arsenal",
+      "teamLogo": "https://crests.football-data.org/57.png",
+      "totalBonus": 2
+    },
+    {
+      "userId": "8",
+      "name": null,
+      "avatarUrl": null,
+      "teamId": "12",
+      "teamName": "Chelsea",
+      "teamLogo": null,
+      "totalBonus": 0
+    }
+  ]
+}

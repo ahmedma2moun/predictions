@@ -62,6 +62,7 @@ Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → Postgr
 | Scoring tiers | Exclusive (exact > diff > one_team) | Prevents double-counting overlapping rules |
 | Email | Nodemailer + Gmail | Zero-cost transactional emails for a small group |
 | DB backup | Daily JSON export via cron | Guards against accidental data loss |
+| Mobile clients | Native SwiftUI + Jetpack Compose (`native/`) | Faster CI, native UX; parity enforced by fixtures, generated tokens and a CI guard (ADR-18) |
 | API architecture | Service layer (`lib/services/`) → repository layer (`lib/repositories/`) | Web and mobile routes share one query implementation; only auth and serialization differ |
 | Mobile auth | JWT Bearer (separate from NextAuth) | Mobile can't use httpOnly cookies; `getMobileSession()` verifies a signed JWT from `SecureStore` |
 | Gamification | Streaks + badges (`streak-badge-service.ts`) | Scoring predictions builds current/longest streak; badges (first_exact_score, on_a_roll, group_champion) awarded automatically |

@@ -1,0 +1,58 @@
+{
+  "home": [
+    {
+      "date": "2026-10-03T15:00:00.000Z",
+      "opponentName": "Spurs",
+      "opponentLogo": "https://crests.football-data.org/61.png",
+      "isHome": true,
+      "teamScore": 2,
+      "opponentScore": 0,
+      "penaltyTeamScore": null,
+      "penaltyOpponentScore": null,
+      "result": "W",
+      "competition": "Premier League",
+      "status": "finished"
+    },
+    {
+      "date": "2026-10-03T15:00:00.000Z",
+      "opponentName": "Villa",
+      "opponentLogo": "https://crests.football-data.org/61.png",
+      "isHome": false,
+      "teamScore": 1,
+      "opponentScore": 1,
+      "penaltyTeamScore": null,
+      "penaltyOpponentScore": null,
+      "result": "D",
+      "competition": "Premier League",
+      "status": "finished"
+    },
+    {
+      "date": "2026-10-03T15:00:00.000Z",
+      "opponentName": "Wolves",
+      "opponentLogo": "https://crests.football-data.org/61.png",
+      "isHome": true,
+      "teamScore": 0,
+      "opponentScore": 1,
+      "penaltyTeamScore": null,
+      "penaltyOpponentScore": null,
+      "result": "L",
+      "competition": "Premier League",
+      "status": "finished"
+    }
+  ],
+  "away": [
+    {
+      "date": "2026-10-03T15:00:00.000Z",
+      "opponentName": "Brighton",
+      "opponentLogo": "https://crests.football-data.org/61.png",
+      "isHome": true,
+      "teamScore": null,
+      "opponentScore": null,
+      "penaltyTeamScore": null,
+      "penaltyOpponentScore": null,
+      "result": null,
+      "competition": "Premier League",
+      "status": "finished"
+    }
+  ]
+}

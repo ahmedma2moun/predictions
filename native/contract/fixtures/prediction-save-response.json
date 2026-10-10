@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "prediction": {
+    "id": 902,
+    "userId": "7",
+    "matchId": 101,
+    "homeScore": 2,
+    "awayScore": 1
+  }
+}

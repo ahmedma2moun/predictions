@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "324923947200",
+    "project_id": "football-prediction-18478",
+    "storage_bucket": "football-prediction-18478.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:324923947200:android:9453983ba1902076c5d525",
+        "android_client_info": {
+          "package_name": "com.maamoun.footballpredictions"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0NFRv97brA7RjQwAaAeVn9-StllRTMgg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -355,6 +355,8 @@ One-shot pre-kickoff reminder for a single match, delivered 60 minutes before `k
 
 ## Mobile API (/api/mobile/*)
 
+The authoritative, tested examples of every mobile response are the JSON fixtures in `native/contract/fixtures/` (decoded by both the iOS and Android test suites). When a response changes, update the fixture and both native DTOs. Club/Slip/Reminders payloads use numeric ids; everything else uses string ids.
+
 All mobile routes use `Authorization: Bearer {JWT}` obtained from `/api/mobile/auth/login`. Both web and mobile routes share the same service layer and database — only auth and response serialization differ.
 
 ### POST /api/mobile/auth/login

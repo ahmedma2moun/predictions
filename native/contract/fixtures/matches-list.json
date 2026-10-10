@@ -1,0 +1,125 @@
+[
+  {
+    "_id": "100",
+    "externalId": 501234,
+    "kickoffTime": "2026-10-10T12:00:00.000Z",
+    "status": "live",
+    "leagueId": "1",
+    "leagueName": "Premier League",
+    "matchday": 8,
+    "stage": "REGULAR_SEASON",
+    "leg": null,
+    "venue": "Emirates Stadium",
+    "homeTeam": {
+      "name": "Liverpool",
+      "logo": "https://crests.football-data.org/64.png"
+    },
+    "awayTeam": {
+      "name": "Everton",
+      "logo": "https://crests.football-data.org/62.png"
+    },
+    "result": {
+      "homeScore": 1,
+      "awayScore": 0,
+      "penaltyHomeScore": null,
+      "penaltyAwayScore": null
+    },
+    "prediction": {
+      "homeScore": 2,
+      "awayScore": 0,
+      "predictedWinner": "home",
+      "pointsAwarded": 0
+    },
+    "homeStanding": {
+      "position": 2,
+      "points": 17
+    },
+    "awayStanding": {
+      "position": 5,
+      "points": 13
+    }
+  },
+  {
+    "_id": "101",
+    "externalId": 501234,
+    "kickoffTime": "2026-10-17T14:00:00.000Z",
+    "status": "scheduled",
+    "leagueId": "1",
+    "leagueName": "Premier League",
+    "matchday": 8,
+    "stage": "REGULAR_SEASON",
+    "leg": null,
+    "venue": "Emirates Stadium",
+    "homeTeam": {
+      "name": "Arsenal",
+      "logo": "https://crests.football-data.org/57.png"
+    },
+    "awayTeam": {
+      "name": "Chelsea",
+      "logo": "https://crests.football-data.org/61.png"
+    },
+    "result": null,
+    "prediction": {
+      "homeScore": 2,
+      "awayScore": 1,
+      "predictedWinner": "home",
+      "pointsAwarded": 0
+    },
+    "homeStanding": {
+      "position": 2,
+      "points": 17
+    },
+    "awayStanding": {
+      "position": 5,
+      "points": 13
+    }
+  },
+  {
+    "_id": "102",
+    "externalId": 501234,
+    "kickoffTime": "2026-10-18T16:30:00.000Z",
+    "status": "scheduled",
+    "leagueId": "2",
+    "leagueName": "UEFA Champions League",
+    "matchday": null,
+    "stage": "QUARTER_FINALS",
+    "leg": 1,
+    "venue": "Emirates Stadium",
+    "homeTeam": {
+      "name": "Real Madrid",
+      "logo": "https://crests.football-data.org/86.png"
+    },
+    "awayTeam": {
+      "name": "Bayern München",
+      "logo": "https://crests.football-data.org/5.png"
+    },
+    "result": null,
+    "prediction": null,
+    "homeStanding": null,
+    "awayStanding": null
+  },
+  {
+    "_id": "103",
+    "externalId": null,
+    "kickoffTime": "2026-10-19T19:00:00.000Z",
+    "status": "scheduled",
+    "leagueId": null,
+    "leagueName": null,
+    "matchday": null,
+    "stage": null,
+    "leg": null,
+    "venue": null,
+    "homeTeam": {
+      "name": "Club A",
+      "logo": null
+    },
+    "awayTeam": {
+      "name": "Club B",
+      "logo": null
+    },
+    "result": null,
+    "prediction": null,
+    "homeStanding": null,
+    "awayStanding": null
+  }
+]
