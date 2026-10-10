@@ -427,7 +427,7 @@ Same payload as `GET /api/seasons`, mobile bearer auth — trimmed field set (no
 Same payload as `GET /api/seasons/[id]`, mobile bearer auth — trimmed field set.
 
 ### GET /api/mobile/groups
-Returns the authenticated user's groups.
+Returns the authenticated user's groups. Admins have no memberships, so they receive every group (same as `GET /api/groups`).
 
 ### GET /api/mobile/leagues
 Returns all active leagues.
