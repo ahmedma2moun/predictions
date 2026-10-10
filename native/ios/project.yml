@@ -36,8 +36,12 @@ targets:
           - Resources/GoogleService-Info.plist
       - path: FootballPredictions/Resources/GoogleService-Info.plist
         buildPhase: resources
+    # XcodeGen (re)writes this file on every `generate`, so the entitlements MUST be declared here as
+    # `properties` — a hand-edited file would be overwritten with an empty dict (no push entitlement).
     entitlements:
       path: FootballPredictions/FootballPredictions.entitlements
+      properties:
+        aps-environment: $(APS_ENVIRONMENT)
     dependencies:
       - package: Firebase
         product: FirebaseMessaging
