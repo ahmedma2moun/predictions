@@ -263,7 +263,8 @@ struct MatchDetailScreen: View {
             .buttonStyle(PressableStyle(pressedOpacity: 0.6))
             .accessibilityLabel("\(isPrev ? "Previous" : "Next") match: \(match.homeTeamName) vs \(match.awayTeamName)")
         } else {
-            Color.clear.frame(maxWidth: .infinity, minHeight: 36)
+            // Color is greedy in both axes; cap the height or the top inset fills the whole screen.
+            Color.clear.frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36)
         }
     }
 }
