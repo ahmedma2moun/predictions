@@ -1,5 +1,8 @@
 import Observation
+import OSLog
 import SwiftUI
+
+private let groupLog = Logger(subsystem: "com.maamoun.footballpredictions", category: "group-comparison")
 
 private struct GroupComparisonPayload: Sendable {
     let predictions: [GroupPredictionEntry]?
@@ -33,7 +36,14 @@ final class GroupComparisonViewModel {
 
     func loadGroups() async {
         guard let token = app.token else { return }
-        await groupsRemote.run { try await app.api.request("/api/mobile/groups", token: token) }
+        await groupsRemote.run {
+            do {
+                return try await app.api.request("/api/mobile/groups", token: token)
+            } catch {
+                if !isCancellation(error) { groupLog.error("groups request failed: \(String(describing: error), privacy: .public)") }
+                throw error
+            }
+        }
         if selectedGroupId == nil { selectedGroupId = groups.first?.id }
     }
 
@@ -48,11 +58,21 @@ final class GroupComparisonViewModel {
                 }
                 return "groupId=\(encodedGroup)"
             }()
-            async let predictions: [GroupPredictionEntry]? = try? await app.api.request(
-                "/api/mobile/matches/\(matchId)/group-predictions?\(query)", token: token)
-            async let standing: LiveGroupStanding? = try? await app.api.request(
-                "/api/mobile/leaderboard/live?groupId=\(encodedGroup)", token: token)
+            async let predictions: [GroupPredictionEntry]? = Self.orNil("group-predictions") {
+                try await app.api.request("/api/mobile/matches/\(matchId)/group-predictions?\(query)", token: token)
+            }
+            async let standing: LiveGroupStanding? = Self.orNil("leaderboard/live") {
+                try await app.api.request("/api/mobile/leaderboard/live?groupId=\(encodedGroup)", token: token)
+            }
             return GroupComparisonPayload(predictions: await predictions, standing: await standing)
+        }
+    }
+
+    /// A failed side request just leaves that part of the card empty — but is logged, not swallowed.
+    private static func orNil<T: Sendable>(_ what: String, _ call: () async throws -> T) async -> T? {
+        do { return try await call() } catch {
+            if !isCancellation(error) { groupLog.error("\(what, privacy: .public) request failed: \(String(describing: error), privacy: .public)") }
+            return nil
         }
     }
 
@@ -96,12 +116,15 @@ struct GroupComparisonCard: View {
     }
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
             if visible && !vm.groups.isEmpty { card }
-        }
-        .task(id: visible) { if visible { await vm.loadGroups() } }
-        .task(id: LoadKey(groupId: vm.selectedGroupId, hasResult: hasResult, liveScore: liveScore)) {
-            if visible { await vm.loadComparison(hasResult: hasResult, liveScore: liveScore) }
+            // The load tasks need a view that always exists: SwiftUI never runs `.task` on an empty view, and
+            // the card itself stays hidden until the groups it would load have arrived.
+            Color.clear.frame(height: 0)
+                .task(id: visible) { if visible { await vm.loadGroups() } }
+                .task(id: LoadKey(groupId: vm.selectedGroupId, hasResult: hasResult, liveScore: liveScore)) {
+                    if visible { await vm.loadComparison(hasResult: hasResult, liveScore: liveScore) }
+                }
         }
     }
 

@@ -3,6 +3,7 @@
 // parity screenshots) without a backend:  node native/contract/mock-server.mjs [port]
 //   MOCK_CHAMPION=open|locked|disabled   (default open)
 //   MOCK_LOGIN_FAIL=1                    make login return 401
+//   MOCK_LOCKED=1                        match detail kicks off in the past (shows the post-lock cards, e.g. Group Comparison)
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -25,7 +26,11 @@ function route(method, url) {
   if ((g = m(/^\/matches\/([^/]+)\/form$/))) return [200, fx('match-form')];
   if ((g = m(/^\/matches\/([^/]+)\/live$/))) return [200, fx('match-live')];
   if ((g = m(/^\/matches\/([^/]+)\/group-predictions$/))) return [200, fx('match-group-predictions')];
-  if ((g = m(/^\/matches\/([^/]+)$/))) return [200, { ...fx(g[1] === '99' ? 'match-detail-finished' : 'match-detail'), _id: g[1] }];
+  if ((g = m(/^\/matches\/([^/]+)$/))) {
+    const detail = { ...fx(g[1] === '99' ? 'match-detail-finished' : 'match-detail'), _id: g[1] };
+    if (process.env.MOCK_LOCKED) detail.kickoffTime = '2026-10-01T14:00:00.000Z';
+    return [200, detail];
+  }
   if (p === '/predictions' && method === 'POST') return [200, fx('prediction-save-response')];
   if (p === '/predictions') return [200, fx('predictions-history')];
   if (p === '/predictions/stats') return [200, fx('predictions-stats')];

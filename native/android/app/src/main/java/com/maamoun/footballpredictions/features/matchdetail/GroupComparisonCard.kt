@@ -1,5 +1,6 @@
 package com.maamoun.footballpredictions.features.matchdetail
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,11 +44,19 @@ import com.maamoun.footballpredictions.core.networking.dto.LeaderboardGroup
 import com.maamoun.footballpredictions.core.networking.dto.LiveGroupStanding
 import com.maamoun.footballpredictions.core.networking.dto.LiveMovement
 import com.maamoun.footballpredictions.core.networking.dto.LiveStandingEntry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import java.net.URLEncoder
 
 private data class GroupComparisonPayload(val predictions: List<GroupPredictionEntry>?, val standing: LiveGroupStanding?)
+
+/** A failed request leaves that part of the card empty — but is logged, not swallowed. */
+private suspend fun <T> requestOrNull(what: String, block: suspend () -> T): T? =
+    try { block() } catch (e: CancellationException) { throw e } catch (e: Exception) {
+        Log.w("GroupComparison", "$what request failed", e)
+        null
+    }
 
 /** Per-group live standing + this match's predictions, side by side. */
 @Composable
@@ -65,7 +74,7 @@ fun GroupComparisonCard(
     LaunchedEffect(visible) {
         if (!visible) return@LaunchedEffect
         val token = app.token ?: return@LaunchedEffect
-        val raw = runCatching { app.api.request<List<LeaderboardGroup>>("/api/mobile/groups", token = token) }.getOrDefault(emptyList())
+        val raw = requestOrNull("groups") { app.api.request<List<LeaderboardGroup>>("/api/mobile/groups", token = token) } ?: emptyList()
         // Default group first, then by name (this card's own ordering).
         groups = raw.sortedWith(compareBy<LeaderboardGroup> { !it.isDefault }.thenBy { it.name.lowercase() })
         if (selectedGroupId == null) selectedGroupId = groups.firstOrNull()?.id
@@ -78,8 +87,8 @@ fun GroupComparisonCard(
         val encoded = URLEncoder.encode(groupId, "UTF-8")
         val query = if (!hasResult && liveScore != null) "groupId=$encoded&liveHomeScore=${liveScore.home}&liveAwayScore=${liveScore.away}" else "groupId=$encoded"
         payload = coroutineScope {
-            val p = async { runCatching { app.api.request<List<GroupPredictionEntry>>("/api/mobile/matches/$matchId/group-predictions?$query", token = token) }.getOrNull() }
-            val s = async { runCatching { app.api.request<LiveGroupStanding>("/api/mobile/leaderboard/live?groupId=$encoded", token = token) }.getOrNull() }
+            val p = async { requestOrNull("group-predictions") { app.api.request<List<GroupPredictionEntry>>("/api/mobile/matches/$matchId/group-predictions?$query", token = token) } }
+            val s = async { requestOrNull("leaderboard/live") { app.api.request<LiveGroupStanding>("/api/mobile/leaderboard/live?groupId=$encoded", token = token) } }
             GroupComparisonPayload(p.await(), s.await())
         }
         loading = false
