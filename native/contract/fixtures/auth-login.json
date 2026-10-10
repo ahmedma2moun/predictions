@@ -1,0 +1,9 @@
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9.fixture.signature",
+  "user": {
+    "id": "7",
+    "name": "Sample User",
+    "email": "sample@example.com",
+    "role": "user"
+  }
+}

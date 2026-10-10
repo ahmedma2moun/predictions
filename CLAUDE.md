@@ -49,23 +49,39 @@ A full-stack football match predictions app where friends predict scores and com
 | `src/lib/utils.ts` | `formatKickoff()`, `isMatchLocked()`, `getWinner()` |
 | `src/models/Match.ts` | `IMatch` interface + `serializeMatch()` helper (not a Mongoose schema) |
 | `src/proxy.ts` | Route protection middleware |
+| `native/` | Native apps: `ios/` (SwiftUI), `android/` (Compose), `design-tokens/`, `contract/` fixtures, `PARITY.md` |
 | `prisma/schema.prisma` | Database schema — source of truth for all models |
 | `scripts/seed.ts` | One-time setup: admin user, General group, scoring rules |
 
 ## Cross-Layer Implementation Rule
 
-**Any feature, fix, or API change must be fully implemented across ALL three layers:**
+**Any feature, fix, or API change must be fully implemented across ALL layers:**
 
 | Layer | Path |
 |---|---|
 | Web frontend | `src/app/` |
 | API / backend | `src/app/api/` |
-| Mobile (React Native / Expo) | `mobile/app/` |
+| iOS (SwiftUI) | `native/ios/` |
+| Android (Jetpack Compose) | `native/android/` |
+| Legacy mobile (React Native / Expo) | `mobile/app/` — **only until the native cutover**; bug fixes only, add a to-do row to `native/PARITY.md` for anything changed here |
 
-Do NOT implement a feature in only one layer and leave the others outdated.  
-Do NOT change an API contract without updating both the web frontend and the mobile app.  
-Do NOT add a screen in the mobile app without the equivalent web page (and vice versa).  
+Do NOT implement a feature in only one layer and leave the others outdated.
+Do NOT change an API contract without updating the web frontend and both native apps (and `native/contract/fixtures/`).
+Do NOT add a screen in a native app without the equivalent web page and the equivalent screen on the other platform (and vice versa).
 When a task targets only one layer, flag it and ask which other layers need updating before proceeding.
+
+## Native Parity Rule
+
+The mobile app is two native codebases: `native/ios/` (SwiftUI) and `native/android/` (Jetpack Compose). They must stay equivalent in behaviour and appearance.
+
+- Any feature, fix, or UI change made in one native app **must be made in the other in the same PR**.
+- Use the **same folder, type and function names** on both platforms (`Features/Matches/MatchesViewModel` exists in both).
+- Never hard-code a colour, spacing, radius or font size. Change `native/design-tokens/tokens.json` and run `node native/design-tokens/generate.mjs`.
+- When an `/api/mobile/*` response changes: update the fixture in `native/contract/fixtures/`, then the DTO on **both** platforms, then the web frontend.
+- Update `native/PARITY.md` in the same PR whenever a screen or behaviour is added, changed or removed.
+- A platform-only change is allowed only for genuinely platform-specific code (signing, permissions, OS APIs). State it in the PR body as `Parity: ios-only — <reason>` or `Parity: android-only — <reason>`.
+- When a task names only one platform, flag it and confirm before leaving the other unchanged.
+- CI enforces this (`native-checks.yml`: parity guard, token drift, fixture tests). Walk-through: `/native-parity`.
 
 ## Service Layer Pattern
 

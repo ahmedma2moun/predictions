@@ -1,0 +1,51 @@
+{
+  "hasLiveMatches": true,
+  "matches": [
+    {
+      "matchId": "100",
+      "homeTeamName": "Liverpool",
+      "homeTeamLogo": "https://crests.football-data.org/64.png",
+      "awayTeamName": "Everton",
+      "awayTeamLogo": null,
+      "homeScore": 1,
+      "awayScore": 0,
+      "status": "live",
+      "kickoffTime": "2026-10-10T12:00:00.000Z"
+    }
+  ],
+  "standings": [
+    {
+      "userId": "7",
+      "name": "Sample User",
+      "avatarUrl": null,
+      "previousRank": 3,
+      "rank": 2,
+      "movement": "up",
+      "points": 98,
+      "livePoints": 3,
+      "liveTotalPoints": 101
+    },
+    {
+      "userId": "8",
+      "name": null,
+      "avatarUrl": null,
+      "previousRank": 1,
+      "rank": 1,
+      "movement": "same",
+      "points": 120,
+      "livePoints": 0,
+      "liveTotalPoints": 120
+    },
+    {
+      "userId": "9",
+      "name": "Third Player",
+      "avatarUrl": null,
+      "previousRank": 2,
+      "rank": 3,
+      "movement": "down",
+      "points": 90,
+      "livePoints": 0,
+      "liveTotalPoints": 90
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+[
+  {
+    "userId": "7",
+    "userName": "Sample User",
+    "homeScore": 2,
+    "awayScore": 1,
+    "pointsAwarded": 3,
+    "scoringBreakdown": [
+      {
+        "key": "correct_winner",
+        "name": "Correct winner",
+        "points": 3,
+        "awarded": true
+      }
+    ],
+    "predicted": true,
+    "isLive": false
+  },
+  {
+    "userId": "8",
+    "userName": null,
+    "homeScore": null,
+    "awayScore": null,
+    "pointsAwarded": null,
+    "scoringBreakdown": null,
+    "predicted": false,
+    "isLive": false
+  }
+]

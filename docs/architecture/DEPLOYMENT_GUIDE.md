@@ -553,6 +553,18 @@ External testers do **not** need to be team members. Requires a one-time **Beta 
 
 ---
 
+## Native Apps CI (`native/`)
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `native-checks.yml` | PRs touching `native/**` | `native-parity` (both platforms changed or a `Parity: …-only` waiver), `tokens-drift` (`generate.mjs --check`), `android-test` (unit/fixture tests + debug build), `ios-test` (macos-26; only when iOS/contract changed) |
+| `native-ios-publish.yml` | **manual** (`push` trigger commented) | XcodeGen → archive (manual signing from `project.yml`, reusing `.github/scripts/ios-signing.py` / `ios-build-number.py`) → TestFlight. Expected ~4–7 min: no npm/Expo/CocoaPods. SPM cache keyed on `project.yml` |
+| `native-android-publish.yml` | **manual** (`push` trigger commented) | Unit tests → signed R8 release APK (`versionCode` = run number + 1000, `versionName` from `native/VERSION`) → Firebase App Distribution (same app id and `testers` group) |
+
+The RN workflows (`ios-publish.yml`, `android-publish.yml`) still ship `mobile/` and keep triggering on `mobile/**`; both pipelines upload to the same TestFlight/Firebase apps, so the native ones stay manual until cutover (replace the RN workflows and uncomment the `push` triggers).
+
+**New secrets (Android):** `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Create once: `keytool -genkeypair -v -keystore release.keystore -alias football -keyalg RSA -keysize 2048 -validity 10000`, then `base64 -i release.keystore | pbcopy`. Back the keystore up — losing it means testers must reinstall again. iOS secrets are unchanged.
+
 ## Vercel Plan Considerations
 
 | Feature | Hobby | Pro |

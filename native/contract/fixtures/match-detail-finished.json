@@ -1,0 +1,60 @@
+{
+  "_id": "99",
+  "externalId": 501234,
+  "kickoffTime": "2026-10-17T14:00:00.000Z",
+  "status": "finished",
+  "leagueId": "1",
+  "leagueName": "Premier League",
+  "matchday": 8,
+  "stage": "ROUND_OF_16",
+  "leg": 2,
+  "venue": "Emirates Stadium",
+  "homeTeam": {
+    "name": "Arsenal",
+    "logo": "https://crests.football-data.org/57.png"
+  },
+  "awayTeam": {
+    "name": "Chelsea",
+    "logo": "https://crests.football-data.org/61.png"
+  },
+  "result": {
+    "homeScore": 3,
+    "awayScore": 3,
+    "penaltyHomeScore": 4,
+    "penaltyAwayScore": 2
+  },
+  "prediction": {
+    "homeScore": 2,
+    "awayScore": 1,
+    "predictedWinner": "home",
+    "pointsAwarded": 0
+  },
+  "homeStanding": {
+    "position": 2,
+    "points": 17,
+    "played": 7,
+    "won": 5,
+    "drawn": 2,
+    "lost": 0,
+    "goalDifference": 9,
+    "form": "WWDWW"
+  },
+  "awayStanding": {
+    "position": 5,
+    "points": 13,
+    "played": 7,
+    "won": 4,
+    "drawn": 1,
+    "lost": 2,
+    "goalDifference": 3,
+    "form": "LWWDW"
+  },
+  "isAdmin": false,
+  "isKnockout": true,
+  "resultPenaltyHomeScore": 4,
+  "resultPenaltyAwayScore": 2,
+  "odds": null,
+  "allPredictions": null,
+  "prevMatch": null,
+  "nextMatch": null
+}

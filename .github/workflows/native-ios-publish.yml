@@ -1,0 +1,158 @@
+name: iOS (native) — Archive → TestFlight
+
+# Manual-only while the React Native app (ios-publish.yml) is still the shipping build — both upload to the
+# same TestFlight app. At cutover (plan §4 Phase 6): replace ios-publish.yml with this file and add the
+# `push` trigger below.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [master]
+  #   paths:
+  #     - 'native/ios/**'
+  #     - 'native/design-tokens/**'
+  #     - 'native/VERSION'
+  #     - '.github/workflows/native-ios-publish.yml'
+  #     - '.github/scripts/ios-*.py'
+
+concurrency:
+  group: native-ios-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-distribute:
+    name: Xcode Build → TestFlight
+    # Apple requires builds made with the iOS 26 SDK (Xcode 26+).
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26 (iOS 26 SDK)
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XC" ]; then sudo xcode-select -s "$XC"; fi
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+
+      - name: Cache Swift packages (Firebase)
+        uses: actions/cache@v4
+        with:
+          path: ~/spm-packages
+          key: spm-${{ hashFiles('native/ios/project.yml') }}
+
+      - name: Create build keychain
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          security create-keychain -p "" $KEYCHAIN_PATH
+          security default-keychain -s $KEYCHAIN_PATH
+          security unlock-keychain -p "" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Set up App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEY_FILE="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          if printf '%s' "$ASC_KEY_CONTENT" | grep -q "BEGIN PRIVATE KEY"; then
+            printf '%b' "$ASC_KEY_CONTENT" > "$KEY_FILE"
+          else
+            printf '%s' "$ASC_KEY_CONTENT" | base64 --decode > "$KEY_FILE"
+          fi
+          if ! openssl pkey -in "$KEY_FILE" -noout 2>/dev/null; then
+            echo "::error::ASC_API_KEY_CONTENT is not a valid .p8 private key after decoding."
+            exit 1
+          fi
+          echo "ASC_KEY_PATH=$KEY_FILE" >> "$GITHUB_ENV"
+
+      - name: Set up signing (reuse or create-once certificate + profile)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
+          CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          BUNDLE_ID: com.maamoun.footballpredictions
+        run: |
+          VENV="$RUNNER_TEMP/signing-venv"
+          python3 -m venv "$VENV"
+          "$VENV/bin/pip" install --quiet --disable-pip-version-check pyjwt cryptography requests
+          "$VENV/bin/python" .github/scripts/ios-signing.py
+
+      - name: Set build number (highest uploaded + 1)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
+          BUNDLE_ID: com.maamoun.footballpredictions
+        run: |
+          BUILD_NUMBER=$("$RUNNER_TEMP/signing-venv/bin/python" .github/scripts/ios-build-number.py)
+          echo "Build number: $BUILD_NUMBER"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+
+      # Manual signing (Apple Distribution + the profile above) is declared in project.yml (Release config);
+      # the team and profile name are injected from the environment — no project patching step needed.
+      - name: Generate Xcode project
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: native/ios/generate.sh
+
+      - name: Write ExportOptions.plist
+        run: |
+          cat > $RUNNER_TEMP/ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store-connect</string>
+              <key>teamID</key>
+              <string>${{ secrets.APPLE_TEAM_ID }}</string>
+              <key>uploadSymbols</key>
+              <true/>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>signingCertificate</key>
+              <string>Apple Distribution</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.maamoun.footballpredictions</key>
+                  <string>${PROFILE_NAME}</string>
+              </dict>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Archive
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project native/ios/FootballPredictions.xcodeproj \
+            -scheme FootballPredictions \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath $RUNNER_TEMP/FootballPredictions.xcarchive \
+            -destination "generic/platform=iOS" \
+            -clonedSourcePackagesDirPath ~/spm-packages \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/FootballPredictions.xcarchive \
+            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/export
+
+      - name: Upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
+        run: |
+          xcrun altool --upload-app \
+            -f $RUNNER_TEMP/export/FootballPredictions.ipa \
+            -t ios \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"

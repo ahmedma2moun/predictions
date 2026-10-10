@@ -1,0 +1,31 @@
+[
+  {
+    "matchId": "55",
+    "kickoffTime": "2026-10-03T15:00:00.000Z",
+    "homeTeamName": "Arsenal",
+    "awayTeamName": "Spurs",
+    "homeScore": 2,
+    "awayScore": 0,
+    "result": {
+      "homeScore": 2,
+      "awayScore": 0
+    },
+    "pointsAwarded": 8,
+    "scoringBreakdown": [
+      {
+        "key": "exact_score",
+        "name": "Exact score",
+        "points": 5,
+        "awarded": true
+      },
+      {
+        "key": "correct_winner",
+        "name": "Correct winner",
+        "points": 3,
+        "awarded": true
+      }
+    ],
+    "oddsBonus": null,
+    "matchOdds": null
+  }
+]

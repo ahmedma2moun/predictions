@@ -1,0 +1,39 @@
+{
+  "status": "live",
+  "homeScore": 1,
+  "awayScore": 0,
+  "events": [
+    {
+      "type": "goal",
+      "detail": "Normal Goal",
+      "minute": 23,
+      "team": "home",
+      "player": "B. Saka",
+      "assistPlayer": "M. Ødegaard"
+    },
+    {
+      "type": "goal",
+      "detail": "Own Goal",
+      "minute": 40,
+      "team": "away",
+      "player": "T. Silva",
+      "assistPlayer": null
+    },
+    {
+      "type": "card",
+      "detail": "Yellow Card",
+      "minute": 55,
+      "team": "away",
+      "player": "R. James",
+      "assistPlayer": null
+    },
+    {
+      "type": "card",
+      "detail": "Red Card",
+      "minute": 55,
+      "team": "away",
+      "player": "R. James",
+      "assistPlayer": null
+    }
+  ]
+}

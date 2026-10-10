@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Python bytecode
 __pycache__/
+
+# local secrets reference (never commit)
+/SECRETS.local.md

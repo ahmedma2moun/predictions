@@ -1,0 +1,38 @@
+{
+  "leagues": [
+    {
+      "id": 1,
+      "name": "Premier League",
+      "teams": [
+        {
+          "teamLeagueId": 10,
+          "name": "Arsenal"
+        },
+        {
+          "teamLeagueId": 11,
+          "name": "Chelsea"
+        },
+        {
+          "teamLeagueId": 12,
+          "name": "Spurs"
+        }
+      ]
+    }
+  ],
+  "selections": [
+    {
+      "id": 1,
+      "name": "Premier League",
+      "teams": [
+        {
+          "teamLeagueId": 10,
+          "name": "Arsenal"
+        },
+        {
+          "teamLeagueId": 11,
+          "name": "Chelsea"
+        }
+      ]
+    }
+  ]
+}

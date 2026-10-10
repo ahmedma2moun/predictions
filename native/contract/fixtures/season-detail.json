@@ -1,0 +1,38 @@
+{
+  "id": "0",
+  "name": "2025/26",
+  "description": null,
+  "status": "ENDED",
+  "startDate": "2025-08-01T00:00:00.000Z",
+  "startedAt": null,
+  "endedAt": "2026-06-01T00:00:00.000Z",
+  "standings": [
+    {
+      "id": "1",
+      "rank": 1,
+      "totalPoints": 300,
+      "groupId": null,
+      "groupName": null,
+      "userId": "8",
+      "userName": "Friend Two"
+    },
+    {
+      "id": "2",
+      "rank": 2,
+      "totalPoints": 280,
+      "groupId": null,
+      "groupName": null,
+      "userId": "7",
+      "userName": null
+    },
+    {
+      "id": "3",
+      "rank": 1,
+      "totalPoints": 150,
+      "groupId": 3,
+      "groupName": "Office League",
+      "userId": "8",
+      "userName": "Friend Two"
+    }
+  ]
+}

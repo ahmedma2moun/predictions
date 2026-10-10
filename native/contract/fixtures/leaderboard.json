@@ -1,0 +1,71 @@
+[
+  {
+    "rank": 1,
+    "userId": "8",
+    "name": "Friend Two",
+    "avatarUrl": "https://example.com/a.png",
+    "totalPoints": 120,
+    "championBonusPoints": 0,
+    "predictionsCount": 20,
+    "accuracy": 55,
+    "currentStreak": 2,
+    "longestStreak": 4,
+    "badges": [
+      "first_exact_score",
+      "on_a_roll"
+    ],
+    "exactScoreCount": 3,
+    "isGroupChampion": true
+  },
+  {
+    "rank": 2,
+    "userId": "7",
+    "name": "Sample User",
+    "avatarUrl": null,
+    "totalPoints": 98,
+    "championBonusPoints": 6,
+    "predictionsCount": 20,
+    "accuracy": 55,
+    "currentStreak": 2,
+    "longestStreak": 4,
+    "badges": [
+      "first_exact_score",
+      "on_a_roll"
+    ],
+    "exactScoreCount": 3,
+    "isGroupChampion": false
+  },
+  {
+    "rank": 3,
+    "userId": "9",
+    "name": "Third Player",
+    "avatarUrl": null,
+    "totalPoints": 90,
+    "championBonusPoints": 0,
+    "predictionsCount": 20,
+    "accuracy": 55,
+    "currentStreak": 2,
+    "longestStreak": 4,
+    "badges": [],
+    "exactScoreCount": 3,
+    "isGroupChampion": false
+  },
+  {
+    "rank": 4,
+    "userId": "10",
+    "name": "Fourth",
+    "avatarUrl": null,
+    "totalPoints": 40,
+    "championBonusPoints": 0,
+    "predictionsCount": 20,
+    "accuracy": 55,
+    "currentStreak": 2,
+    "longestStreak": 4,
+    "badges": [
+      "first_exact_score",
+      "on_a_roll"
+    ],
+    "exactScoreCount": 3,
+    "isGroupChampion": false
+  }
+]

@@ -1,0 +1,103 @@
+{
+  "_id": "101",
+  "externalId": 501234,
+  "kickoffTime": "2026-10-17T14:00:00.000Z",
+  "status": "scheduled",
+  "leagueId": "1",
+  "leagueName": "Premier League",
+  "matchday": 8,
+  "stage": "REGULAR_SEASON",
+  "leg": null,
+  "venue": "Emirates Stadium",
+  "homeTeam": {
+    "name": "Arsenal",
+    "logo": "https://crests.football-data.org/57.png"
+  },
+  "awayTeam": {
+    "name": "Chelsea",
+    "logo": "https://crests.football-data.org/61.png"
+  },
+  "result": null,
+  "prediction": {
+    "homeScore": 2,
+    "awayScore": 1,
+    "predictedWinner": "home",
+    "pointsAwarded": 0
+  },
+  "homeStanding": {
+    "position": 2,
+    "points": 17,
+    "played": 7,
+    "won": 5,
+    "drawn": 2,
+    "lost": 0,
+    "goalDifference": 9,
+    "form": "WWDWW"
+  },
+  "awayStanding": {
+    "position": 5,
+    "points": 13,
+    "played": 7,
+    "won": 4,
+    "drawn": 1,
+    "lost": 2,
+    "goalDifference": 3,
+    "form": "LWWDW"
+  },
+  "isAdmin": false,
+  "isKnockout": false,
+  "resultPenaltyHomeScore": null,
+  "resultPenaltyAwayScore": null,
+  "odds": {
+    "homeWin": 1.85,
+    "draw": 3.4,
+    "awayWin": 4.2,
+    "locked": true,
+    "votes": {
+      "homeWin": 5,
+      "draw": 2,
+      "awayWin": 1
+    }
+  },
+  "allPredictions": [
+    {
+      "userId": "7",
+      "userName": "Sample User",
+      "homeScore": 2,
+      "awayScore": 1,
+      "pointsAwarded": 3,
+      "scoringBreakdown": [
+        {
+          "key": "correct_winner",
+          "name": "Correct winner",
+          "points": 3,
+          "awarded": true
+        }
+      ],
+      "oddsBonus": {
+        "outcomeOdds": 1.85,
+        "baseScore": 3,
+        "finalScore": 5
+      }
+    },
+    {
+      "userId": "8",
+      "userName": "Friend Two",
+      "homeScore": 0,
+      "awayScore": 0,
+      "pointsAwarded": 0,
+      "scoringBreakdown": null,
+      "oddsBonus": null
+    }
+  ],
+  "prevMatch": {
+    "_id": "100",
+    "homeTeamName": "Liverpool",
+    "awayTeamName": "Everton"
+  },
+  "nextMatch": {
+    "_id": "102",
+    "homeTeamName": "Real Madrid",
+    "awayTeamName": "Bayern München"
+  }
+}

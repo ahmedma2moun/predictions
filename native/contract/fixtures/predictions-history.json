@@ -1,0 +1,91 @@
+[
+  {
+    "id": "900",
+    "userId": "7",
+    "matchId": "55",
+    "homeScore": 2,
+    "awayScore": 0,
+    "predictedWinner": "home",
+    "pointsAwarded": 8,
+    "baseScore": 8,
+    "outcomeOdds": 1.5,
+    "createdAt": "2026-10-01T10:00:00.000Z",
+    "updatedAt": "2026-10-01T10:00:00.000Z",
+    "scoringBreakdown": [
+      {
+        "key": "exact_score",
+        "name": "Exact score",
+        "points": 5,
+        "awarded": true
+      },
+      {
+        "key": "correct_winner",
+        "name": "Correct winner",
+        "points": 3,
+        "awarded": true
+      }
+    ],
+    "oddsBonus": null,
+    "match": {
+      "_id": "55",
+      "kickoffTime": "2026-10-03T15:00:00.000Z",
+      "status": "finished",
+      "leagueId": "1",
+      "leagueName": "Premier League",
+      "matchday": 7,
+      "stage": "REGULAR_SEASON",
+      "leg": null,
+      "venue": null,
+      "homeTeam": {
+        "name": "Arsenal",
+        "logo": "https://crests.football-data.org/57.png"
+      },
+      "awayTeam": {
+        "name": "Spurs",
+        "logo": "https://crests.football-data.org/73.png"
+      },
+      "result": {
+        "homeScore": 2,
+        "awayScore": 0,
+        "penaltyHomeScore": null,
+        "penaltyAwayScore": null
+      },
+      "odds": null
+    }
+  },
+  {
+    "id": "901",
+    "userId": "7",
+    "matchId": "101",
+    "homeScore": 2,
+    "awayScore": 1,
+    "predictedWinner": null,
+    "pointsAwarded": 0,
+    "baseScore": 0,
+    "outcomeOdds": 0,
+    "createdAt": "2026-10-09T10:00:00.000Z",
+    "updatedAt": "2026-10-09T10:00:00.000Z",
+    "scoringBreakdown": null,
+    "oddsBonus": null,
+    "match": {
+      "_id": "101",
+      "kickoffTime": "2026-10-17T14:00:00.000Z",
+      "status": "scheduled",
+      "leagueId": null,
+      "leagueName": null,
+      "matchday": null,
+      "stage": null,
+      "leg": null,
+      "venue": null,
+      "homeTeam": {
+        "name": "Arsenal",
+        "logo": "https://crests.football-data.org/57.png"
+      },
+      "awayTeam": {
+        "name": "Chelsea",
+        "logo": "https://crests.football-data.org/61.png"
+      },
+      "result": null
+    }
+  }
+]

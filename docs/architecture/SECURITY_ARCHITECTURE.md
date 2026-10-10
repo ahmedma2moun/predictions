@@ -95,6 +95,10 @@ All secrets injected at build/runtime via environment variables. Never committed
 - **Cron auth**: all cron handlers call `verifyCronRequest()` (`src/lib/cron-auth.ts`) before any work — accepts `Authorization: Bearer ${CRON_SECRET}`/`${TRIGGER_SECRET}`, the Vercel-internal cron header, or a QStash `Upstash-Signature` verified via `Receiver.verify()`. QStash Schedules (see `DEPLOYMENT_GUIDE.md`) are the primary trigger for `fetch-matches`, `daily-reminder`, and `db-export` — no shared secret sits in the schedule config, since the signature itself is the credential
 - **QStash webhook auth**: `/api/webhooks/qstash/live-goals` verifies the `Upstash-Signature` header via `Receiver.verify()` against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` before parsing the body — signature check happens on the raw request text, not the parsed JSON. Same verification helper is reused by `verifyCronRequest()` above
 
+## Native app token storage
+
+The native apps store the mobile JWT (`fp_token`) and user JSON (`fp_user`) in the iOS **Keychain** (`kSecAttrAccessibleAfterFirstUnlock`) and, on Android, in SharedPreferences encrypted with an **Android Keystore** AES-256-GCM key (undecryptable data is treated as signed out). Sign-out unregisters the FCM token before clearing storage. Android release builds are signed with a dedicated release keystore (`ANDROID_KEYSTORE_*` secrets) — the old RN debug builds used the public template debug key. The native apps do not read the RN app's stored token, so everyone signs in once after updating. Debug-only launch arguments (`-fp-mock-session`, `fp_mock_session`) exist only in Debug builds.
+
 ## Known Limitations
 
 - No refresh token rotation — JWT sessions persist until `NEXTAUTH_SECRET` rotation

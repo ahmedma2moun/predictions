@@ -1,0 +1,13 @@
+{
+  "results": [
+    {
+      "matchId": 101,
+      "saved": true
+    },
+    {
+      "matchId": 102,
+      "saved": false,
+      "error": "Match is locked"
+    }
+  ]
+}

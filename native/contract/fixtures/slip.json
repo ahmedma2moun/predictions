@@ -1,0 +1,37 @@
+{
+  "matches": [
+    {
+      "id": 101,
+      "homeTeamName": "Arsenal",
+      "awayTeamName": "Chelsea",
+      "kickoffTime": "2026-10-17T14:00:00.000Z",
+      "league": "Premier League",
+      "homeScore": 2,
+      "awayScore": 1,
+      "locked": false
+    },
+    {
+      "id": 102,
+      "homeTeamName": "Real Madrid",
+      "awayTeamName": "Bayern München",
+      "kickoffTime": "2026-10-18T16:30:00.000Z",
+      "league": "UEFA Champions League",
+      "homeScore": null,
+      "awayScore": null,
+      "locked": false
+    },
+    {
+      "id": 100,
+      "homeTeamName": "Liverpool",
+      "awayTeamName": "Everton",
+      "kickoffTime": "2026-10-10T12:00:00.000Z",
+      "league": "Premier League",
+      "homeScore": null,
+      "awayScore": null,
+      "locked": true
+    }
+  ],
+  "remaining": 1,
+  "from": "2026-10-10T00:00:00.000Z",
+  "to": "2026-10-17T00:00:00.000Z"
+}
