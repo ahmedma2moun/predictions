@@ -89,6 +89,7 @@ function MatchDetail({ matchId }: { matchId: string }) {
   const [awayScore, setAwayScore] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [editingResult, setEditingResult] = useState(false);
   const [addingResult, setAddingResult] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -204,9 +205,8 @@ function MatchDetail({ matchId }: { matchId: string }) {
     });
     setSaving(false);
     if (res.ok) {
-      toast.success("Prediction saved!");
-      if (match?.nextMatch) goToMatch(match.nextMatch._id);
-      else router.push("/matches");
+      toast.success("Saved");
+      setSaved(true);
     } else {
       const err = await res.json();
       toast.error(err.error || "Failed to save");
@@ -427,7 +427,7 @@ function MatchDetail({ matchId }: { matchId: string }) {
                   disabled={saving}
                   className="h-12 w-full rounded-md bg-primary text-primary-foreground font-semibold text-sm shadow-[0_0_20px_rgba(16,224,137,0.25)] hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  {saving ? "Saving…" : match.prediction ? "Update Prediction" : "Save Prediction"}
+                  {saving ? "Saving…" : match.prediction || saved ? "Update Prediction" : "Save Prediction"}
                 </button>
               </form>
             ) : (

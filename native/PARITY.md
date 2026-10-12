@@ -44,6 +44,7 @@ The odds UI (`OddsExplainerModal`, `OddsFactors`) is **deferred**: `ODDS_FEATURE
 | Error surface: server `error` string → fallback `Request failed (<status>)` | ✅ | ✅ |
 | Sign-out order: unregister push token → clear secure storage → Login | ✅ | ✅ |
 | Match prev/next stepping replaces the detail screen | ✅ | ✅ |
+| Saving a prediction stays on Match detail and shows a 2 s "Saved" toast (no alert, no auto-advance); button flips to "Update Prediction" | ✅ | ✅ |
 | Theme light/dark/system, persisted as `fp_theme_mode`, default dark | ✅ | ✅ |
 | Secure token storage (`fp_token`, `fp_user`) | ✅ Keychain | ✅ Keystore AES-GCM |
 | Push: FCM token register/unregister (`POST/DELETE /api/mobile/devices`) | ✅ | ✅ |
@@ -75,5 +76,6 @@ Anything not listed here must match exactly.
 ## Known deviations from the RN app (both platforms)
 
 - Avatar tap asks for confirmation before signing out.
+- Saving a prediction on Match detail shows a "Saved" toast and stays on the match (RN stepped to the next match; web matches the native behaviour).
 - Leaders keeps the filters visible and dims the list while reloading instead of replacing the whole screen with a spinner.
 - Debug builds only: launch arguments / intent extras (`-fp-mock-session`, `fp_mock_session`, …) for running against `contract/mock-server.mjs`.

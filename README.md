@@ -8,7 +8,7 @@ A private full-stack app for friends to predict football match scores and compet
 - Results are fetched automatically from football-data.org and scored via a configurable points engine
 - A live leaderboard ranks users by total points, filterable by period and group
 - Admin manages leagues, teams, matches, users, groups, and scoring rules
-- Android mobile app (React Native / Expo) gives users full access on the go
+- Native iOS (SwiftUI) and Android (Jetpack Compose) apps give users full access on the go
 - Push notifications (FCM) and email reminders keep users engaged
 
 ## Architecture
@@ -25,7 +25,7 @@ Quick map:
 | Service layer | `src/lib/services/` |
 | Repository layer | `src/lib/repositories/` |
 | Database schema | `prisma/schema.prisma` |
-| Mobile app (React Native) | `mobile/` |
+| Mobile apps (SwiftUI / Jetpack Compose) | `native/ios/`, `native/android/` |
 
 ## Getting started
 
@@ -62,7 +62,7 @@ See [`docs/architecture/DEPLOYMENT_GUIDE.md`](docs/architecture/DEPLOYMENT_GUIDE
 | ORM | Prisma 6.19.3 |
 | Database | PostgreSQL (Supabase or Neon) |
 | Styling | Tailwind CSS 4, shadcn/ui |
-| Mobile | React Native 0.76.5, Expo 52 |
+| Mobile | SwiftUI (iOS 17+), Jetpack Compose |
 | Push notifications | Firebase Cloud Messaging (FCM) |
 | Email | Nodemailer + Gmail |
 | Deployment | Vercel |

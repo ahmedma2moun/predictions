@@ -4,6 +4,7 @@ struct MatchDetailScreen: View {
     @Environment(\.palette) private var c
     let app: AppContainer
     @State private var vm: MatchDetailViewModel
+    @State private var showSaved = false
 
     init(app: AppContainer, matchId: String, tab: AppTab) {
         self.app = app
@@ -34,6 +35,22 @@ struct MatchDetailScreen: View {
             if let error { app.alerts.show("Failed to load match", message: error) }
         }
         .sensoryFeedback(.success, trigger: vm.saveCount)
+        .overlay(alignment: .bottom) {
+            if showSaved {
+                Toast("Saved")
+                    .padding(.bottom, Tokens.Spacing.xl)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: showSaved)
+        // Keyed on the save counter so saving again restarts the 2 s timer.
+        .task(id: vm.saveCount) {
+            guard vm.saveCount > 0 else { return }
+            showSaved = true
+            AccessibilityNotification.Announcement("Saved").post()
+            try? await Task.sleep(for: .seconds(2))
+            if !Task.isCancelled { showSaved = false }
+        }
     }
 
     private func content(_ match: MatchDetail) -> some View {
@@ -146,7 +163,7 @@ struct MatchDetailScreen: View {
             }
 
             if vm.canPredict {
-                AppButton(title: match.prediction != nil ? "Update Prediction" : "Save Prediction",
+                AppButton(title: vm.hasPrediction ? "Update Prediction" : "Save Prediction",
                           loading: vm.saving, fullWidth: true) {
                     Task { await vm.submit() }
                 }

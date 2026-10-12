@@ -40,6 +40,8 @@ final class MatchDetailViewModel {
     var locked: Bool { match.map { isMatchLocked($0.kickoffDate) } ?? false }
     var knockout: Bool { isKnockoutStage(match?.stage) }
     var canPredict: Bool { match.map { !$0.isAdmin && !locked } ?? false }
+    /// True once a pick exists, including one saved from this screen (we stay here after saving).
+    var hasPrediction: Bool { match?.prediction != nil || saveCount > 0 }
 
     var winnerLabel: String {
         guard let match else { return "Draw" }
@@ -102,12 +104,6 @@ final class MatchDetailViewModel {
                 token: token
             )
             saveCount += 1
-            app.alerts.show("Prediction saved")
-            if let next = match.nextMatch {
-                goToMatch(next.id)
-            } else {
-                pop()
-            }
         } catch {
             let message = (error as? ApiError)?.message ?? "Failed to save prediction"
             app.alerts.show("Save failed", message: message)
@@ -117,11 +113,5 @@ final class MatchDetailViewModel {
     /// Replace (not push) so Back still returns to the matches list.
     func goToMatch(_ id: String) {
         app.router.replaceTop(with: .matchDetail(id), on: tab)
-    }
-
-    private func pop() {
-        var path = app.router.path(for: tab)
-        if !path.isEmpty { path.removeLast() }
-        app.router.setPath(path, for: tab)
     }
 }

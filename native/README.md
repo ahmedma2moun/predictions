@@ -1,6 +1,6 @@
 # Native apps (SwiftUI + Jetpack Compose)
 
-Replaces the Expo / React Native app in `../mobile/` (kept until cutover). See
+Replaced the Expo / React Native app (`mobile/`, deleted October 2026). See
 `docs/plans/NATIVE_MOBILE_MIGRATION_PLAN.md` for the plan and `docs/NATIVE_MOBILE_GUIDE.md` for day-to-day use.
 
 ```

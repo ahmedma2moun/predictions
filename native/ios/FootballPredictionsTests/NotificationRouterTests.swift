@@ -1,7 +1,7 @@
 import XCTest
 @testable import FootballPredictions
 
-/// Mirrors `mobile/src/notifications/route-for-notification.ts` — and the Android `NotificationRouterTest`.
+/// Mirrors the Android `NotificationRouterTest`.
 final class NotificationRouterTests: XCTestCase {
     private func route(_ data: [AnyHashable: Any]?) -> NotificationDestination { NotificationRouter.destination(for: data) }
 

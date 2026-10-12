@@ -32,7 +32,7 @@ type LiveGoalMatch = {
 };
 
 // Every `data.type` the backend actually emits (src/lib/*, src/app/api/**) —
-// keep in sync with routeForNotification() in mobile/src/notifications/route-for-notification.ts.
+// keep in sync with NotificationRouter in native/ios and native/android.
 // `needsMatchId` marks the types that route needs `data.matchId` to open the
 // match detail screen instead of falling back to the Matches tab.
 const NOTIFICATION_TYPES: { value: string; label: string; needsMatchId: boolean }[] = [

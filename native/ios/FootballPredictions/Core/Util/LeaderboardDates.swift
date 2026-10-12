@@ -1,6 +1,6 @@
 import Foundation
 
-// Mirrors mobile/src/utils/leaderboard-dates.ts. Weeks run Friday -> Thursday in the device's timezone.
+// Weeks run Friday -> Thursday in the device's timezone.
 
 struct DateBounds: Equatable {
     let from: Date
