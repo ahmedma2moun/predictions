@@ -88,8 +88,11 @@ struct MatchDetailScreen: View {
     private func heroCard(_ match: MatchDetail) -> some View {
         Card(padding: 0) {
             HStack {
-                Text(formatKickoff(match.kickoffDate).uppercased())
-                    .appFont(Tokens.FontSize.xs, .semibold).tracking(0.8).foregroundStyle(c.mutedForeground)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(formatKickoff(match.kickoffDate).uppercased())
+                        .appFont(Tokens.FontSize.xs, .semibold).tracking(0.8).foregroundStyle(c.mutedForeground)
+                    if let venue = match.venue { VenueLabel(venue) }
+                }
                 Spacer()
                 if match.status == .live {
                     Pill("LIVE", tone: .live)

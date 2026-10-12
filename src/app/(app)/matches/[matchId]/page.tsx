@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { isMatchLocked, formatStage, isKnockoutStage, ordinal } from "@/lib/utils";
 import { KickoffTime } from "@/components/KickoffTime";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Minus, Plus, Lock, Pencil, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, Plus, Lock, Pencil, Loader2, MapPin } from "lucide-react";
 import { MatchForm } from "./MatchForm";
 import type { TeamFormMatch } from "./MatchForm";
 import { MatchStandings } from "./MatchStandings";
@@ -246,9 +246,17 @@ function MatchDetail({ matchId }: { matchId: string }) {
         <div className="relative p-4 space-y-5">
           {/* Date + status row */}
           <div className="flex items-center justify-between">
-            <span className="text-[11.5px] text-muted-foreground uppercase font-semibold tracking-wide">
-              <KickoffTime date={match.kickoffTime} />
-            </span>
+            <div className="min-w-0">
+              <span className="text-[11.5px] text-muted-foreground uppercase font-semibold tracking-wide">
+                <KickoffTime date={match.kickoffTime} />
+              </span>
+              {match.venue && (
+                <p className="mt-0.5 flex items-center gap-1 text-[10.5px] text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{match.venue}</span>
+                </p>
+              )}
+            </div>
             {match.status === "live" ? (
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-live/10 border border-live/30 text-live text-[10px] font-bold uppercase tracking-[0.04em]">
                 <span className="animate-live inline-block h-1.5 w-1.5 rounded-full bg-live" />

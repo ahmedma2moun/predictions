@@ -14,6 +14,7 @@
   "add":          { "sf": "plus",                          "material": "Add" },
   "remove":       { "sf": "minus",                         "material": "Remove" },
   "clock":        { "sf": "clock",                         "material": "Schedule" },
+  "pin":          { "sf": "mappin.and.ellipse",            "material": "Place" },
   "lock":         { "sf": "lock.fill",                     "material": "Lock" },
   "info":         { "sf": "info.circle",                   "material": "Info" },
   "medal":        { "sf": "medal",                         "material": "MilitaryTech" },

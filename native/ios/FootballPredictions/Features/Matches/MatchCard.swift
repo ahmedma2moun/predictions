@@ -66,7 +66,15 @@ struct MatchCard: View {
     private var body_: some View {
         HStack(spacing: Tokens.Spacing.md) {
             TeamSide(team: match.homeTeam, standing: match.homeStanding, alignment: .leading)
-            scoreChip
+            VStack(spacing: 6) {
+                scoreChip
+                if showLiveScore, let points = liveScore?.livePoints {
+                    Text("+\(points) pts")
+                        .appFont(Tokens.FontSize.xs, .bold, mono: true).foregroundStyle(c.warning)
+                        .contentTransition(.numericText())
+                        .animation(.default, value: points)
+                }
+            }
             TeamSide(team: match.awayTeam, standing: match.awayStanding, alignment: .trailing)
         }
         .padding(.horizontal, Tokens.Spacing.lg)
@@ -119,7 +127,10 @@ struct MatchCard: View {
 
     private var footer: some View {
         HStack {
-            Text(formatKickoff(match.kickoffDate)).appFont(11.5).foregroundStyle(c.mutedForeground)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(formatKickoff(match.kickoffDate)).appFont(11.5).foregroundStyle(c.mutedForeground)
+                if let venue = match.venue { VenueLabel(venue) }
+            }
             Spacer()
             footerRight
         }

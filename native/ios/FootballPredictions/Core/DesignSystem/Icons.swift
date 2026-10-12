@@ -16,6 +16,7 @@ enum AppIcon {
     static let add = "plus"
     static let remove = "minus"
     static let clock = "clock"
+    static let pin = "mappin.and.ellipse"
     static let lock = "lock.fill"
     static let info = "info.circle"
     static let medal = "medal"

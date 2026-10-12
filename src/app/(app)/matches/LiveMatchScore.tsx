@@ -17,6 +17,7 @@ export function LiveMatchScore({
 }) {
   const [score, setScore] = useState(initialScore);
   const [finished, setFinished] = useState(false);
+  const [livePoints, setLivePoints] = useState<number | null>(null);
 
   useEffect(() => {
     if (!hasExternalId) return;
@@ -37,6 +38,7 @@ export function LiveMatchScore({
           if (typeof data.homeScore === "number" && typeof data.awayScore === "number") {
             setScore({ homeScore: data.homeScore, awayScore: data.awayScore });
           }
+          setLivePoints(typeof data.livePoints === "number" ? data.livePoints : null);
           setFinished(data.status === "finished");
           shouldPoll = data.status === "live" || data.status === "scheduled";
         } else if ([400, 401, 403, 404].includes(response.status)) {
@@ -68,6 +70,11 @@ export function LiveMatchScore({
           {score ? `${score.homeScore}–${score.awayScore}` : "–"}
         </div>
       </div>
+      {livePoints !== null && (
+        <p className="mt-1.5 text-[11.5px] font-bold text-warning font-mono-nums">
+          +{livePoints} pts
+        </p>
+      )}
       {prediction && (
         <p className="mt-1.5 text-[10.5px] text-muted-foreground font-mono-nums">
           Your pick: {prediction.homeScore}–{prediction.awayScore}

@@ -228,6 +228,8 @@ struct LiveScoreResponse: Codable, Equatable, Sendable {
     let status: MatchStatus
     let homeScore: Int?
     let awayScore: Int?
+    /// Points the caller's prediction would earn at the current score; `nil` without a prediction or score.
+    let livePoints: Int?
     let events: [MatchEvent]?
 }
 

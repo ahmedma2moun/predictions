@@ -36,6 +36,8 @@ The odds UI (`OddsExplainerModal`, `OddsFactors`) is **deferred**: `ODDS_FEATURE
 |---|---|---|
 | Request cancellation on screen exit / input change (`.task(id:)` / `LaunchedEffect`) | ✅ | ✅ |
 | Live polling every 60 s, only while visible **and** foregrounded; stops on 400/401/403/404; keeps last score on transient error; stops when status leaves live/scheduled | ✅ | ✅ |
+| Match card shows provisional `+N pts` under the live score (`livePoints` from the live poll; hidden without a prediction or score) | 🟡 | 🟡 |
+| Venue (pin icon + name) under the kickoff time on the match card footer and the match detail header; hidden when the match has no venue | 🟡 | 🟡 |
 | Match detail live loop (60 s while `live`, ends on error) | ✅ | ✅ |
 | Countdown label refresh every 30 s, cleared at kickoff | ✅ | ✅ |
 | Matches refetch on focus | ✅ | ✅ |

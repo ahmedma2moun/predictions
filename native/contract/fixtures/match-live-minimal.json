@@ -2,5 +2,6 @@
   "status": "scheduled",
   "homeScore": null,
   "awayScore": null,
+  "livePoints": null,
   "events": []
 }

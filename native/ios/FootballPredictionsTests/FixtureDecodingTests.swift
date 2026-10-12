@@ -76,9 +76,11 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertNil(form.away[0].teamScore)
         let live = try decode(LiveScoreResponse.self, "match-live")
         XCTAssertEqual(live.status, .live)
+        XCTAssertEqual(live.livePoints, 3)
         XCTAssertEqual(live.events?.count, 4)
         let minimal = try decode(LiveScoreResponse.self, "match-live-minimal")
         XCTAssertNil(minimal.homeScore)
+        XCTAssertNil(minimal.livePoints)
         XCTAssertEqual(minimal.events, [])
     }
 

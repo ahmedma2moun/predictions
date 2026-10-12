@@ -4,6 +4,7 @@ import { getStandingsMap, standingKey } from "@/lib/standings";
 import { formatStage, isKnockoutStage, getMatchDayKey, formatMatchDayHeader } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
+import { MapPin } from "lucide-react";
 import { KickoffTime } from "@/components/KickoffTime";
 import { DeadlineCountdown } from "@/components/DeadlineCountdown";
 import { MatchRepository } from '@/lib/repositories/match-repository';
@@ -183,6 +184,13 @@ export default async function MatchesPage() {
                         )}
                       </div>
                     </div>
+
+                    {match.venue && (
+                      <p className="flex items-center justify-center gap-1 px-4 pb-2 text-[10.5px] text-muted-foreground">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{match.venue}</span>
+                      </p>
+                    )}
 
                     {/* Footer */}
                     {!locked && (

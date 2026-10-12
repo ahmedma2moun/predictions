@@ -14,7 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.coroutines.coroutineContext
 
-data class LiveScore(val status: MatchStatus, val homeScore: Int?, val awayScore: Int?)
+data class LiveScore(val status: MatchStatus, val homeScore: Int?, val awayScore: Int?, val livePoints: Int? = null)
 
 /**
  * Polls `GET matches/{id}/live` every 60 s while the owning composable is visible (LaunchedEffect cancels it).
@@ -36,7 +36,7 @@ class LiveScorePoller(private val app: AppContainer, private val match: MatchLis
             if (AppForeground.isActive) {
                 try {
                     val data: LiveScoreResponse = app.api.request("/api/mobile/matches/${match.id}/live", token = token)
-                    if (data.homeScore != null && data.awayScore != null) score = LiveScore(data.status, data.homeScore, data.awayScore)
+                    if (data.homeScore != null && data.awayScore != null) score = LiveScore(data.status, data.homeScore, data.awayScore, data.livePoints)
                     shouldPoll = data.status == MatchStatus.LIVE || data.status == MatchStatus.SCHEDULED
                 } catch (e: CancellationException) {
                     throw e

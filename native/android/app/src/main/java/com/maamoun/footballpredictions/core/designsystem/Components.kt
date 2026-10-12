@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -254,4 +255,17 @@ fun medalColors(rank: Int): MedalColors = when (rank) {
 @Composable
 fun Divider(modifier: Modifier = Modifier, color: Color = palette.border) {
     Box(modifier.fillMaxWidth().height(Hairline).background(color))
+}
+
+/** "📍 Emirates Stadium" — the match venue, shown on the match card and match detail. */
+@Composable
+fun VenueLabel(venue: String, modifier: Modifier = Modifier) {
+    val c = palette
+    Row(
+        modifier.clearAndSetSemantics { contentDescription = "Venue: $venue" },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(AppIcon.pin, null, tint = c.mutedForeground, modifier = Modifier.size(10.dp))
+        Text(venue, color = c.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis, style = appFont(10.5.sp))
+    }
 }

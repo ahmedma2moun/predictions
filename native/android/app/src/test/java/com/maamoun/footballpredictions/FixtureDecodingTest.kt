@@ -82,9 +82,11 @@ class FixtureDecodingTest {
         assertNull(form.away[0].teamScore)
         val live = decode<LiveScoreResponse>("match-live")
         assertEquals(MatchStatus.LIVE, live.status)
+        assertEquals(3, live.livePoints)
         assertEquals(4, live.events?.size)
         val minimal = decode<LiveScoreResponse>("match-live-minimal")
         assertNull(minimal.homeScore)
+        assertNull(minimal.livePoints)
         assertEquals(emptyList<MatchEvent>(), minimal.events)
     }
 

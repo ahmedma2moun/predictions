@@ -309,3 +309,20 @@ enum MedalStyle {
         }
     }
 }
+
+/// "📍 Emirates Stadium" — the match venue, shown on the match card and match detail.
+struct VenueLabel: View {
+    @Environment(\.palette) private var c
+    let venue: String
+
+    init(_ venue: String) { self.venue = venue }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: AppIcon.pin).font(.system(size: 9)).foregroundStyle(c.mutedForeground)
+            Text(venue).appFont(10.5).foregroundStyle(c.mutedForeground).lineLimit(1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Venue: \(venue)")
+    }
+}

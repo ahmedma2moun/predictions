@@ -194,6 +194,8 @@ data class LiveScoreResponse(
     val status: MatchStatus = MatchStatus.SCHEDULED,
     val homeScore: Int? = null,
     val awayScore: Int? = null,
+    /** Points the caller's prediction would earn at the current score; `null` without a prediction or score. */
+    val livePoints: Int? = null,
     val events: List<MatchEvent>? = null,
 )
 

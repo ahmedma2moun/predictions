@@ -42,12 +42,12 @@ The `form` field exists on `TeamStanding` but the football-data.org free tier do
 
 ---
 
-### F3 — Venue Display ❌ Blocked
+### F3 — Venue Display ✅ Done
 
 **Layers:** Web + Mobile  
 **Effort:** Low | **Impact:** Low
 
-`venue` is stored on the `Match` model but the football-data.org free tier does not return venue data in its responses — the field is always null. Unblocked only if the API starts returning it or a paid tier is used.
+`Match.venue` is shown with a pin icon on the match card and the match detail header on web, iOS and Android, and is hidden when null. The value is stored at match insert time (`matches-processor.ts`) from the active provider: TheSportsDB (`strVenue`) and API-Football populate it; the football-data.org free tier does not return venue data, so the field stays null on that provider.
 
 ---
 
@@ -151,7 +151,7 @@ Display:
 
 | # | Feature | Effort | Impact | New API calls | Status |
 |---|---|---|---|---|---|
-| F3 | Venue display | Low | Low | No | ❌ Blocked (no data in free tier) |
+| F3 | Venue display | Low | Low | No | ✅ Done (null on football-data.org free tier) |
 | F2 | Form strip | Low | High | No | ❌ Blocked (no data in free tier) |
 | F1b | Status badge | Low | Medium | No | ✅ Done |
 | F9 | Deadline countdown | Low | Medium | No | ✅ Done |

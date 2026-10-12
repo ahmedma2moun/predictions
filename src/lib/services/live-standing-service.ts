@@ -4,7 +4,7 @@ import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
 import { fetchFixtureById, mapFixtureStatus } from '@/lib/football/service';
 import { calculateScore } from '@/lib/scoring-engine';
-import { getLiveMatchOdds, deriveOutcome, calcFinalScore, type OddsConfig } from '@/lib/odds';
+import { getLiveMatchOdds, deriveOutcome, calcFinalScore, type OddsConfig, type Outcome } from '@/lib/odds';
 import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { logger } from '@/lib/logger';
 
@@ -52,6 +52,49 @@ export interface LiveStandingFilters {
 // A football match (incl. half-time and stoppage) fits comfortably in this
 // window; anything older that is still unfinished is a stale fixture, not live.
 const LIVE_WINDOW_MS = 4 * 60 * 60 * 1000;
+
+type Score = { homeScore: number; awayScore: number };
+type ScoringRules = Parameters<typeof calculateScore>[2];
+
+/**
+ * Points a prediction would earn if the match ended at `score`, mirroring how
+ * final scoring will run (calculateScore + odds multiplier on the winner points).
+ */
+export function provisionalPoints(
+  prediction: Score,
+  score: Score,
+  rules: ScoringRules,
+  odds: Record<Outcome, number> | null,
+): number {
+  const winner: 'home' | 'away' | 'draw' =
+    score.homeScore > score.awayScore ? 'home' : score.awayScore > score.homeScore ? 'away' : 'draw';
+
+  const { totalPoints, breakdown } = calculateScore(
+    { homeScore: prediction.homeScore, awayScore: prediction.awayScore },
+    { homeScore: score.homeScore, awayScore: score.awayScore, winner },
+    rules,
+  );
+  if (!odds) return totalPoints;
+
+  const odd = odds[deriveOutcome(prediction.homeScore, prediction.awayScore)];
+  const winnerPoints = breakdown.find(r => r.key === 'correct_winner')?.pointsAwarded ?? 0;
+  return calcFinalScore(winnerPoints, totalPoints - winnerPoints, odd);
+}
+
+/**
+ * Provisional points for one user's prediction at the current live score —
+ * the per-match figure shown under the live score. `null` when there is no
+ * prediction or no score yet.
+ */
+export async function getLivePredictionPoints(
+  prediction: Score | null,
+  score: { homeScore: number | null; awayScore: number | null },
+  odds: Record<Outcome, number> | null,
+): Promise<number | null> {
+  if (!prediction || score.homeScore === null || score.awayScore === null) return null;
+  const rules = await ScoringRuleService.getAll({ where: { isActive: true } });
+  return provisionalPoints(prediction, { homeScore: score.homeScore, awayScore: score.awayScore }, rules, odds);
+}
 
 /**
  * Live group standing: the current leaderboard re-ranked with provisional
@@ -130,9 +173,6 @@ export async function getLiveGroupStanding(filters: LiveStandingFilters): Promis
     const rules = await ScoringRuleService.getAll({ where: { isActive: true } });
 
     for (const [matchId, { homeScore, awayScore, oddsConfig }] of liveResults) {
-      const winner: 'home' | 'away' | 'draw' =
-        homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : 'draw';
-
       const [odds, preds] = await Promise.all([
         getLiveMatchOdds(matchId, oddsConfig).catch(() => null),
         PredictionRepository.findMany({
@@ -146,18 +186,7 @@ export async function getLiveGroupStanding(filters: LiveStandingFilters): Promis
         // Group boards only track members; skip non-members' predictions.
         if (groupId && !baseUserIds.has(pred.userId)) continue;
 
-        const { totalPoints, breakdown } = calculateScore(
-          { homeScore: pred.homeScore, awayScore: pred.awayScore },
-          { homeScore, awayScore, winner },
-          rules,
-        );
-
-        let points = totalPoints;
-        if (odds) {
-          const odd = odds[deriveOutcome(pred.homeScore, pred.awayScore)];
-          const winnerPoints = breakdown.find(r => r.key === 'correct_winner')?.pointsAwarded ?? 0;
-          points = calcFinalScore(winnerPoints, totalPoints - winnerPoints, odd);
-        }
+        const points = provisionalPoints(pred, { homeScore, awayScore }, rules, odds);
 
         livePointsByUser.set(pred.userId, (livePointsByUser.get(pred.userId) ?? 0) + points);
         if (!baseUserIds.has(pred.userId)) {

@@ -6,6 +6,7 @@ struct LiveScore: Equatable, Sendable {
     let status: MatchStatus
     let homeScore: Int?
     let awayScore: Int?
+    var livePoints: Int? = nil
 }
 
 /// Polls `GET matches/{id}/live` every 60 s while the owning view is visible (`.task` cancels it).
@@ -44,7 +45,7 @@ final class LiveScorePoller {
                     )
                     if Task.isCancelled { return }
                     if let home = data.homeScore, let away = data.awayScore {
-                        score = LiveScore(status: data.status, homeScore: home, awayScore: away)
+                        score = LiveScore(status: data.status, homeScore: home, awayScore: away, livePoints: data.livePoints)
                     }
                     shouldPoll = data.status == .live || data.status == .scheduled
                 } catch {

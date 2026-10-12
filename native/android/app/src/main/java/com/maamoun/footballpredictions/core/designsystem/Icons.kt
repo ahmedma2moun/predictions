@@ -23,6 +23,7 @@ object AppIcon {
     val add: ImageVector get() = Icons.Outlined.Add
     val remove: ImageVector get() = Icons.Outlined.Remove
     val clock: ImageVector get() = Icons.Outlined.Schedule
+    val pin: ImageVector get() = Icons.Outlined.Place
     val lock: ImageVector get() = Icons.Filled.Lock
     val info: ImageVector get() = Icons.Outlined.Info
     val medal: ImageVector get() = Icons.Outlined.MilitaryTech

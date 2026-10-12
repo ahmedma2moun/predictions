@@ -42,6 +42,7 @@ import com.maamoun.footballpredictions.core.designsystem.Pill
 import com.maamoun.footballpredictions.core.designsystem.PillTone
 import com.maamoun.footballpredictions.core.designsystem.RemoteImage
 import com.maamoun.footballpredictions.core.designsystem.Tokens
+import com.maamoun.footballpredictions.core.designsystem.VenueLabel
 import com.maamoun.footballpredictions.core.designsystem.W
 import com.maamoun.footballpredictions.core.designsystem.appFont
 import com.maamoun.footballpredictions.core.designsystem.palette
@@ -102,7 +103,15 @@ fun MatchCard(app: AppContainer, match: MatchListItem, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Tokens.Spacing.md),
         ) {
             TeamSide(match.homeTeam, match.homeStanding, end = false, modifier = Modifier.weight(1f))
-            ScoreChip(match, liveScore, showLiveScore, isFinished)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ScoreChip(match, liveScore, showLiveScore, isFinished)
+                val livePoints = liveScore?.livePoints
+                if (showLiveScore && livePoints != null) {
+                    AnimatedContent(livePoints, label = "livePoints") { points ->
+                        Text("+$points pts", color = c.warning, style = appFont(Tokens.FontSize.xs, W.Bold, mono = true))
+                    }
+                }
+            }
             TeamSide(match.awayTeam, match.awayStanding, end = true, modifier = Modifier.weight(1f))
         }
 
@@ -113,7 +122,10 @@ fun MatchCard(app: AppContainer, match: MatchListItem, onClick: () -> Unit) {
             }.padding(start = Tokens.Spacing.lg, end = Tokens.Spacing.lg, top = 12.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(formatKickoff(match.kickoffDate), color = c.mutedForeground, style = appFont(11.5.sp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(formatKickoff(match.kickoffDate), color = c.mutedForeground, style = appFont(11.5.sp))
+                match.venue?.let { VenueLabel(it) }
+            }
             FooterRight(match, locked)
         }
     }

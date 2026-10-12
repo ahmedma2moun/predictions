@@ -52,6 +52,7 @@ import com.maamoun.footballpredictions.app.appViewModel
 import com.maamoun.footballpredictions.app.collectAsStateCompat
 import com.maamoun.footballpredictions.core.designsystem.AppButton
 import com.maamoun.footballpredictions.core.designsystem.AppIcon
+import com.maamoun.footballpredictions.core.designsystem.VenueLabel
 import com.maamoun.footballpredictions.core.designsystem.Card
 import com.maamoun.footballpredictions.core.designsystem.CenteredSpinner
 import com.maamoun.footballpredictions.core.designsystem.Divider
@@ -181,7 +182,10 @@ private fun HeroCard(vm: MatchDetailViewModel, match: MatchDetail) {
     val c = palette
     Card(padding = 0.dp) {
         Row(Modifier.fillMaxWidth().padding(Tokens.Spacing.lg), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(formatKickoff(match.kickoffDate).uppercase(), color = c.mutedForeground, style = appFont(Tokens.FontSize.xs, W.Semibold, letterSpacing = 0.8.sp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(formatKickoff(match.kickoffDate).uppercase(), color = c.mutedForeground, style = appFont(Tokens.FontSize.xs, W.Semibold, letterSpacing = 0.8.sp))
+                match.venue?.let { VenueLabel(it) }
+            }
             when {
                 match.status == MatchStatus.LIVE -> Pill("LIVE", tone = PillTone.Live)
                 vm.locked -> Pill("LOCKED", tone = PillTone.Ghost)

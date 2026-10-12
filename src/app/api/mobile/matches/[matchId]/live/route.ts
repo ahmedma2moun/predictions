@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { getMatchById } from '@/lib/services/match-service';
 import { fetchFixtureById, mapFixtureStatus } from '@/lib/football/service';
+import { getLivePredictionPoints } from '@/lib/services/live-standing-service';
 
 export async function GET(
   req: NextRequest,
@@ -25,10 +26,12 @@ export async function GET(
   const fixture = await fetchFixtureById(match.externalId).catch(() => null);
   if (!fixture) return NextResponse.json({ error: 'Failed to fetch live data' }, { status: 502 });
 
-  return NextResponse.json({
-    status: mapFixtureStatus(fixture.fixture.status.short),
-    homeScore: fixture.score.fulltime.home ?? fixture.goals.home,
-    awayScore: fixture.score.fulltime.away ?? fixture.goals.away,
-    events: fixture.events,
-  });
+  const status = mapFixtureStatus(fixture.fixture.status.short);
+  const homeScore = fixture.score.fulltime.home ?? fixture.goals.home;
+  const awayScore = fixture.score.fulltime.away ?? fixture.goals.away;
+  const livePoints = status === 'live' || status === 'finished'
+    ? await getLivePredictionPoints(data.prediction, { homeScore, awayScore }, data.odds)
+    : null;
+
+  return NextResponse.json({ status, homeScore, awayScore, livePoints, events: fixture.events });
 }
