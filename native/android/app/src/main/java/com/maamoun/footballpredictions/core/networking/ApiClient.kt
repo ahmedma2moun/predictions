@@ -30,7 +30,7 @@ val AppJson = Json {
 }
 
 /**
- * OkHttp wrapper equivalent to `mobile/src/api/client.ts`:
+ * OkHttp wrapper, equivalent to the iOS `ApiClient`:
  * Bearer token, JSON body, `{ error }` body -> `ApiError(message, status)`.
  * Coroutine cancellation cancels the in-flight call.
  */

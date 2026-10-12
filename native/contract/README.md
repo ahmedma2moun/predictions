@@ -6,7 +6,7 @@ The iOS (`native/ios/FootballPredictionsTests`) and Android (`native/android/app
 
 ## Provenance
 
-The initial set was derived from `mobile/src/types/api.ts`, `src/lib/game/types.ts` and the route handlers in
+The initial set was derived from the old React Native app's `types/api.ts` (since deleted), `src/lib/game/types.ts` and the route handlers in
 `src/app/api/mobile/**` (no live capture was possible without credentials). Re-capture with a **test account**
 when convenient:
 

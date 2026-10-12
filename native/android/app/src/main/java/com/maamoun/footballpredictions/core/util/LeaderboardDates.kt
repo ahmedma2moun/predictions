@@ -6,7 +6,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// Mirrors mobile/src/utils/leaderboard-dates.ts. Weeks run Friday -> Thursday in the device's timezone.
+// Weeks run Friday -> Thursday in the device's timezone.
 
 data class DateBounds(val from: Instant, val to: Instant)
 

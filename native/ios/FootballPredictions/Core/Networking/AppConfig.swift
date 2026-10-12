@@ -22,6 +22,6 @@ enum AppConfig {
 
     static let platform = "ios"
 
-    /// Mirrors `mobile/src/constants/featureFlags.ts`. The odds explainer UI is deferred (see PARITY.md).
+    /// Mirrors `src/lib/feature-flags.ts` on the web. The odds explainer UI is deferred (see PARITY.md).
     static let oddsFeatureEnabled = false
 }

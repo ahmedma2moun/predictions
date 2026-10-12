@@ -5,7 +5,7 @@ import com.maamoun.footballpredictions.core.push.NotificationRouter
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Mirrors `mobile/src/notifications/route-for-notification.ts` — and the iOS `NotificationRouterTests`. */
+/** Mirrors the iOS `NotificationRouterTests`. */
 class NotificationRouterTest {
     private fun route(data: Map<String, String>?) = NotificationRouter.destination(data)
 

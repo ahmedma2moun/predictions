@@ -11,6 +11,6 @@ object AppConfig {
 
     const val PLATFORM = "android"
 
-    /** Mirrors `mobile/src/constants/featureFlags.ts`; odds explainer UI is deferred (see PARITY.md). */
+    /** Mirrors `src/lib/feature-flags.ts` on the web; odds explainer UI is deferred (see PARITY.md). */
     const val ODDS_FEATURE_ENABLED = false
 }

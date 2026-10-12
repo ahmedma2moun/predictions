@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Shared components — names and props mirror mobile/src/components/ui.tsx.
+// Shared components — names and props mirror the Android Components.kt.
 
 // MARK: - Card
 
@@ -149,6 +149,29 @@ struct Pill: View {
         .background(colors.bg, in: RoundedRectangle(cornerRadius: Tokens.Radius.sm))
         .overlay(RoundedRectangle(cornerRadius: Tokens.Radius.sm).stroke(colors.border, lineWidth: 1))
         .fixedSize()
+    }
+}
+
+// MARK: - Toast
+
+/// Transient confirmation chip; the host screen positions it and controls its lifetime.
+struct Toast: View {
+    @Environment(\.palette) private var c
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        HStack(spacing: Tokens.Spacing.sm) {
+            Image(systemName: AppIcon.checkmark).font(.system(size: 12, weight: .bold)).foregroundStyle(c.primary)
+            Text(text).appFont(Tokens.FontSize.sm, .semibold).foregroundStyle(c.foreground)
+        }
+        .padding(.horizontal, Tokens.Spacing.lg)
+        .padding(.vertical, Tokens.Spacing.sm)
+        .background(c.cardElevated, in: RoundedRectangle(cornerRadius: Tokens.Radius.pill))
+        .overlay(RoundedRectangle(cornerRadius: Tokens.Radius.pill).stroke(c.border, lineWidth: 1))
+        .fixedSize()
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -6,7 +6,7 @@ enum HTTPMethod: String, Sendable {
 
 struct EmptyResponse: Decodable, Sendable {}
 
-/// `URLSession` wrapper equivalent to `mobile/src/api/client.ts`:
+/// `URLSession` wrapper, equivalent to the Android `ApiClient`:
 /// Bearer token, JSON body, `{ error }` body -> `ApiError(message, status)`.
 struct ApiClient: Sendable {
     let baseURL: URL

@@ -1,5 +1,10 @@
 package com.maamoun.footballpredictions.features.matchdetail
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +29,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +60,7 @@ import com.maamoun.footballpredictions.core.designsystem.Muted
 import com.maamoun.footballpredictions.core.designsystem.Pill
 import com.maamoun.footballpredictions.core.designsystem.PillTone
 import com.maamoun.footballpredictions.core.designsystem.SectionTitle
+import com.maamoun.footballpredictions.core.designsystem.Toast
 import com.maamoun.footballpredictions.core.designsystem.Tokens
 import com.maamoun.footballpredictions.core.designsystem.W
 import com.maamoun.footballpredictions.core.designsystem.appFont
@@ -58,6 +69,7 @@ import com.maamoun.footballpredictions.core.networking.dto.AdjacentMatch
 import com.maamoun.footballpredictions.core.networking.dto.MatchDetail
 import com.maamoun.footballpredictions.core.networking.dto.MatchStatus
 import com.maamoun.footballpredictions.core.util.formatKickoff
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,26 +84,46 @@ fun MatchDetailScreen(app: AppContainer, nav: AppNav, matchId: String) {
     LaunchedEffect(matchId) { vm.load() }
     LaunchedEffect(match?.id) { if (match != null) vm.pollLive() }
     LaunchedEffect(state.error) { state.error?.let { app.alerts.show("Failed to load match", it) } }
-    LaunchedEffect(vm.saveCount) { if (vm.saveCount > 0) haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
-
-    Column(Modifier.fillMaxSize().background(c.background)) {
-        CenterAlignedTopAppBar(
-            title = { Text(vm.matchdayTitle(match), color = c.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis, style = appFont(11.5.sp, W.Bold, letterSpacing = 0.8.sp)) },
-            navigationIcon = {
-                Box(
-                    Modifier.padding(start = Tokens.Spacing.sm).size(40.dp).clip(CircleShape).clickable(role = Role.Button, onClick = nav::back)
-                        .semantics { contentDescription = "Back" },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(AppIcon.chevronLeft, null, tint = c.foreground) }
-            },
-            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = c.background),
-        )
-        Divider()
-        when {
-            state.isLoading && match == null -> CenteredSpinner()
-            match == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Match not found", color = c.foreground) }
-            else -> Content(app, nav, vm, match, state.data?.form)
+    var showSaved by remember { mutableStateOf(false) }
+    // The view model outlives an activity recreation; only saves made since this screen appeared count.
+    var seenSaves by rememberSaveable { mutableIntStateOf(vm.saveCount) }
+    // Keyed on the save counter so saving again restarts the 2 s timer.
+    LaunchedEffect(vm.saveCount) {
+        if (vm.saveCount > seenSaves) {
+            seenSaves = vm.saveCount
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            showSaved = true
+            delay(2000)
+            showSaved = false
         }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().background(c.background)) {
+            CenterAlignedTopAppBar(
+                title = { Text(vm.matchdayTitle(match), color = c.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis, style = appFont(11.5.sp, W.Bold, letterSpacing = 0.8.sp)) },
+                navigationIcon = {
+                    Box(
+                        Modifier.padding(start = Tokens.Spacing.sm).size(40.dp).clip(CircleShape).clickable(role = Role.Button, onClick = nav::back)
+                            .semantics { contentDescription = "Back" },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(AppIcon.chevronLeft, null, tint = c.foreground) }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = c.background),
+            )
+            Divider()
+            when {
+                state.isLoading && match == null -> CenteredSpinner()
+                match == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Match not found", color = c.foreground) }
+                else -> Content(app, nav, vm, match, state.data?.form)
+            }
+        }
+        AnimatedVisibility(
+            visible = showSaved,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = Tokens.Spacing.xl),
+            enter = fadeIn() + slideInVertically { it },
+            exit = fadeOut() + slideOutVertically { it },
+        ) { Toast("Saved") }
     }
 }
 
@@ -113,7 +145,7 @@ private fun Content(app: AppContainer, nav: AppNav, vm: MatchDetailViewModel, ma
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(Tokens.Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.md),
         ) {
-            HeroCard(vm, match, nav)
+            HeroCard(vm, match)
             OddsCard(vm, match)
             vm.matchEvents?.takeIf { it.isNotEmpty() }?.let { events ->
                 Card(spacing = Tokens.Spacing.xs) {
@@ -145,7 +177,7 @@ private fun Content(app: AppContainer, nav: AppNav, vm: MatchDetailViewModel, ma
 }
 
 @Composable
-private fun HeroCard(vm: MatchDetailViewModel, match: MatchDetail, nav: AppNav) {
+private fun HeroCard(vm: MatchDetailViewModel, match: MatchDetail) {
     val c = palette
     Card(padding = 0.dp) {
         Row(Modifier.fillMaxWidth().padding(Tokens.Spacing.lg), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -207,7 +239,7 @@ private fun HeroCard(vm: MatchDetailViewModel, match: MatchDetail, nav: AppNav) 
         }
         if (vm.canPredict) {
             AppButton(
-                if (match.prediction != null) "Update Prediction" else "Save Prediction", onClick = { vm.submit(nav) },
+                if (vm.hasPrediction) "Update Prediction" else "Save Prediction", onClick = vm::submit,
                 loading = vm.saving, fullWidth = true, modifier = Modifier.padding(horizontal = Tokens.Spacing.lg).padding(bottom = Tokens.Spacing.lg).height(48.dp),
             )
         } else if (!match.isAdmin && vm.locked && match.result == null) {

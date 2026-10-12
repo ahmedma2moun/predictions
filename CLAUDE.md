@@ -63,7 +63,6 @@ A full-stack football match predictions app where friends predict scores and com
 | API / backend | `src/app/api/` |
 | iOS (SwiftUI) | `native/ios/` |
 | Android (Jetpack Compose) | `native/android/` |
-| Legacy mobile (React Native / Expo) | `mobile/app/` — **only until the native cutover**; bug fixes only, add a to-do row to `native/PARITY.md` for anything changed here |
 
 Do NOT implement a feature in only one layer and leave the others outdated.
 Do NOT change an API contract without updating the web frontend and both native apps (and `native/contract/fixtures/`).

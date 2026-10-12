@@ -8,7 +8,7 @@ CI/secrets: `docs/architecture/DEPLOYMENT_GUIDE.md`.
 
 Both apps mirror each other (iOS `Core/Networking/ApiClient.swift` ↔ Android `core/networking/ApiClient.kt`):
 `App/`, `Core/{Networking,Auth,Push,DesignSystem,Util}`, `Features/{Login,Matches,MatchDetail,MyScore,Leaderboard,Club,Slip,Reminders,Seasons,Champion}`.
-Each feature has a `…Screen`, a `…ViewModel` and private components. DTO names equal `mobile/src/types/api.ts`.
+Each feature has a `…Screen`, a `…ViewModel` and private components. DTO names are identical on both platforms.
 
 ## Running
 
@@ -22,13 +22,15 @@ router/tests → `native/PARITY.md`. CI fails PRs that touch only one platform u
 
 ## Releasing
 
-Manual dispatch of *iOS (native) — Archive → TestFlight* and *Android (native) — Release APK → Firebase* until cutover.
+Manual dispatch of *iOS (native) — Archive → TestFlight* and *Android (native) — Release APK → Firebase* (the `push` triggers are still commented out in both workflow files).
 Bump `native/VERSION` by hand. iOS build numbers are auto-incremented from App Store Connect; Android `versionCode` is run number + 1000.
 
-## Cutover checklist (plan §4 Phase 6)
+## Cutover status (plan §4 Phase 6)
 
-1. Complete device QA against `native/PARITY.md` (all 🟡 → ✅), including push taps from foreground/background/cold start.
+The Expo / React Native app (`mobile/`), `ios-publish.yml` / `android-publish.yml`, `docs/REACT_NATIVE_GUIDE.md` and
+`docs/MOBILE_BUILD_GUIDE.md` were deleted in October 2026. Still open:
+
+1. Device QA against `native/PARITY.md` (all 🟡 → ✅), including push taps from foreground/background/cold start.
 2. Verify the iOS profile includes Push Notifications.
-3. Replace `ios-publish.yml` / `android-publish.yml` with the native workflows and enable their `push` triggers.
-4. Ship; keep `mobile/` one release cycle, then delete it with `eas.json`, `mobile/scripts`, `docs/REACT_NATIVE_GUIDE.md`, `docs/MOBILE_BUILD_GUIDE.md`; rewrite `docs/IOS_PUBLISH_ACTION_GUIDE.md`.
-5. Replace `semantic-release` in `mobile/` with a step that writes `native/VERSION` (plan §7.5).
+3. Enable the `push` triggers in the native publish workflows.
+4. Automate the `native/VERSION` bump (plan §7.5) — `semantic-release` went away with `mobile/`.

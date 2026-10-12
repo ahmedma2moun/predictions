@@ -11,7 +11,7 @@ sealed interface NotificationDestination {
 
 /**
  * Maps a push `data.type` (+ `data.matchId`) to a destination.
- * Behaviour is taken from `mobile/src/notifications/route-for-notification.ts` — and mirrors iOS `NotificationRouter`.
+ * Behaviour mirrors iOS `NotificationRouter`.
  */
 object NotificationRouter {
     fun destination(data: Map<String, String>?): NotificationDestination {

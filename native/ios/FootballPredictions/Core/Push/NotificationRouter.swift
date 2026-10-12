@@ -10,7 +10,7 @@ enum NotificationDestination: Equatable {
 }
 
 /// Maps a push `data.type` (+ `data.matchId`) to a destination.
-/// Behaviour is taken from `mobile/src/notifications/route-for-notification.ts` (code, not its stale comment).
+/// Behaviour mirrors Android `NotificationRouter`.
 enum NotificationRouter {
     static func destination(for data: [AnyHashable: Any]?) -> NotificationDestination {
         let type = data?["type"] as? String

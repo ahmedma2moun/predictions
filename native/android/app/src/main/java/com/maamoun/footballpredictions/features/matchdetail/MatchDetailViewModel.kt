@@ -7,7 +7,6 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.maamoun.footballpredictions.app.AppContainer
-import com.maamoun.footballpredictions.app.AppNav
 import com.maamoun.footballpredictions.core.networking.ApiError
 import com.maamoun.footballpredictions.core.networking.HttpMethod
 import com.maamoun.footballpredictions.core.networking.dto.LiveScoreResponse
@@ -49,6 +48,8 @@ class MatchDetailViewModel(private val app: AppContainer, val matchId: String) :
     val locked: Boolean get() = match?.let { isMatchLocked(it.kickoffDate) } ?: false
     val knockout: Boolean get() = isKnockoutStage(match?.stage)
     val canPredict: Boolean get() = match?.let { !it.isAdmin && !locked } ?: false
+    /** True once a pick exists, including one saved from this screen (we stay here after saving). */
+    val hasPrediction: Boolean get() = match?.prediction != null || saveCount > 0
 
     val winnerLabel: String
         get() = match.let { m ->
@@ -100,7 +101,7 @@ class MatchDetailViewModel(private val app: AppContainer, val matchId: String) :
         }
     }
 
-    fun submit(nav: AppNav) {
+    fun submit() {
         val token = app.token ?: return
         val m = match ?: return
         viewModelScope.launch {
@@ -108,9 +109,6 @@ class MatchDetailViewModel(private val app: AppContainer, val matchId: String) :
             try {
                 app.api.send("/api/mobile/predictions", HttpMethod.POST, SavePredictionRequest(m.id, home, away), token)
                 saveCount++
-                app.alerts.show("Prediction saved")
-                val next = m.nextMatch
-                if (next != null) nav.replaceMatch(next.id) else nav.back()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

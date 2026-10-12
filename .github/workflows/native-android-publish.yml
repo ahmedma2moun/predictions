@@ -1,8 +1,7 @@
 name: Android (native) — Debug-signed APK → Firebase
 
-# Manual-only while the React Native app (android-publish.yml) is still the shipping build — both distribute
-# to the same Firebase app. At cutover (plan §4 Phase 6): replace android-publish.yml with this file and
-# add the `push` trigger below.
+# The only Android pipeline since the React Native app was removed. Still manual-only; uncomment the
+# `push` trigger below to distribute automatically on native changes.
 on:
   workflow_dispatch:
   # push:

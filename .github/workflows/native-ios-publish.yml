@@ -1,8 +1,7 @@
 name: iOS (native) — Archive → TestFlight
 
-# Manual-only while the React Native app (ios-publish.yml) is still the shipping build — both upload to the
-# same TestFlight app. At cutover (plan §4 Phase 6): replace ios-publish.yml with this file and add the
-# `push` trigger below.
+# The only iOS pipeline since the React Native app was removed. Still manual-only; uncomment the
+# `push` trigger below to upload automatically on native changes.
 on:
   workflow_dispatch:
   # push:

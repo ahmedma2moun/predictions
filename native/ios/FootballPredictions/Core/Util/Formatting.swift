@@ -1,6 +1,6 @@
 import Foundation
 
-// Mirrors mobile/src/utils/format.ts (which mirrors src/lib/utils.ts on the web).
+// Mirrors src/lib/utils.ts on the web.
 
 private let isoWithFraction: ISO8601DateFormatter = {
     let f = ISO8601DateFormatter()

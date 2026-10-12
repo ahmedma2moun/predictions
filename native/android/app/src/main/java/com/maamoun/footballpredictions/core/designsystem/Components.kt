@@ -35,8 +35,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
-// Shared components — names and props mirror mobile/src/components/ui.tsx (and the iOS Components.swift).
+// Shared components — names and props mirror the iOS Components.swift.
 
 // ── Card ─────────────────────────────────────────────────────────────────────
 @Composable
@@ -140,6 +142,24 @@ fun Pill(text: String, modifier: Modifier = Modifier, tone: PillTone = PillTone.
     ) {
         icon?.invoke()
         Text(text, color = fg, style = appFont(Tokens.FontSize.xs, W.Bold, letterSpacing = 0.5.sp), maxLines = 1)
+    }
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+/** Transient confirmation chip; the host screen positions it and controls its lifetime. */
+@Composable
+fun Toast(text: String, modifier: Modifier = Modifier) {
+    val c = palette
+    val shape = RoundedCornerShape(Tokens.Radius.pill)
+    Row(
+        modifier = modifier.clip(shape).background(c.cardElevated, shape).border(1.dp, c.border, shape)
+            .padding(horizontal = Tokens.Spacing.lg, vertical = Tokens.Spacing.sm)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        horizontalArrangement = Arrangement.spacedBy(Tokens.Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(AppIcon.checkmark, null, tint = c.primary, modifier = Modifier.size(14.dp))
+        Text(text, color = c.foreground, style = appFont(Tokens.FontSize.sm, W.Semibold), maxLines = 1)
     }
 }
 

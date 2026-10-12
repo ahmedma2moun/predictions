@@ -211,345 +211,74 @@ For database rollbacks, restore from the daily JSON export (db-export cron) or u
 - [ ] QStash schedules created (`npm run setup-qstash-schedules`) and visible at console.upstash.com/qstash/schedules
 - [ ] Old cron-job.org jobs deleted
 
-## Mobile APK Distribution (Firebase App Distribution)
+## Mobile Distribution (native apps)
 
-### Prerequisites
-- Firebase project with the Android app registered
-- EAS CLI installed and authenticated
-- Firebase CLI installed and authenticated
+The mobile apps are `native/ios/` (SwiftUI) and `native/android/` (Jetpack Compose). Day-to-day guide: [`docs/NATIVE_MOBILE_GUIDE.md`](../NATIVE_MOBILE_GUIDE.md).
 
-### 1. Create a Firebase Project
-1. Go to [console.firebase.google.com](https://console.firebase.google.com)
-2. **Add project** → name it (e.g. `Antigravity Predictions`)
-3. Disable Google Analytics if not needed → **Create project**
+### Android — Firebase App Distribution
 
-### 2. Register the Android App in Firebase
-- **Firebase Project ID**: `football-prediction-18478`
+- **Firebase Project ID**: `football-prediction-18478`; Android package `com.maamoun.footballpredictions`.
+- `native/android/app/google-services.json` is the Firebase config. To regenerate it: Firebase console → **Project settings** → your Android app → download `google-services.json` and replace that file.
+- Testers: Firebase console → **App Distribution** → **Testers & Groups** → group `testers`. Members get an email invite to install the **Firebase App Tester** app and then the APK.
+- Release: run *Android (native)* from the Actions tab (`native-android-publish.yml`). It runs the unit tests, builds the signed R8 release APK and distributes it to the `testers` group.
 
-1. In Firebase console → **Project settings** → **Add app** → Android
-2. Enter package name: `com.maamoun.footballpredictions`
-3. Download the generated `google-services.json` → replace `mobile/google-services.json`
+To distribute an APK by hand:
 
-### 3. Enable App Distribution
-1. In Firebase console → left sidebar → **App Distribution**
-2. Click **Get started**
-
-### 4. Install Firebase CLI
 ```bash
-npm install -g firebase-tools
-firebase login
-```
-
-### 5. Build the APK via EAS
-```bash
-cd football-predictions/mobile
-eas build --profile preview --platform android
-```
-EAS builds on Expo's cloud servers. When done, download the `.apk` from the EAS dashboard or the URL printed in the terminal.
-
-### 6. Distribute the APK via Firebase
-```bash
+npm install -g firebase-tools && firebase login
 firebase appdistribution:distribute path/to/app.apk \
-  --app android:com.maamoun.footballpredictions \
+  --app <Firebase Android app id> \
   --groups "testers" \
   --release-notes "Describe what changed in this build"
 ```
 
-### 7. Add Testers
-1. Firebase console → **App Distribution** → **Testers & Groups**
-2. Create a group (e.g. `testers`)
-3. Add tester emails — they receive an email invite to install the **Firebase App Tester** app and then your APK
+### iOS — TestFlight
 
-### EAS Build Profiles (eas.json)
-| Profile | Output | Use case |
-|---|---|---|
-| `development` | APK | Local dev with dev client |
-| `preview` | APK | Internal distribution / Firebase |
-| `production` | AAB | Google Play Store submission |
-
-Use `--profile preview` for Firebase distribution builds.
-
----
-
-## Auto-Publish Android APK on Mobile Changes (GitHub Actions)
-
-Every push to `master` that touches `mobile/**` (or the workflow file itself) automatically runs `.github/workflows/android-publish.yml`, which builds a debug APK with Gradle on the runner and distributes it via Firebase App Distribution. It can also be run manually from the Actions tab (`workflow_dispatch`). A newer push cancels an in-flight run for an older commit (`concurrency` with `cancel-in-progress`).
-
-> The EAS-based workflow below is the original design and is kept for reference; the live workflow file is the source of truth.
-
-### How it works
-
-```
-git push (mobile/** changed)
-  └─► GitHub Actions workflow
-        ├─► eas build --profile preview --platform android
-        └─► firebase appdistribution:distribute → "testers" group
-```
-
-### Required GitHub Secrets
-
-Add these in **GitHub → Settings → Secrets and variables → Actions**:
-
-| Secret | Value |
-|---|---|
-| `EXPO_TOKEN` | EAS personal access token — generate at [expo.dev/accounts/ahmdma2mou/settings/access-tokens](https://expo.dev/accounts/ahmdma2mou/settings/access-tokens) |
-| `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON (see below) |
-
-**How to get `FIREBASE_SERVICE_ACCOUNT`:**
-1. Firebase console → Project settings → Service accounts
-2. **Generate new private key** → download the JSON
-3. Paste the entire JSON as the secret value (multi-line is fine)
-
-### Workflow file
-
-Create `.github/workflows/android-publish.yml` at the repository root:
-
-```yaml
-name: Android Auto-Publish
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - 'football-predictions/mobile/**'
-
-jobs:
-  build-and-distribute:
-    name: EAS Build → Firebase Distribution
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: football-predictions/mobile/package-lock.json
-
-      - name: Install mobile dependencies
-        working-directory: football-predictions/mobile
-        run: npm ci
-
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
-
-      - name: Build APK via EAS
-        working-directory: football-predictions/mobile
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          eas build \
-            --profile preview \
-            --platform android \
-            --non-interactive \
-            --json \
-            --output build-output.json
-          # Extract the APK download URL from the EAS JSON response
-          APK_URL=$(jq -r '.[0].artifacts.buildUrl' build-output.json)
-          echo "APK_URL=$APK_URL" >> $GITHUB_ENV
-
-      - name: Download APK
-        run: curl -L "$APK_URL" -o app-preview.apk
-
-      - name: Distribute via Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
-        with:
-          appId: "1:YOUR_FIREBASE_APP_NUMBER:android:YOUR_APP_ID"
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          groups: testers
-          file: app-preview.apk
-          releaseNotes: "Auto-build from commit ${{ github.sha }} — ${{ github.event.head_commit.message }}"
-```
-
-> **Replace `appId`** with your real Firebase Android app ID. Find it in Firebase console → Project settings → Your apps → App ID (format: `1:123456789:android:abcdef`).
-
-### One-time setup checklist
-
-- [ ] Create `.github/workflows/android-publish.yml` with the content above
-- [ ] Add `EXPO_TOKEN` secret to the GitHub repo
-- [ ] Add `FIREBASE_SERVICE_ACCOUNT` secret (the full service-account JSON)
-- [ ] Replace the `appId` placeholder in the workflow with your actual Firebase Android App ID
-- [ ] Ensure the `testers` group exists in Firebase App Distribution (see [Add Testers](#7-add-testers) above)
-- [ ] Push a trivial change under `football-predictions/mobile/` to verify the pipeline runs end-to-end
-
-### Notes
-
-- The workflow only triggers on pushes to `master`. Add another branch to `branches:` if you want pre-release builds from it.
-- EAS builds run on Expo's cloud servers — no Android SDK needed on the GitHub runner.
-- Build minutes on the EAS free plan are limited (30 Android builds/month). The `preview` profile produces an APK suitable for direct installation; the `production` profile produces an AAB for Play Store submission.
-- If the EAS build step fails with "Project not found", confirm `EXPO_TOKEN` is valid and `eas.json` has `projectId: "9960a25c-d1cf-40e8-b03b-d1c3eb2c2950"` under `extra.eas`.
-
----
-
-## iOS Distribution via TestFlight (GitHub Actions + EAS)
-
-### Overview
-
-```
-Push to master touching mobile/** — or manual trigger (GitHub Actions)
-  └─► eas build --profile testflight --platform ios   (App Store-signed IPA, latest Xcode)
-        └─► eas submit --profile testflight            (uploads to App Store Connect)
-              └─► Apple processing (~5-15 min)
-                    └─► TestFlight → Internal / External testers
-```
-
-The workflow is in `.github/workflows/ios-publish.yml`. It runs automatically on every push to `master` that touches `mobile/**`, the workflow file, or `.github/scripts/ios-*.py`, and can also be triggered manually from the Actions tab. A newer push cancels an in-flight run for an older commit.
+- App Store Connect app: bundle ID `com.maamoun.footballpredictions`, App ID `6766777997`. Requires Apple Developer Program membership.
+- Release: run *iOS (native) — Archive → TestFlight* from the Actions tab (`native-ios-publish.yml`): XcodeGen → archive → upload. Apple processing takes ~5–15 min before the build shows in TestFlight.
 
 **Signing (certificate created only once):** `.github/scripts/ios-signing.py` talks to the App Store Connect API and uses manual signing, so Xcode never creates certificates during a build.
 - `IOS_CERTIFICATE_P12_BASE64` set → that distribution certificate ("Apple Distribution" `DISTRIBUTION` or legacy `IOS_DISTRIBUTION` type) is verified against the Apple account by serial number and reused. On a mismatch the job logs the secret's subject, serial and expiry next to the account's certificates.
 - Secret empty and no distribution certificate exists in the account → one is created and stored back into the `IOS_CERTIFICATE_P12_BASE64` / `IOS_CERTIFICATE_PASSWORD` repo secrets (requires a `GH_PAT` secret with repo-secrets write access).
 - Secret empty but a certificate already exists in the account → the job fails rather than creating another (its private key is unrecoverable; supply the `.p12` or revoke it).
 - The App Store provisioning profile is reused if an active one contains the certificate, otherwise created.
-- **Build number:** `.github/scripts/ios-build-number.py` asks App Store Connect for the highest build already uploaded and sets `CFBundleVersion` (Info.plist + `CURRENT_PROJECT_VERSION`) to that + 1, so TestFlight never rejects the upload as a duplicate. `app.json` has no `ios.buildNumber`; CI owns it.
+- **Build number:** `.github/scripts/ios-build-number.py` asks App Store Connect for the highest build already uploaded and uses that + 1, so TestFlight never rejects the upload as a duplicate.
 - Reusable, repo-agnostic version of this setup (stack detection, workflow template, secrets): [`docs/IOS_PUBLISH_ACTION_GUIDE.md`](../IOS_PUBLISH_ACTION_GUIDE.md).
-
----
-
-### Prerequisites
-
-- Apple Developer Program membership (paid, $99/year)
-- App created in App Store Connect (bundle ID: `com.maamoun.footballpredictions`, App ID: `6766777997`)
-- EAS CLI installed locally and authenticated (`eas login`)
-- App Store Connect API key (key ID: `LTCXFV6Q3S`, file: `mobile/AuthKey_LTCXFV6Q3S.p8`)
-
----
-
-### One-Time Local Setup
-
-#### 1. Generate App Store Distribution Credentials in EAS
-
-Run this once from your machine (interactive — cannot be done in CI):
-
-```bash
-cd mobile
-eas credentials --platform ios
-```
-
-When prompted:
-- **Distribution type** → **App Store** (not Ad Hoc)
-- **Certificate** → let EAS generate a new App Store Distribution Certificate
-- **Provisioning Profile** → let EAS generate it automatically
-
-EAS stores the certificate and provisioning profile on its servers. All subsequent CI builds use them automatically.
-
-#### 2. Add `ITSAppUsesNonExemptEncryption` to `app.json`
-
-Already done — `mobile/app.json` has:
-```json
-"infoPlist": {
-  "ITSAppUsesNonExemptEncryption": false
-}
-```
-This prevents an Apple compliance warning that blocks TestFlight upload.
-
----
 
 ### Required GitHub Secrets
 
-Go to **GitHub → Settings → Secrets and variables → Actions** and add:
+**GitHub → Settings → Secrets and variables → Actions:**
 
-| Secret | Value | Where to find it |
+| Secret | Used by | Value |
 |---|---|---|
-| `EXPO_TOKEN` | EAS personal access token | expo.dev → Account → Access Tokens |
-| `ASC_API_KEY_ID` | `LTCXFV6Q3S` | From the `.p8` filename |
-| `ASC_API_KEY_ISSUER_ID` | UUID shown at the top of the Keys page | App Store Connect → Users and Access → [Keys](https://appstoreconnect.apple.com/access/integrations/api) |
-| `ASC_API_KEY_CONTENT` | Full contents of `AuthKey_LTCXFV6Q3S.p8` | Paste the entire file including `-----BEGIN/END PRIVATE KEY-----` |
+| `FIREBASE_SERVICE_ACCOUNT` | Android | Firebase service account JSON — Firebase console → Project settings → Service accounts → **Generate new private key**; paste the whole file |
+| `APPLE_TEAM_ID` | iOS | Apple Developer team ID |
+| `ASC_API_KEY_ID` | iOS | App Store Connect API key ID (from the `.p8` filename) |
+| `ASC_API_KEY_ISSUER_ID` | iOS | UUID at the top of App Store Connect → Users and Access → [Keys](https://appstoreconnect.apple.com/access/integrations/api) |
+| `ASC_API_KEY_CONTENT` | iOS | Full contents of the `AuthKey_<id>.p8` file, including the `-----BEGIN/END PRIVATE KEY-----` lines |
+| `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD` | iOS | Distribution certificate (see Signing above) |
+| `GH_PAT` | iOS | Only needed when the signing script has to store a newly created certificate back into the repo secrets |
 
-`ASC_APP_ID` (`6766777997`) is hardcoded in `eas.json` — no secret needed.
-
----
-
-### EAS Configuration (`eas.json`)
-
-```json
-"build": {
-  "testflight": {
-    "autoIncrement": true,
-    "ios": {
-      "buildConfiguration": "Release",
-      "simulator": false,
-      "image": "latest"        // always uses newest Xcode — required by Apple since Apr 2026
-    }
-  }
-},
-"submit": {
-  "testflight": {
-    "ios": {
-      "ascAppId": "6766777997",
-      "ascApiKeyIssuerId": "$ASC_API_KEY_ISSUER_ID",   // read from env var at submit time
-      "ascApiKeyId": "$ASC_API_KEY_ID",
-      "ascApiKeyPath": "/tmp/AuthKey.p8"               // written by the CI step
-    }
-  }
-}
-```
-
----
-
-### Triggering a Build
-
-1. Go to **GitHub → Actions → iOS Auto-Publish**
-2. Click **Run workflow** → **Run workflow**
-3. The workflow will:
-   - Build the IPA on EAS cloud (App Store-signed, latest Xcode)
-   - Submit the IPA to App Store Connect via `eas submit`
-4. Check [expo.dev](https://expo.dev) → your project → Builds to monitor build progress
-
----
+`.p8` key files are git-ignored; keep them outside the repo.
 
 ### TestFlight: Internal Testing
 
-Internal testers are Apple Developer team members — no Beta App Review required, available immediately after Apple processing (~5-15 min).
+Internal testers are Apple Developer team members — no Beta App Review required, available immediately after Apple processing.
 
 1. App Store Connect → your app → **TestFlight** tab
 2. Left sidebar → **Internal Testing** → click **+** to create a group
-3. Add testers by **Apple ID email** — they must first be added as team members:
-   - App Store Connect → **Users and Access** → **People** → **+** → invite by email
-   - They accept the invite, then can be added to the Internal Testing group
+3. Add testers by **Apple ID email** — they must first be added as team members (**Users and Access** → **People** → **+**)
 4. Once the build finishes processing, select it and assign it to the group
 5. Testers receive an email → install **TestFlight** app → install your build
-
----
 
 ### TestFlight: External Testing
 
 External testers do **not** need to be team members. Requires a one-time **Beta App Review** by Apple (usually a few hours, up to 1 business day).
 
-1. App Store Connect → **TestFlight** → left sidebar → **+** next to **External Testing** (or create a group)
-2. Name the group (e.g. `Friends`, `Beta`)
-3. Add testers by email — up to 10,000 testers
-4. Select the build to test → click **Submit for Beta Review**
-5. Fill in **Test Information** (what to test, sign-in info if needed) — required for external groups
-6. Apple reviews → you get an email when approved
-7. Testers receive an email → install **TestFlight** → install your build
-
-> **Note**: Once a build passes Beta App Review, subsequent builds of the same app do **not** require re-review unless you add new external groups or make significant changes.
-
----
-
-### Build Profiles Summary
-
-| Profile | Distribution | Xcode | Use case |
-|---|---|---|---|
-| `development` | Internal (ad-hoc) | Default | Local dev with dev client |
-| `preview` | Internal (ad-hoc) | Default | Android APK for Firebase |
-| `testflight` | App Store | Latest | iOS TestFlight |
-| `production` | App Store | Latest | App Store release |
-
----
-
-### Troubleshooting
-
-| Error | Fix |
-|---|---|
-| `Distribution Certificate is not validated` | Run `eas credentials --platform ios` locally and set up App Store credentials |
-| `This build can no longer be submitted` (Xcode too old) | `"image": "latest"` is already set in `eas.json` — ensure you're on EAS CLI ≥ 14 |
-| `Invalid ascAppId` | Must be digits only — hardcoded as `6766777997` in `eas.json` |
-| `Nonexistent flags` in `eas submit` | Credentials go in `eas.json` submit config, not CLI flags |
-| Build stuck / not appearing in TestFlight | Check [expo.dev](https://expo.dev) build status; Apple processing can take up to 15 min |
+1. App Store Connect → **TestFlight** → left sidebar → **+** next to **External Testing**
+2. Name the group and add testers by email — up to 10,000 testers
+3. Select the build to test → **Submit for Beta Review** and fill in **Test Information**
+4. Apple reviews → testers receive an email → install **TestFlight** → install your build
 
 ---
 
@@ -561,9 +290,9 @@ External testers do **not** need to be team members. Requires a one-time **Beta 
 | `native-ios-publish.yml` | **manual** (`push` trigger commented) | XcodeGen → archive (manual signing from `project.yml`, reusing `.github/scripts/ios-signing.py` / `ios-build-number.py`) → TestFlight. Expected ~4–7 min: no npm/Expo/CocoaPods. SPM cache keyed on `project.yml` |
 | `native-android-publish.yml` | **manual** (`push` trigger commented) | Unit tests → signed R8 release APK (`versionCode` = run number + 1000, `versionName` from `native/VERSION`) → Firebase App Distribution (same app id and `testers` group) |
 
-The RN workflows (`ios-publish.yml`, `android-publish.yml`) still ship `mobile/` and keep triggering on `mobile/**`; both pipelines upload to the same TestFlight/Firebase apps, so the native ones stay manual until cutover (replace the RN workflows and uncomment the `push` triggers).
+The Expo / React Native app (`mobile/`) and its workflows (`ios-publish.yml`, `android-publish.yml`) were removed in October 2026; the native workflows are the only mobile pipeline. They upload to the same TestFlight / Firebase apps the RN builds used. Both are still `workflow_dispatch`-only — uncomment the `push` block in each file to publish automatically on changes under `native/`.
 
-**Android signing:** no new secrets. The native workflow builds the release variant (R8, production API) signed with the committed `native/android/app/debug.keystore` (the standard Android debug key, same as the RN build), so testers can update in place. To ship with a real key later, set `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` in the workflow env (`build.gradle.kts` already honours them). iOS secrets are unchanged.
+**Android signing:** no new secrets. The native workflow builds the release variant (R8, production API) signed with the committed `native/android/app/debug.keystore` (the standard Android debug key, the same one the old RN builds used), so testers can update in place. To ship with a real key later, set `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` in the workflow env (`build.gradle.kts` already honours them). iOS secrets are unchanged.
 
 ## Vercel Plan Considerations
 

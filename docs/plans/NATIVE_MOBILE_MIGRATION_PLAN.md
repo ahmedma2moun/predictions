@@ -1,6 +1,6 @@
 # Native Mobile Migration Plan — React Native → SwiftUI + Jetpack Compose
 
-**Status:** Implemented on branch `feat/native-mobile-migration` (Phases 0–3 + the Phase 4 code); device QA, cutover (Phase 6) and the Android signing decision still open — see §11
+**Status:** Implemented on branch `feat/native-mobile-migration` (Phases 0–3 + the Phase 4 code); device QA, cutover (Phase 6) and the Android signing decision still open — see §11 **Update (October 2026):** `mobile/` and the Expo workflows are deleted; remaining open items are listed in `docs/NATIVE_MOBILE_GUIDE.md`.
 **Written:** 2026-10-10
 **Scope:** Replace the Expo / React Native app in `mobile/` with two native apps — iOS (SwiftUI) and Android (Kotlin + Jetpack Compose) — with the same screens, behaviour and look as today.
 

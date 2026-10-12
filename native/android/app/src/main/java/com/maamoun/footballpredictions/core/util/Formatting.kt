@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
-// Mirrors mobile/src/utils/format.ts (which mirrors src/lib/utils.ts on the web).
+// Mirrors src/lib/utils.ts on the web.
 
 private val dayNames = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 private val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")

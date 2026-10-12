@@ -47,5 +47,9 @@ next-env.d.ts
 # Python bytecode
 __pycache__/
 
+# leftovers of the deleted Expo app (build output, node_modules, a local Apple .p8 key) — never commit
+/mobile/
+*.p8
+
 # local secrets reference (never commit)
 /SECRETS.local.md
