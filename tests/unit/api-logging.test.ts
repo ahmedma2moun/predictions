@@ -7,7 +7,6 @@ vi.mock('@/lib/mobile-auth', () => ({ getMobileSession: vi.fn(async () => ({ id:
 import { sanitizeBody, MAX_BODY_BYTES } from '@/lib/logging/redact';
 import { enqueue, flushLogs } from '@/lib/logging/transport';
 import { withApiLogging } from '@/lib/logging/with-api-logging';
-import { logPredictionUpsert } from '@/lib/logging/prediction-events';
 import { logger } from '@/lib/logger';
 
 const originalToken = process.env.AXIOM_TOKEN;
@@ -36,9 +35,10 @@ describe('transport', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('keeps plain messages without an event field out of Axiom', async () => {
+  it('sends only api.request events to Axiom', async () => {
     process.env.AXIOM_TOKEN = 'xaat-test';
     logger.info('[thesportsdb] GET /lookupleague.php');
+    logger.info('prediction.upsert', { event: 'prediction.upsert' });
     await flushLogs();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -141,14 +141,5 @@ describe('withApiLogging', () => {
     const res = await handler(req('/api/predictions', { method: 'POST', body: '{}' }));
     expect(res.status).toBe(500);
     expect(entries().find(e => e.status === 500)?.error.message).toBe('kaboom');
-  });
-});
-
-describe('prediction.upsert event', () => {
-  it.each(['ok', 'locked', 'invalid_scores', 'not_found'] as const)('records outcome %s', outcome => {
-    logPredictionUpsert({ platform: 'mobile', userId: 3, body: { matchId: '1', homeScore: 2, awayScore: 1 }, outcome, reason: outcome === 'locked' ? 'kickoff_passed' : undefined, msToKickoff: outcome === 'locked' ? -5 : undefined });
-    const e = JSON.parse((console.log as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as string);
-    expect(e).toMatchObject({ event: 'prediction.upsert', outcome, userId: 3, matchId: '1', homeScore: 2, awayScore: 1 });
-    if (outcome === 'locked') expect(e).toMatchObject({ reason: 'kickoff_passed', msToKickoff: -5 });
   });
 });

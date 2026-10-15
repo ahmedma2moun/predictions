@@ -17,7 +17,7 @@ export function withErrorHandling<Args extends unknown[]>(
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
       onError?.(error);
-      logger.error(`[${routeName}] Unhandled error`, { event: 'api.error', route: routeName, error: error instanceof Error ? error.message : String(error) });
+      logger.error(`[${routeName}] Unhandled error`, { error: error instanceof Error ? error.message : String(error) });
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
   };
