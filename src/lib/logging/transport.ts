@@ -7,6 +7,12 @@ export interface LogTransport {
 }
 
 const MAX_QUEUE = 1000;
+
+/** Trace line for Vercel logs. Console only (never the logger), and never includes the token. */
+function trace(msg: string, ctx: Record<string, unknown> = {}) {
+  console.log(JSON.stringify({ level: 'info', msg: `[axiom] ${msg}`, ts: new Date().toISOString(), ...ctx }));
+}
+let reportedDisabled = false;
 const FLUSH_AT = 50;
 
 export class AxiomTransport implements LogTransport {
@@ -26,7 +32,11 @@ export class AxiomTransport implements LogTransport {
       headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(entries),
     });
-    if (!res.ok) throw new Error(`Axiom ingest failed with ${res.status}`);
+    if (!res.ok) {
+      const detail = (await res.text().catch(() => '')).slice(0, 300);
+      throw new Error(`Axiom ingest failed with ${res.status} at ${this.baseUrl}${path}: ${detail}`);
+    }
+    trace('ingest ok', { status: res.status, count: entries.length, host: new URL(this.baseUrl).host, dataset: this.dataset });
   }
 }
 
@@ -44,7 +54,13 @@ let queue: LogEntry[] = [];
 
 /** Queues an entry for the next flush. No-op when AXIOM_TOKEN is not set. */
 export function enqueue(entry: LogEntry): void {
-  if (!process.env.AXIOM_TOKEN) return;
+  if (!process.env.AXIOM_TOKEN) {
+    if (!reportedDisabled) {
+      reportedDisabled = true;
+      trace('disabled: AXIOM_TOKEN is not set in this environment');
+    }
+    return;
+  }
   if (queue.length >= MAX_QUEUE) queue.shift();
   queue.push(entry);
   if (queue.length >= FLUSH_AT) void flushLogs();
@@ -57,6 +73,7 @@ export async function flushLogs(): Promise<void> {
   if (!transport) { queue = []; return; }
   const batch = queue;
   queue = [];
+  trace('flushing', { count: batch.length, host: process.env.AXIOM_URL || 'api.axiom.co', dataset: process.env.AXIOM_DATASET || 'predictions-api' });
   try {
     await transport.send(batch);
   } catch (error) {
