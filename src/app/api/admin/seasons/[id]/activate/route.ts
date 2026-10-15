@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { SeasonService } from '@/lib/services/season-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApiLogging('admin.seasons.[id].activate.post', async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,4 +20,4 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed' }, { status: 400 });
   }
-}
+});

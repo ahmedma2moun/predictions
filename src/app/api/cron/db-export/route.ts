@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runExportJob } from '@/lib/export/job';
 import { verifyCronRequest } from '@/lib/cron-auth';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('cron.db-export.get', async function GET(req: NextRequest) {
   if (!(await verifyCronRequest(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -17,4 +18,4 @@ export async function GET(req: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

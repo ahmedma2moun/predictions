@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getTeamForm, type TeamFormMatch } from '@/lib/team-form';
 import { MatchRepository } from '@/lib/repositories/match-repository';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 // Re-export the type so existing consumers keep working
 export type { TeamFormMatch };
 
-export async function GET(
+export const GET = withApiLogging('matches.[matchId].form.get', async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> }
 ) {
@@ -30,4 +31,4 @@ export async function GET(
   } catch {
     return NextResponse.json({ error: 'Failed to fetch recent form' }, { status: 502 });
   }
-}
+});

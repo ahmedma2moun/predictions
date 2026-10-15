@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET() {
+export const GET = withApiLogging('health.get', async function GET() {
   return NextResponse.json({ status: 'ok', timestamp: new Date().toISOString() });
-}
+});

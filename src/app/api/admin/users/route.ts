@@ -3,16 +3,17 @@ import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { UserService } from '@/lib/services/user-service';
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET() {
+export const GET = withApiLogging('admin.users.get', async function GET() {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const users = await UserService.getAllUsers();
   return NextResponse.json(users.map(u => ({ ...u, _id: u.id.toString() })));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('admin.users.post', async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -28,9 +29,9 @@ export async function POST(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructure to strip password from the response
   const { password: _, ...userObj } = user;
   return NextResponse.json({ ...userObj, _id: user.id.toString() });
-}
+});
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withApiLogging('admin.users.patch', async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -48,4 +49,4 @@ export async function PATCH(req: NextRequest) {
 
   const user = await UserService.updateUser(Number(id), data);
   return NextResponse.json({ ...user, _id: user.id.toString() });
-}
+});

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { SeasonService } from '@/lib/services/season-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('mobile.seasons.get', async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -18,4 +19,4 @@ export async function GET(req: NextRequest) {
       endedAt: s.endedAt,
     })),
   );
-}
+});

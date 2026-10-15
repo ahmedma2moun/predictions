@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DeviceTokenService } from '@/lib/services/device-service';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { safeParseBody } from '@/lib/request';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('mobile.devices.post', async function POST(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -22,9 +23,9 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ success: true });
-}
+});
 
-export async function DELETE(req: NextRequest) {
+export const DELETE = withApiLogging('mobile.devices.delete', async function DELETE(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -40,4 +41,4 @@ export async function DELETE(req: NextRequest) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

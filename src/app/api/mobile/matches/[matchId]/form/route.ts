@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { getTeamForm } from '@/lib/team-form';
 import { MatchRepository } from '@/lib/repositories/match-repository';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(
+export const GET = withApiLogging('mobile.matches.[matchId].form.get', async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
@@ -27,4 +28,4 @@ export async function GET(
   } catch {
     return NextResponse.json({ error: 'Failed to fetch recent form' }, { status: 502 });
   }
-}
+});

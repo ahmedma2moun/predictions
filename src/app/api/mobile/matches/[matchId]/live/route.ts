@@ -3,8 +3,9 @@ import { getMobileSession } from '@/lib/mobile-auth';
 import { getMatchById } from '@/lib/services/match-service';
 import { fetchFixtureById, mapFixtureStatus } from '@/lib/football/service';
 import { getLivePredictionPoints } from '@/lib/services/live-standing-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(
+export const GET = withApiLogging('mobile.matches.[matchId].live.get', async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
@@ -34,4 +35,4 @@ export async function GET(
     : null;
 
   return NextResponse.json({ status, homeScore, awayScore, livePoints, events: fixture.events });
-}
+});

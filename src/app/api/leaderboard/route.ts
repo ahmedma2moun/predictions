@@ -3,8 +3,9 @@ import { auth } from '@/lib/auth';
 import { getLeaderboard } from '@/lib/services/leaderboard-service';
 import { SeasonService } from '@/lib/services/season-service';
 import { parseLeaderboardQuery } from '@/lib/query-params';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('leaderboard.get', async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -44,4 +45,4 @@ export async function GET(req: NextRequest) {
       'X-Season-Id':     activeSeason.id.toString(),
     }},
   );
-}
+});

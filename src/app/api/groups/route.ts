@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth, getSessionUser } from '@/lib/auth';
 import { getUserGroups } from '@/lib/services/group-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET() {
+export const GET = withApiLogging('groups.get', async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -14,4 +15,4 @@ export async function GET() {
   return NextResponse.json(groups, {
     headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=120' },
   });
-}
+});

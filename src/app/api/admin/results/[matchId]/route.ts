@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { correctMatchResult } from '@/lib/results-processor';
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function PATCH(
+export const PATCH = withApiLogging('admin.results.[matchId].patch', async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
@@ -40,4 +41,4 @@ export async function PATCH(
     logger.error('[PATCH /api/admin/results/:id]', { error: e instanceof Error ? e.message : String(e) });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

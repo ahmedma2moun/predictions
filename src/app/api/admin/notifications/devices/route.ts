@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { DeviceTokenService } from '@/lib/services/device-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('admin.notifications.devices.get', async function GET(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -18,4 +19,4 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ count: tokens.length, tokens });
-}
+});

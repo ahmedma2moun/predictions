@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { GroupService } from '@/lib/services/group-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET() {
+export const GET = withApiLogging('admin.groups.get', async function GET() {
   const session = await auth();
   if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -17,9 +18,9 @@ export async function GET() {
     memberCount: g._count.members,
     createdAt: g.createdAt,
   })));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('admin.groups.post', async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -29,4 +30,4 @@ export async function POST(req: NextRequest) {
 
   const group = await GroupService.createGroup(name.trim());
   return NextResponse.json({ _id: group.id.toString(), ...group });
-}
+});

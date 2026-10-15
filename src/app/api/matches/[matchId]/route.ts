@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, getSessionUser } from '@/lib/auth';
 import { serializeMatch, serializeAdjacentMatch } from '@/models/Match';
 import { getMatchById } from '@/lib/services/match-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
+export const GET = withApiLogging('matches.[matchId].get', async function GET(_req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -37,4 +38,4 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     prevMatch: serializeAdjacentMatch(prevMatch),
     nextMatch: serializeAdjacentMatch(nextMatch),
   });
-}
+});

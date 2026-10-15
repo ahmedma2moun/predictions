@@ -4,13 +4,14 @@ import { UserService } from '@/lib/services/user-service';
 import { signMobileJwt } from '@/lib/mobile-auth';
 import { safeParseBody } from '@/lib/request';
 import { rateLimit } from '@/lib/rate-limit';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 const limiter = rateLimit({
   interval: 60 * 1000, // 60 seconds
   uniqueTokenPerInterval: 500,
 });
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('mobile.auth.login.post', async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
     await limiter.check(5, ip);
@@ -53,4 +54,4 @@ export async function POST(req: NextRequest) {
       role: user.role,
     },
   });
-}
+});

@@ -11,8 +11,8 @@ import {
 import { safeParseBody } from '@/lib/request';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { getAdminMatches } from '@/lib/services/match-service';
-import { withErrorHandling } from '@/lib/api-handler';
 import { requireOneOf } from '@/lib/validation';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 const MATCH_ACTIONS = ['create-custom', 'fetch-results', 'fetch-next-month', 'fetch', 'fetch-selective'] as const;
 
@@ -31,7 +31,7 @@ interface DeleteMatchesBody {
   ids?: unknown;
 }
 
-export const GET = withErrorHandling('admin/matches GET', async (req: NextRequest) => {
+export const GET = withApiLogging('admin/matches GET', async (req: NextRequest) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -49,7 +49,7 @@ export const GET = withErrorHandling('admin/matches GET', async (req: NextReques
   return NextResponse.json({ matches: serialized, total, page });
 });
 
-export const POST = withErrorHandling('admin/matches POST', async (req: NextRequest) => {
+export const POST = withApiLogging('admin/matches POST', async (req: NextRequest) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -92,7 +92,7 @@ export const POST = withErrorHandling('admin/matches POST', async (req: NextRequ
   }
 });
 
-export const DELETE = withErrorHandling('admin/matches DELETE', async (req: NextRequest) => {
+export const DELETE = withApiLogging('admin/matches DELETE', async (req: NextRequest) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

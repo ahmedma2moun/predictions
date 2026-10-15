@@ -9,8 +9,9 @@ import { getTeamForm } from '@/lib/team-form';
 import { fetchFixtureById, mapFixtureStatus } from '@/lib/football/service';
 import { getUserGroups } from '@/lib/services/group-service';
 import { getGroupPredictionsForMatch } from '@/lib/services/prediction-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
+export const GET = withApiLogging('mobile.admin.upcoming.[matchId].get', async function GET(req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const id = Number((await params).matchId);
@@ -50,4 +51,4 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ matc
     groups: await getUserGroups(getSessionUser(session).id, true),
     predictions: allPredictions?.map(p => ({ ...p, scoringBreakdown: serializeBreakdown(p.rawBreakdown), rawBreakdown: undefined })) ?? [],
   });
-}
+});

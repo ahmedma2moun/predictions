@@ -3,8 +3,9 @@ import { auth } from '@/lib/admin-auth';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { serializeMatchForMobile } from '@/models/Match';
 import { getStandingsMap, standingKey } from '@/lib/standings';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET() {
+export const GET = withApiLogging('mobile.admin.upcoming.get', async function GET() {
   if (!await auth()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const matches = await MatchRepository.findMany({
     where: { predictionsEnabled: true, status: { in: ['scheduled', 'live'] } },
@@ -20,4 +21,4 @@ export async function GET() {
     homeStanding: standings.get(standingKey(match.homeTeamExtId, match.externalLeagueId)) ?? null,
     awayStanding: standings.get(standingKey(match.awayTeamExtId, match.externalLeagueId)) ?? null,
   })));
-}
+});

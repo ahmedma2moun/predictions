@@ -7,8 +7,9 @@ import { getMatchById } from '@/lib/services/match-service';
 import { serializeBreakdown } from '@/models/Prediction';
 import { NotFoundError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(
+export const GET = withApiLogging('mobile.matches.[matchId].get', async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
@@ -50,9 +51,9 @@ export async function GET(
     prevMatch: serializeAdjacentMatch(prevMatch),
     nextMatch: serializeAdjacentMatch(nextMatch),
   });
-}
+});
 
-export async function PATCH(
+export const PATCH = withApiLogging('mobile.matches.[matchId].patch', async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
@@ -82,4 +83,4 @@ export async function PATCH(
     logger.error('[PATCH /api/mobile/matches/:id]', { error: e instanceof Error ? e.message : String(e) });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

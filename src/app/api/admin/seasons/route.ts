@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { SeasonService } from '@/lib/services/season-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET() {
+export const GET = withApiLogging('admin.seasons.get', async function GET() {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -10,9 +11,9 @@ export async function GET() {
 
   const seasons = await SeasonService.getAllSeasons();
   return NextResponse.json(seasons.map(s => ({ ...s, id: s.id.toString() })));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('admin.seasons.post', async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -35,4 +36,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ ...season, id: season.id.toString() }, { status: 201 });
-}
+});

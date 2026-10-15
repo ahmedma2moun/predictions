@@ -7,8 +7,9 @@ import { verifyCronRequest } from '@/lib/cron-auth';
 import { logger } from '@/lib/logger';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('cron.daily-reminder.get', async function GET(req: NextRequest) {
   if (!(await verifyCronRequest(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -143,4 +144,4 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json(summary);
-}
+});

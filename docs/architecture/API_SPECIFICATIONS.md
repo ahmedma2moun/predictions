@@ -14,7 +14,7 @@
 
 ---
 
-**Response header**: routes wrapped by `withApiLogging` (currently the prediction, group-predictions, prediction stats/slip and leaderboard user-predictions routes, web and mobile) add `x-request-id` to every response. A request's own `x-request-id` header is reused if present, otherwise a UUID is generated. Response bodies are unchanged.
+**Response header**: every API route is wrapped by `withApiLogging` and adds `x-request-id` to its response (skipped only where the framework returns immutable headers). A request's own `x-request-id` header is reused if present, otherwise a UUID is generated. Response bodies are unchanged.
 
 ---
 

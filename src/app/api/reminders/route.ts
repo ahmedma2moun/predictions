@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, getSessionUser } from '@/lib/auth';
 import { getReminderLeagues, getUserReminderPreferences, saveUserReminderPreferences } from '@/lib/services/reminder-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET() {
+export const GET = withApiLogging('reminders.get', async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = getSessionUser(session);
   return NextResponse.json({ leagues: await getReminderLeagues(), selections: await getUserReminderPreferences(id) });
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withApiLogging('reminders.put', async function PUT(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   let body: unknown;
@@ -21,4 +22,4 @@ export async function PUT(req: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid selections' }, { status: 400 });
   }
-}
+});

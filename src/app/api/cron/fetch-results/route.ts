@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { processMatchResults } from '@/lib/results-processor';
 import { logger } from '@/lib/logger';
 import { verifyCronRequest } from '@/lib/cron-auth';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('cron.fetch-results.get', async function GET(req: NextRequest) {
   if (!verifyCronRequest(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -14,4 +15,4 @@ export async function GET(req: NextRequest) {
   logger.info('[cron/fetch-results] Done —', JSON.parse(JSON.stringify(result)));
 
   return NextResponse.json(result);
-}
+});

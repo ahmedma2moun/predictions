@@ -98,7 +98,7 @@ All secrets injected at build/runtime via environment variables. Never committed
 
 ## API logging and what is never logged
 
-`withApiLogging` records user `id`/`name`/`role`, path, request/response bodies and status. Never logged: `Authorization`/`Cookie` headers and user emails. Before sending, the values of `password`, `currentPassword`, `newPassword`, `token`, `accessToken`, `refreshToken`, `fcmToken`, `secret` and `authorization` are replaced with `[REDACTED]` at any depth (also in urlencoded bodies), and bodies are capped at 16 KB. Open decision: whether to mask email addresses in admin user bodies (relevant when admin routes are wrapped in PR 2).
+`withApiLogging` records user `id`/`name`/`role`, path, request/response bodies and status. Never logged: `Authorization`/`Cookie` headers and user emails. Before sending, the values of `password`, `currentPassword`, `newPassword`, `token`, `accessToken`, `refreshToken`, `fcmToken`, `secret` and `authorization` are replaced with `[REDACTED]` at any depth (also in urlencoded bodies), and bodies are capped at 16 KB. This now covers login, mobile auth, admin and cron routes. Open decision: email addresses in admin user create/edit bodies are currently logged unmasked.
 
 ## Native app token storage
 

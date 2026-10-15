@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { GroupService } from '@/lib/services/group-service';
-import { withErrorHandling } from '@/lib/api-handler';
 import { requireOneOf } from '@/lib/validation';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 type Params = { params: Promise<{ id: string }> };
 
 // GET /api/admin/groups/[id] — full group detail with members
-export const GET = withErrorHandling('admin/groups/[id] GET', async (_req: NextRequest, { params }: Params) => {
+export const GET = withApiLogging('admin/groups/[id] GET', async (_req: NextRequest, { params }: Params) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -33,7 +33,7 @@ export const GET = withErrorHandling('admin/groups/[id] GET', async (_req: NextR
 // Body options:
 //   { name: string }
 //   { action: 'add-member' | 'remove-member', userId: number }
-export const PATCH = withErrorHandling('admin/groups/[id] PATCH', async (req: NextRequest, { params }: Params) => {
+export const PATCH = withApiLogging('admin/groups/[id] PATCH', async (req: NextRequest, { params }: Params) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -66,7 +66,7 @@ export const PATCH = withErrorHandling('admin/groups/[id] PATCH', async (req: Ne
 });
 
 // DELETE /api/admin/groups/[id] — delete a non-default group
-export const DELETE = withErrorHandling('admin/groups/[id] DELETE', async (_req: NextRequest, { params }: Params) => {
+export const DELETE = withApiLogging('admin/groups/[id] DELETE', async (_req: NextRequest, { params }: Params) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

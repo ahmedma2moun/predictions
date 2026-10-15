@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { MatchRepository } from '@/lib/repositories/match-repository';
-import { withErrorHandling } from '@/lib/api-handler';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 /**
  * Matches eligible for the live-goal test-tick picker (admin/notifications page) —
@@ -9,7 +9,7 @@ import { withErrorHandling } from '@/lib/api-handler';
  * list is paginated/sorted by kickoffTime and can easily bury or exclude them
  * behind custom (externalId-less) matches on the first page.
  */
-export const GET = withErrorHandling('admin/live-goals/matches GET', async () => {
+export const GET = withApiLogging('admin/live-goals/matches GET', async () => {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

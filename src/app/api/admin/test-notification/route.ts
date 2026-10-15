@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { DeviceTokenService } from '@/lib/services/device-service';
 import { sendPushToUsers } from '@/lib/fcm';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('admin.test-notification.post', async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -61,4 +62,4 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Failed to send push' }, { status: 500 });
   }
-}
+});

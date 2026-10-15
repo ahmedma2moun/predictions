@@ -8,8 +8,9 @@ import { lockMatchOdds, deriveOutcome, calcFinalScore, type OddsConfig } from '@
 import { ODDS_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { updateUserStreaks } from '@/lib/services/streak-badge-service';
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function POST(
+export const POST = withApiLogging('admin.results.[matchId].calculate.post', async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
@@ -94,4 +95,4 @@ export async function POST(
   await updateUserStreaks(preds.map(p => p.userId));
 
   return NextResponse.json({ scored: scored.length, predictions: scored });
-}
+});

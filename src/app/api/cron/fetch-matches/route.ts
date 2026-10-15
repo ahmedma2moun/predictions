@@ -3,8 +3,9 @@ import { fetchAndInsertMatches, buildReminderOnlyNotices, getWeeklyFetchWindow }
 import { logger } from '@/lib/logger';
 import { sendFetchMatchesCronEmail } from '@/lib/email';
 import { verifyCronRequest } from '@/lib/cron-auth';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('cron.fetch-matches.get', async function GET(req: NextRequest) {
   if (!(await verifyCronRequest(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -31,4 +32,4 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json(summary);
-}
+});

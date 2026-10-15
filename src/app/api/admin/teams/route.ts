@@ -4,8 +4,9 @@ import { TeamLeagueRepository } from '@/lib/repositories/team-league-repository'
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { fetchTeams, type APITeam } from '@/lib/football/service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('admin.teams.get', async function GET(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -15,9 +16,9 @@ export async function GET(req: NextRequest) {
 
   const teams = await TeamService.getByLeagueId(Number(leagueId));
   return NextResponse.json(teams.map(t => ({ ...t, _id: t.id.toString(), leagueId: t.leagueId.toString() })));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('admin.teams.post', async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -48,9 +49,9 @@ export async function POST(req: NextRequest) {
   }));
 
   return NextResponse.json(result);
-}
+});
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withApiLogging('admin.teams.patch', async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -84,4 +85,4 @@ export async function PATCH(req: NextRequest) {
     await TeamService.deactivateInLeague(externalId, Number(leagueId));
     return NextResponse.json({ success: true });
   }
-}
+});

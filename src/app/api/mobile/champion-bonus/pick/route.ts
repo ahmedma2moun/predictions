@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { ChampionBonusService } from '@/lib/services/champion-bonus-service';
 import { safeParseBody } from '@/lib/request';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('mobile.champion-bonus.pick.post', async function POST(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -17,4 +18,4 @@ export async function POST(req: NextRequest) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 
   return NextResponse.json({ success: true, teamId: result.teamId.toString() });
-}
+});

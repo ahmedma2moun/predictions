@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getLiveGroupStanding } from '@/lib/services/live-standing-service';
 import { SeasonService } from '@/lib/services/season-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('leaderboard.live.get', async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -55,4 +56,4 @@ export async function GET(req: NextRequest) {
       'X-Season-Id':     activeSeason.id.toString(),
     }},
   );
-}
+});

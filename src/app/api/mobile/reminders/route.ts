@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMobileSession } from '@/lib/mobile-auth';
 import { getReminderLeagues, getUserReminderPreferences, saveUserReminderPreferences } from '@/lib/services/reminder-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('mobile.reminders.get', async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const userId = Number(session.id);
   return NextResponse.json({ leagues: await getReminderLeagues(), selections: await getUserReminderPreferences(userId) });
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withApiLogging('mobile.reminders.put', async function PUT(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
@@ -18,4 +19,4 @@ export async function PUT(req: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid selections' }, { status: 400 });
   }
-}
+});

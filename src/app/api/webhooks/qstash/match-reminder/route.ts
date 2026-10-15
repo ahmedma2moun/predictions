@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQStashReceiver } from '@/lib/qstash';
 import { sendMatchKickoffReminder } from '@/lib/match-reminder-service';
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 interface MatchReminderBody {
   externalId: number;
@@ -10,7 +11,7 @@ interface MatchReminderBody {
 
 // Same signature-verification auth as /api/webhooks/qstash/live-goals —
 // one-shot, no chain (unlike live-goals, this never re-arms itself).
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('webhooks.qstash.match-reminder.post', async function POST(req: NextRequest) {
   const body = await req.text();
   const signature = req.headers.get('upstash-signature') ?? '';
 
@@ -33,4 +34,4 @@ export async function POST(req: NextRequest) {
 
   if (!result) return NextResponse.json({ error: 'Reminder processing failed' }, { status: 500 });
   return NextResponse.json({ ok: true, ...result });
-}
+});

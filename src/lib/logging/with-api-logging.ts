@@ -1,23 +1,37 @@
 import { after, NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { getMobileSession } from '@/lib/mobile-auth';
+import { verifyAdminToken } from '@/lib/admin-mobile-token';
 import { withErrorHandling } from '@/lib/api-handler';
 import { logger } from '@/lib/logger';
 import { flushLogs } from '@/lib/logging/transport';
 import { sanitizeBody } from '@/lib/logging/redact';
 
-type LoggedHandler<Args extends unknown[]> = (req: NextRequest, ...rest: Args) => Promise<NextResponse>;
+type LoggedHandler<Args extends unknown[]> = (req: NextRequest, ...rest: Args) => Promise<Response>;
+
+// Machine-to-machine routes have no user session to resolve.
+const SYSTEM_PREFIXES = ['/api/cron/', '/api/webhooks/', '/api/health'];
+const NO_USER_PREFIXES = [...SYSTEM_PREFIXES, '/api/auth/'];
 
 const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 interface LogUser { id: string; name: string | null; role: string | null }
 
 async function resolveUser(req: NextRequest, mobile: boolean): Promise<LogUser | null> {
+  const path = req.nextUrl.pathname;
+  if (NO_USER_PREFIXES.some(p => path.startsWith(p))) return null;
   try {
+    // Native admin apps use a dedicated token, not the regular mobile JWT.
+    const bearer = req.headers.get('authorization');
+    if ((path.startsWith('/api/admin/') || path.startsWith('/api/mobile/admin/')) && bearer?.startsWith('Bearer ')) {
+      const id = await verifyAdminToken(bearer.slice(7));
+      return id ? { id: String(id), name: null, role: 'admin' } : null;
+    }
     if (mobile) {
       const s = await getMobileSession(req);
       return s ? { id: String(s.id), name: s.name ?? null, role: s.role ?? null } : null;
     }
+    // Lazy: next-auth is only needed for web-session routes and is heavy to load.
+    const { auth } = await import('@/lib/auth');
     const s = await auth();
     const u = s?.user as { id?: string; name?: string | null; role?: string } | undefined;
     return u?.id ? { id: String(u.id), name: u.name ?? null, role: u.role ?? null } : null;
@@ -50,12 +64,14 @@ export function withApiLogging<Args extends unknown[]>(
   return async (req, ...rest) => {
     const started = performance.now();
     const requestId = req.headers.get('x-request-id') || crypto.randomUUID();
-    const mobile = req.nextUrl.pathname.startsWith('/api/mobile/');
+    const path = req.nextUrl.pathname;
+    const mobile = path.startsWith('/api/mobile/');
+    const platform = SYSTEM_PREFIXES.some(p => path.startsWith(p)) ? 'system' : mobile ? 'mobile' : 'web';
     const requestText = BODY_METHODS.has(req.method) ? await readText(req) : '';
 
     let caught: unknown;
     const safe = withErrorHandling(routeName, handler as (...a: unknown[]) => Promise<NextResponse>, e => { caught = e; });
-    const res = await safe(req, ...rest);
+    const res: Response = await safe(req, ...rest);
 
     try {
       const [user, responseText] = await Promise.all([resolveUser(req, mobile), readText(res)]);
@@ -66,7 +82,7 @@ export function withApiLogging<Args extends unknown[]>(
         requestId,
         route: routeName,
         user,
-        platform: mobile ? 'mobile' : 'web',
+        platform,
         method: req.method,
         path: req.nextUrl.pathname,
         query: req.nextUrl.search.replace(/^\?/, ''),
@@ -89,7 +105,7 @@ export function withApiLogging<Args extends unknown[]>(
     }
 
     scheduleFlush();
-    res.headers.set('x-request-id', requestId);
+    try { res.headers.set('x-request-id', requestId); } catch { /* immutable headers (e.g. Response.redirect) */ }
     return res;
   };
 }

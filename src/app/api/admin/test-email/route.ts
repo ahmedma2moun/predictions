@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { sendNewMatchesEmail, sendResultsEmail } from '@/lib/email';
 import { MatchRepository } from '@/lib/repositories/match-repository';
-import { withErrorHandling } from '@/lib/api-handler';
 import { requireOneOf } from '@/lib/validation';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export const POST = withErrorHandling('admin/test-email POST', async (req: NextRequest) => {
+export const POST = withApiLogging('admin/test-email POST', async (req: NextRequest) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

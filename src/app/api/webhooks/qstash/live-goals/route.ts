@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQStashReceiver } from '@/lib/qstash';
 import { processLiveGoalTick } from '@/lib/live-goal-service';
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 interface LiveGoalTickBody {
   matchId: number;
@@ -12,7 +13,7 @@ interface LiveGoalTickBody {
 // against QSTASH_CURRENT_SIGNING_KEY/QSTASH_NEXT_SIGNING_KEY) — distinct from
 // the CRON_SECRET/TRIGGER_SECRET bearer-token pattern used by /api/cron/*,
 // which is why this route lives under /api/webhooks instead.
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('webhooks.qstash.live-goals.post', async function POST(req: NextRequest) {
   const body = await req.text();
   const signature = req.headers.get('upstash-signature') ?? '';
 
@@ -38,4 +39,4 @@ export async function POST(req: NextRequest) {
 
   if (!result) return NextResponse.json({ error: 'Tick processing failed' }, { status: 500 });
   return NextResponse.json({ ok: true, ...result });
-}
+});

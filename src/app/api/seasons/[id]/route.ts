@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { SeasonService } from '@/lib/services/season-service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withApiLogging('seasons.[id].get', async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -20,4 +21,4 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       userId: s.userId.toString(),
     })),
   });
-}
+});

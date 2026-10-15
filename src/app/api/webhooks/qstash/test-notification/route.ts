@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQStashReceiver } from '@/lib/qstash';
 import { sendScheduledTestNotification } from '@/lib/qstash-test-notification';
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 interface TestNotificationBody {
   userId: number;
@@ -9,7 +10,7 @@ interface TestNotificationBody {
 
 // Same signature-verification auth as /api/webhooks/qstash/live-goals, but
 // otherwise fully independent — no Match lookups, no chain, one-shot.
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('webhooks.qstash.test-notification.post', async function POST(req: NextRequest) {
   const body = await req.text();
   const signature = req.headers.get('upstash-signature') ?? '';
 
@@ -36,4 +37,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
-}
+});

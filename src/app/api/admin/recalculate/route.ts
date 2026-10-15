@@ -5,8 +5,9 @@ import { recalculateAllScores } from '@/lib/services/prediction-service';
 import { SeasonService } from '@/lib/services/season-service';
 import { ChampionBonusService } from '@/lib/services/champion-bonus-service';
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function POST() {
+export const POST = withApiLogging('admin.recalculate.post', async function POST() {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -23,4 +24,4 @@ export async function POST() {
   }
 
   return NextResponse.json({ updated });
-}
+});

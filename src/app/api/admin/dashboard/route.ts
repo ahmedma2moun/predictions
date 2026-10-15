@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET() {
+export const GET = withApiLogging('admin.dashboard.get', async function GET() {
   if (!(await auth())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
@@ -12,4 +13,4 @@ export async function GET() {
     prisma.prediction.count({ where: { createdAt: { gte: today } } }),
   ]);
   return NextResponse.json({ totalUsers, activeLeagues, upcomingMatches, predictionsToday });
-}
+});

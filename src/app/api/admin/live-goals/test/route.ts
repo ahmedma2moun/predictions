@@ -3,13 +3,13 @@ import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { triggerLiveGoalTestTick } from '@/lib/live-goal-service';
 import { safeParseBody } from '@/lib/request';
-import { withErrorHandling } from '@/lib/api-handler';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 interface TestTickBody {
   matchId: unknown;
 }
 
-export const POST = withErrorHandling('admin/live-goals/test POST', async (req: NextRequest) => {
+export const POST = withApiLogging('admin/live-goals/test POST', async (req: NextRequest) => {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

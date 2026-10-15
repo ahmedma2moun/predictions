@@ -19,6 +19,7 @@ const match = {
   homeTeamName: 'Home', awayTeamName: 'Away', kickoffTime: new Date('2026-09-12T18:00:00Z'),
   status: 'scheduled', league: { name: 'Premier League' }, season: null,
 };
+const listRequest = () => list(new NextRequest('https://example.com/api/mobile/admin/upcoming'));
 const request = (id = '247', query = '') => detail(new NextRequest(`https://example.com/api/mobile/admin/upcoming/${id}${query}`), { params: Promise.resolve({ matchId: id }) });
 beforeEach(() => {
   vi.resetAllMocks();
@@ -30,13 +31,13 @@ beforeEach(() => {
 });
 it('requires admin authentication before reading either endpoint', async () => {
   mocks.auth.mockResolvedValue(null);
-  expect((await list()).status).toBe(401);
+  expect((await listRequest()).status).toBe(401);
   expect((await request()).status).toBe(401);
   expect(mocks.findMany).not.toHaveBeenCalled();
   expect(mocks.detail).not.toHaveBeenCalled();
 });
 it('uses the standalone web filter, chronological ordering and no historical limit', async () => {
-  const response = await list();
+  const response = await listRequest();
   expect(mocks.findMany.mock.calls[0][0]).toMatchObject({
     where: { predictionsEnabled: true, status: { in: ['scheduled', 'live'] } }, orderBy: { kickoffTime: 'asc' },
   });

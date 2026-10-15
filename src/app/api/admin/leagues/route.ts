@@ -3,16 +3,17 @@ import { TeamService } from '@/lib/services/team-service';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, isSessionAdmin } from '@/lib/admin-auth';
 import { fetchLeagues, type APILeague } from '@/lib/football/service';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET() {
+export const GET = withApiLogging('admin.leagues.get', async function GET() {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const leagues = await LeagueService.getAll({ orderBy: { name: 'asc' } });
   return NextResponse.json(leagues.map(l => ({ ...l, _id: l.id.toString() })));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('admin.leagues.post', async function POST(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -44,9 +45,9 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
-}
+});
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withApiLogging('admin.leagues.patch', async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session || !isSessionAdmin(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -68,4 +69,4 @@ export async function PATCH(req: NextRequest) {
     }
     return NextResponse.json({ success: true });
   }
-}
+});

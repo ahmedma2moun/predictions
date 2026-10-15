@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getQStashReceiver } from '@/lib/qstash';
 import { refreshReminderFixtures } from '@/lib/reminder-fixture-refresh';
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('webhooks.qstash.reminder-fixtures.post', async function POST(req: NextRequest) {
   const body = await req.text();
   const signature = req.headers.get('upstash-signature') ?? '';
   const valid = await getQStashReceiver().verify({ signature, body }).catch(() => false);
@@ -27,4 +28,4 @@ export async function POST(req: NextRequest) {
     // after insertion; the processor also schedules already-existing fixtures.
     return NextResponse.json({ error: 'Reminder fixture refresh failed' }, { status: 500 });
   }
-}
+});

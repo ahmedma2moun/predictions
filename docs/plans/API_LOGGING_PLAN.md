@@ -1,6 +1,6 @@
 # API Logging Plan (Axiom)
 
-**Status:** PR 1 (prediction APIs) implemented; PR 2 and 3 planned. Optional `AXIOM_URL` env var added for the EU region.
+**Status:** PR 1 (prediction APIs) and PR 2 (all other API routes) implemented; PR 3 (dashboards) planned. Optional `AXIOM_URL` env var added for the EU region.
 **Goal:** Keep API logs for at least 7 days in a free service outside Vercel. Log the **user**, **API path**, **request body** and **response** for every call, starting with the prediction APIs.
 
 ---

@@ -4,10 +4,11 @@ import { UserService } from '@/lib/services/user-service';
 import { signAdminToken } from '@/lib/admin-mobile-token';
 import { safeParseBody } from '@/lib/request';
 import { rateLimit } from '@/lib/rate-limit';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 const limiter = rateLimit({ interval: 60_000, uniqueTokenPerInterval: 500 });
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('mobile.admin.auth.login.post', async function POST(req: NextRequest) {
   try {
     await limiter.check(5, req.headers.get('x-forwarded-for') ?? '127.0.0.1');
   } catch {
@@ -28,4 +29,4 @@ export async function POST(req: NextRequest) {
     token: await signAdminToken(user.id),
     user: { id: String(user.id), name: user.name, email: user.email, role: user.role },
   }, { headers: { 'Cache-Control': 'no-store' } });
-}
+});
