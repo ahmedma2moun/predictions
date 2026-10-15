@@ -36,10 +36,17 @@ describe('transport', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('keeps plain messages without an event field out of Axiom', async () => {
+    process.env.AXIOM_TOKEN = 'xaat-test';
+    logger.info('[thesportsdb] GET /lookupleague.php');
+    await flushLogs();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('posts a batch to Axiom with the token when set', async () => {
     process.env.AXIOM_TOKEN = 'xaat-test';
     process.env.AXIOM_DATASET = 'predictions-api';
-    logger.info('hello');
+    logger.info('api.request', { event: 'api.request' });
     await flushLogs();
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0];
@@ -51,7 +58,7 @@ describe('transport', () => {
     process.env.AXIOM_TOKEN = 'xaat-test';
     process.env.AXIOM_DATASET = 'prediction-api';
     process.env.AXIOM_URL = 'https://eu-central-1.aws.edge.axiom.co/v1/ingest/prediction-api';
-    logger.info('hello');
+    logger.info('api.request', { event: 'api.request' });
     await flushLogs();
     delete process.env.AXIOM_URL;
     expect(fetchMock.mock.calls[0][0]).toBe('https://eu-central-1.aws.edge.axiom.co/v1/ingest/prediction-api');
@@ -60,7 +67,7 @@ describe('transport', () => {
   it('reports a failed send to console only', async () => {
     process.env.AXIOM_TOKEN = 'xaat-test';
     fetchMock.mockRejectedValueOnce(new Error('down'));
-    logger.info('hello');
+    logger.info('api.request', { event: 'api.request' });
     await expect(flushLogs()).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledOnce();
   });
