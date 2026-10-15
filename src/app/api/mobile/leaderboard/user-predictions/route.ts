@@ -3,11 +3,12 @@ import { getMobileSession } from '@/lib/mobile-auth';
 import { getUserPredictionHistory } from '@/lib/services/prediction-service';
 import { SeasonService } from '@/lib/services/season-service';
 import { parseLeaderboardQuery } from '@/lib/query-params';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 type RuleRow = { key?: string; ruleId?: number; ruleName: string; pointsAwarded: number; matched: boolean };
 type OddsBonus = { outcomeOdds: number; baseScore: number; finalScore: number };
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('mobile.leaderboard.user-predictions', async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -39,4 +40,4 @@ export async function GET(req: NextRequest) {
       rawBreakdown: undefined,
     };
   }));
-}
+});

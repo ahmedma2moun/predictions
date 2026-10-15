@@ -1,4 +1,5 @@
 import { gameRoute } from '@/lib/game/routes';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export const GET = gameRoute(false, 'slip');
-export const POST = gameRoute(false, 'slip', true);
+export const GET = withApiLogging('predictions.slip.get', gameRoute(false, 'slip'));
+export const POST = withApiLogging('predictions.slip.post', gameRoute(false, 'slip', true));

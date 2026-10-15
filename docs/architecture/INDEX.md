@@ -61,6 +61,7 @@ Mobile app (React Native / Expo) → /api/mobile/* → lib/services/* → Postgr
 | Score prediction lock | Server + client side | Prevents race conditions around kickoff |
 | Scoring tiers | Exclusive (exact > diff > one_team) | Prevents double-counting overlapping rules |
 | Email | Nodemailer + Gmail | Zero-cost transactional emails for a small group |
+| API logging | Axiom via `withApiLogging` + `logger` transport | 30-day free retention outside Vercel; one `fetch`, no SDK (ADR-19) |
 | DB backup | Daily JSON export via cron | Guards against accidental data loss |
 | Mobile clients | Native SwiftUI + Jetpack Compose (`native/`) | Faster CI, native UX; parity enforced by fixtures, generated tokens and a CI guard (ADR-18) |
 | API architecture | Service layer (`lib/services/`) → repository layer (`lib/repositories/`) | Web and mobile routes share one query implementation; only auth and serialization differ |

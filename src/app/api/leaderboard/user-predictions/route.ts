@@ -3,11 +3,12 @@ import { auth } from '@/lib/auth';
 import { getUserPredictionHistory } from '@/lib/services/prediction-service';
 import { SeasonService } from '@/lib/services/season-service';
 import { parseLeaderboardQuery } from '@/lib/query-params';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
 type RuleBreakdown = { ruleName: string; pointsAwarded: number; matched: boolean };
 type OddsBonus = { outcomeOdds: number; baseScore: number; finalScore: number };
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('leaderboard.user-predictions', async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -38,4 +39,4 @@ export async function GET(req: NextRequest) {
       rawBreakdown: undefined,
     };
   }));
-}
+});

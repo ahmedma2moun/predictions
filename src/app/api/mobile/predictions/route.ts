@@ -3,9 +3,11 @@ import { getMobileSession } from '@/lib/mobile-auth';
 import { serializeMatchForMobile } from '@/models/Match';
 import { getUserPredictions, upsertPrediction } from '@/lib/services/prediction-service';
 import { safeParseBody } from '@/lib/request';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
+import { logPredictionUpsert } from '@/lib/logging/prediction-events';
 import { serializeBreakdown } from '@/models/Prediction';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiLogging('predictions.get', async function GET(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -38,27 +40,40 @@ export async function GET(req: NextRequest) {
         : null,
     },
   })));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withApiLogging('predictions.post', async function POST(req: NextRequest) {
   const session = await getMobileSession(req);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await safeParseBody<any>(req);
-  if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  const loggedUserId = Number(session.id);
+  const body = await safeParseBody<{ matchId?: unknown; homeScore?: unknown; awayScore?: unknown }>(req);
+  if (!body) {
+    logPredictionUpsert({ platform: 'mobile', userId: loggedUserId, outcome: 'invalid_body' });
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
   const { matchId, homeScore, awayScore } = body;
 
   if (typeof homeScore !== 'number' || typeof awayScore !== 'number' || homeScore < 0 || awayScore < 0) {
+    logPredictionUpsert({ platform: 'mobile', userId: loggedUserId, body, outcome: 'invalid_scores' });
     return NextResponse.json({ error: 'Invalid scores' }, { status: 400 });
   }
 
   const userId = Number(session.id);
   const result = await upsertPrediction(userId, Number(matchId), homeScore, awayScore);
 
-  if (result.error) return NextResponse.json({ error: result.error }, { status: result.status });
+  if (result.error) {
+    logPredictionUpsert({
+      platform: 'mobile', userId, body,
+      outcome: result.status === 404 ? 'not_found' : result.status === 409 ? 'locked' : 'invalid_scores',
+      reason: result.lockReason, msToKickoff: result.msToKickoff,
+    });
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+  logPredictionUpsert({ platform: 'mobile', userId, body, outcome: 'ok' });
 
   return NextResponse.json({
     success: true,
     prediction: { ...result.prediction, id: result.prediction!.id.toString(), userId: result.prediction!.userId.toString() },
   });
-}
+});

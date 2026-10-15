@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, getSessionUser } from '@/lib/auth';
 import { getGroupPredictionsForMatch } from '@/lib/services/prediction-service';
 import { serializeBreakdown } from '@/models/Prediction';
+import { logGroupViewDenied } from '@/lib/logging/prediction-events';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(
+export const GET = withApiLogging('matches.group-predictions', async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
@@ -29,9 +31,12 @@ export async function GET(
       : null;
 
   const result = await getGroupPredictionsForMatch(Number(matchId), groupId, userId, isAdmin, liveResult);
-  if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
+  if ('error' in result) {
+    if (result.status === 403) logGroupViewDenied('web', userId, matchId, groupId, result.error);
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
 
   return NextResponse.json(
     result.entries.map(e => ({ ...e, scoringBreakdown: serializeBreakdown(e.scoringBreakdown) })),
   );
-}
+});

@@ -74,6 +74,7 @@ HttpOnly cookie set (secure in production)
 | NEXTAUTH_URL | Canonical app URL | .env.local / Vercel env |
 | FOOTBALL_API_KEY | football-data.org v4 API key | .env.local / Vercel env |
 | CRON_SECRET | Bearer token for cron endpoint auth (Vercel + manual/curl testing) | .env.local / Vercel env |
+| AXIOM_TOKEN | Axiom ingest-only token (scoped to the `predictions-api` dataset, write-only); logging is disabled when unset | .env.local / Vercel env |
 | TRIGGER_SECRET | Legacy bearer token, formerly used by cron-job.org; still accepted for manual triggering | .env.local / Vercel env |
 | QSTASH_URL | QStash API base URL (`https://qstash.upstash.io` in prod, local dev server URL otherwise) — not secret, but kept alongside the others | .env.local / Vercel env |
 | QSTASH_TOKEN | Publishes messages to QStash (live-goal chain scheduling) | .env.local / Vercel env |
@@ -94,6 +95,10 @@ All secrets injected at build/runtime via environment variables. Never committed
 - **Admin role**: `(session.user as any).role === 'admin'` checked inline in **every** admin API handler — layout-level checks alone are not sufficient
 - **Cron auth**: all cron handlers call `verifyCronRequest()` (`src/lib/cron-auth.ts`) before any work — accepts `Authorization: Bearer ${CRON_SECRET}`/`${TRIGGER_SECRET}`, the Vercel-internal cron header, or a QStash `Upstash-Signature` verified via `Receiver.verify()`. QStash Schedules (see `DEPLOYMENT_GUIDE.md`) are the primary trigger for `fetch-matches`, `daily-reminder`, and `db-export` — no shared secret sits in the schedule config, since the signature itself is the credential
 - **QStash webhook auth**: `/api/webhooks/qstash/live-goals` verifies the `Upstash-Signature` header via `Receiver.verify()` against `QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` before parsing the body — signature check happens on the raw request text, not the parsed JSON. Same verification helper is reused by `verifyCronRequest()` above
+
+## API logging and what is never logged
+
+`withApiLogging` records user `id`/`name`/`role`, path, request/response bodies and status. Never logged: `Authorization`/`Cookie` headers and user emails. Before sending, the values of `password`, `currentPassword`, `newPassword`, `token`, `accessToken`, `refreshToken`, `fcmToken`, `secret` and `authorization` are replaced with `[REDACTED]` at any depth (also in urlencoded bodies), and bodies are capped at 16 KB. Open decision: whether to mask email addresses in admin user bodies (relevant when admin routes are wrapped in PR 2).
 
 ## Native app token storage
 

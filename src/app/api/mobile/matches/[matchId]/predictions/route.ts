@@ -3,8 +3,9 @@ import { getMobileSession } from '@/lib/mobile-auth';
 import { isMatchLocked } from '@/lib/utils';
 import { MatchRepository } from '@/lib/repositories/match-repository';
 import { PredictionRepository } from '@/lib/repositories/prediction-repository';
+import { withApiLogging } from '@/lib/logging/with-api-logging';
 
-export async function GET(
+export const GET = withApiLogging('mobile.matches.predictions', async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> },
 ) {
@@ -37,4 +38,4 @@ export async function GET(
   }));
 
   return NextResponse.json(result);
-}
+});

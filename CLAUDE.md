@@ -31,7 +31,7 @@ A full-stack football match predictions app where friends predict scores and com
 - **Auth**: NextAuth JWT — `role` stored in token, propagated to session via `jwt` + `session` callbacks in `src/lib/auth.ts`
 - **Admin check**: `(session.user as any).role === 'admin'` must appear in EVERY admin API handler — layout-level checks alone are not sufficient
 - **Cron auth**: All cron handlers verify `Authorization: Bearer ${CRON_SECRET}` before any work
-- **Secrets**: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `MOBILE_JWT_SECRET`, `NEXTAUTH_URL`, `FOOTBALL_API_KEY`, `CRON_SECRET`, `TRIGGER_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD` — all via `.env.local`; never hard-coded
+- **Secrets**: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `MOBILE_JWT_SECRET`, `NEXTAUTH_URL`, `FOOTBALL_API_KEY`, `CRON_SECRET`, `TRIGGER_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `AXIOM_TOKEN` — all via `.env.local`; never hard-coded
 
 ## Architecture Quick Map
 | Path | Purpose |

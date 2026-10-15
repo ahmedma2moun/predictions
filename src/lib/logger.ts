@@ -1,6 +1,16 @@
 /* eslint-disable no-console -- this module is the sanctioned console wrapper */
+import { enqueue } from '@/lib/logging/transport';
+
+type Level = 'info' | 'warn' | 'error';
+
+function emit(level: Level, msg: string, ctx?: object) {
+  const entry = { level, msg, ts: new Date().toISOString(), ...ctx };
+  console[level === 'info' ? 'log' : level](JSON.stringify(entry));
+  enqueue(entry);
+}
+
 export const logger = {
-  info:  (msg: string, ctx?: object) => console.log(JSON.stringify({ level: 'info',  msg, ts: new Date().toISOString(), ...ctx })),
-  warn:  (msg: string, ctx?: object) => console.warn(JSON.stringify({ level: 'warn', msg, ts: new Date().toISOString(), ...ctx })),
-  error: (msg: string, ctx?: object) => console.error(JSON.stringify({ level: 'error', msg, ts: new Date().toISOString(), ...ctx })),
+  info:  (msg: string, ctx?: object) => emit('info', msg, ctx),
+  warn:  (msg: string, ctx?: object) => emit('warn', msg, ctx),
+  error: (msg: string, ctx?: object) => emit('error', msg, ctx),
 };

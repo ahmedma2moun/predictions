@@ -390,6 +390,12 @@ Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `s
 
 **Admin overview**: `GET /api/admin/reminders` (`ReminderService.getAllUserReminderSelections()`) lists every user and the teams they've selected for reminders. Surfaced as a "Reminders" tab/page on both the web admin (`src/app/(app)/admin/reminders/page.tsx`) and the native `ios-admin` app (`RemindersView` in `ios-admin/Sources/PeopleViews.swift`) — read-only; users manage their own selections at `/reminders`, admins toggle which teams are reminder-eligible at all via the existing `PATCH /api/admin/reminders` (`TeamLeague.reminderEnabled`, exposed on the admin Teams page).
 
+## API Logging (Axiom)
+
+`src/lib/logger.ts` still writes JSON lines to `console`, and additionally queues each entry in `src/lib/logging/transport.ts` when `AXIOM_TOKEN` is set (nothing is sent otherwise). `AxiomTransport` POSTs batches to `${AXIOM_URL:-https://api.axiom.co}/v1/datasets/${AXIOM_DATASET:-predictions-api}/ingest` (or `/v1/ingest/{dataset}` when `AXIOM_URL` is an `*.edge.axiom.co` host, e.g. the EU region); send failures go to `console` only, never back into the queue.
+
+`withApiLogging(routeName, handler)` (`src/lib/logging/with-api-logging.ts`) wraps `withErrorHandling` and emits one `api.request` event per call: `requestId`, `user` (`id`/`name`/`role`, never email), `platform`, `method`, `path`, `query`, `status`, `durationMs`, `requestBody`, `responseBody`, `truncated`, `error`. Bodies are read from clones, redacted (`src/lib/logging/redact.ts`), stored as JSON **strings** (not nested objects, to protect Axiom's column limit) and cut at 16 KB. The batch is flushed in `after()` so the response is not delayed. Wrapped so far: the prediction routes (web + mobile), group-predictions, prediction stats/slip, leaderboard user-predictions. Prediction routes also emit `prediction.upsert` (outcome `ok`/`invalid_body`/`invalid_scores`/`not_found`/`locked`, with lock `reason` and `msToKickoff`) and `prediction.group_view_denied` (`src/lib/logging/prediction-events.ts`). Remaining routes follow in PR 2; plan: `docs/plans/API_LOGGING_PLAN.md`.
+
 ## Technology Stack
 
 | Component | Package | Version | Purpose |
@@ -482,3 +488,8 @@ Key files: `src/lib/match-reminder-service.ts` (scheduling + reminder logic), `s
 **Decision**: Replace the Expo/React Native app with two plain native apps against the same `/api/mobile/*` API — no shared-code framework, no OpenAPI codegen. Parity is enforced by process and CI (mirrored structure, token generator, contract fixtures, parity matrix + guard) rather than by shared code. Firebase Messaging stays on both platforms so the backend keeps sending through FCM unchanged.
 **Rationale**: iOS CI dropped the Expo prebuild/CocoaPods/React Native compile (~22 min) in favour of a Swift + Firebase build; native controls, haptics, Dynamic Type, predictive back and system pull-to-refresh come for free. The app is small (12 screens), so two plain codebases plus a parity system is simpler than a cross-platform layer. Cost: every mobile change is made twice (mitigated by the `/native-parity` workflow). Android release builds now use a proper release keystore, so testers reinstall once.
 **Status**: Cutover done — the Expo/React Native app (`mobile/`) and its publish workflows were deleted in October 2026.
+
+### ADR-19: Axiom for API logs, sent straight from the app
+**Decision**: Ship structured API logs to Axiom (free tier, 30-day retention) with one batched `fetch` from `logger`, flushed in `after()`. No SDK and no Vercel log drain.
+**Rationale**: Vercel runtime logs are short-lived and a log drain needs a paid plan. Axiom's free retention beats the 7-day requirement, and a single transport file means switching providers touches one file. Bodies are stored as strings and redacted before leaving the app.
+**Status**: Implemented for prediction routes; other routes follow.
