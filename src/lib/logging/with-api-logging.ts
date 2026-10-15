@@ -67,6 +67,12 @@ export function withApiLogging<Args extends unknown[]>(
     const path = req.nextUrl.pathname;
     const mobile = path.startsWith('/api/mobile/');
     const platform = SYSTEM_PREFIXES.some(p => path.startsWith(p)) ? 'system' : mobile ? 'mobile' : 'web';
+    // Read-only calls are not logged; unhandled errors are still logged by withErrorHandling.
+    if (req.method === 'GET') {
+      const res: Response = await withErrorHandling(routeName, handler as (...a: unknown[]) => Promise<NextResponse>)(req, ...rest);
+      try { res.headers.set('x-request-id', requestId); } catch { /* immutable headers */ }
+      return res;
+    }
     const requestText = BODY_METHODS.has(req.method) ? await readText(req) : '';
 
     let caught: unknown;

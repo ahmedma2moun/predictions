@@ -50,7 +50,7 @@ describe('transport', () => {
   it('uses the edge ingest path for EU edge hosts', async () => {
     process.env.AXIOM_TOKEN = 'xaat-test';
     process.env.AXIOM_DATASET = 'prediction-api';
-    process.env.AXIOM_URL = 'https://eu-central-1.aws.edge.axiom.co';
+    process.env.AXIOM_URL = 'https://eu-central-1.aws.edge.axiom.co/v1/ingest/prediction-api';
     logger.info('hello');
     await flushLogs();
     delete process.env.AXIOM_URL;
@@ -115,15 +115,23 @@ describe('withApiLogging', () => {
     expect(typeof e.durationMs).toBe('number');
   });
 
-  it('uses the mobile session for /api/mobile/ paths', async () => {
+  it('does not log GET requests', async () => {
     const handler = withApiLogging('t.get', async () => NextResponse.json([]));
-    await handler(req('/api/mobile/predictions'));
+    const res = await handler(req('/api/predictions'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-request-id')).toBeTruthy();
+    expect(entries()).toHaveLength(0);
+  });
+
+  it('uses the mobile session for /api/mobile/ paths', async () => {
+    const handler = withApiLogging('t.post', async () => NextResponse.json([]));
+    await handler(req('/api/mobile/predictions', { method: 'POST', body: '{}' }));
     expect(entries()[0]).toMatchObject({ platform: 'mobile', user: { id: '9', name: 'mo' } });
   });
 
   it('logs a thrown error and returns a 500', async () => {
     const handler = withApiLogging('t.boom', async () => { throw new Error('kaboom'); });
-    const res = await handler(req('/api/predictions'));
+    const res = await handler(req('/api/predictions', { method: 'POST', body: '{}' }));
     expect(res.status).toBe(500);
     expect(entries().find(e => e.status === 500)?.error.message).toBe('kaboom');
   });
