@@ -226,7 +226,7 @@ export class TheSportsDBProvider implements IFootballProvider {
     const label = `${url.pathname}${url.search}`;
     logger.info(`[thesportsdb] GET ${label}`);
     const t0 = Date.now();
-    const res = await fetch(url.toString(), { headers, next: { revalidate: 0 } });
+    const res = await fetch(url.toString(), { headers, next: { revalidate: 0 }, signal: AbortSignal.timeout(10_000) });
     const ms = Date.now() - t0;
     if (!res.ok) {
       const body = await res.text().catch(() => '');

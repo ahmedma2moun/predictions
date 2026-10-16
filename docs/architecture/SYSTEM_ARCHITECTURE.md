@@ -78,7 +78,7 @@ src/
 │   ├── auth.ts             # NextAuth config — JWT, credentials, role callbacks
 │   ├── mobile-auth.ts      # JWT sign/verify for mobile clients
 │   ├── football/           # Football external service layer
-│   │   ├── service.ts      # Public API — all callers import from here
+│   │   ├── service.ts      # Public API — all callers import from here — user-facing reads (fixture/standings/form) use a 10s timeout + circuit breaker (opens 60s after 3 failures), so a provider outage only disables live scores/standings/form
 │   │   ├── factory.ts      # Provider factory (reads FOOTBALL_PROVIDER env var)
 │   │   ├── types.ts        # Normalized types (incl. APIMatchEvent) + IFootballProvider interface + mapFixtureStatus
 │   │   └── providers/
