@@ -23,9 +23,6 @@ export interface UpsertPredictionError {
   prediction?: never;
   error: string;
   status: number;
-  /** Why a 409 lock happened — used for logging only. */
-  lockReason?: 'disabled' | 'not_scheduled' | 'kickoff_passed';
-  msToKickoff?: number;
 }
 
 export async function getUserPredictions(userId: number): Promise<PredictionWithMatch[]> {
@@ -55,15 +52,7 @@ export async function upsertPrediction(
     const match = matches[0];
     if (!match) return { error: 'Match not found', status: 404 };
     const [clock] = await tx.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`;
-    const kickoffPassed = match.kickoffTime <= clock.now;
-    if (!match.predictionsEnabled || match.status !== 'scheduled' || kickoffPassed) {
-      return {
-        error: 'Predictions are locked for this match',
-        status: 409,
-        lockReason: !match.predictionsEnabled ? 'disabled' : match.status !== 'scheduled' ? 'not_scheduled' : 'kickoff_passed',
-        msToKickoff: match.kickoffTime.getTime() - clock.now.getTime(),
-      };
-    }
+    if (!match.predictionsEnabled || match.status !== 'scheduled' || match.kickoffTime <= clock.now) return { error: 'Predictions are locked for this match', status: 409 };
     const predictedWinner = getWinner(homeScore, awayScore);
     const prediction = await tx.prediction.upsert({
       where: { userId_matchId: { userId, matchId } },
