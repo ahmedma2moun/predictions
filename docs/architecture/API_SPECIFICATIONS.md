@@ -324,11 +324,11 @@ Returns `{ updated, scored, errors, timestamp }`.
 Not scheduled — results normally arrive per-match, near-real-time, via the QStash live-goal chain (`processFinishedMatchRealtime()`). This endpoint remains as a manually-triggered safety net (e.g. to catch a match the live chain missed).
 
 ### GET /api/cron/prediction-reminder
-Finds scheduled matches in the current week. For each user with unsubmitted predictions, sends a reminder email.
+Finds scheduled matches with `predictionsEnabled = true` in the next 7 days. For each user with unsubmitted predictions, sends a reminder email.
 Not scheduled (deprecated) — the route still exists but nothing currently triggers it.
 
 ### GET /api/cron/daily-reminder
-Finds matches kicking off today (CLT). For each user missing predictions for today's matches, sends an urgent reminder email. No-ops when there are no matches today.
+Finds scheduled matches with `predictionsEnabled = true` kicking off in the next 24 hours (reminder-only fixtures are excluded). For each user missing predictions for those matches, sends an urgent reminder email and push. No-ops when there are no such matches.
 QStash schedule: daily, 09:00 UTC (11:00 CLT).
 
 ### GET /api/cron/db-export

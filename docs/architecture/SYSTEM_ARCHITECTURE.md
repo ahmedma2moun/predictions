@@ -305,7 +305,7 @@ In normal operation this same logic runs per-match, near-real-time, via `process
 3. Send reminder email if any unpredicted matches remain
 
 **daily-reminder** (QStash schedule, daily 09:00 UTC):
-1. Find all scheduled matches kicking off today (CLT)
+1. Find all scheduled, prediction-enabled matches kicking off in the next 24 hours (reminder-only fixtures with `predictionsEnabled = false` are excluded — they can't be predicted, so they would flag every user as missing a prediction)
 2. For each user: find today's matches without a prediction
 3. Send urgent reminder email if any unpredicted matches remain
 4. No-ops cleanly if there are no matches today — this is what makes a fixed daily schedule correct for "remind only on days with a match"

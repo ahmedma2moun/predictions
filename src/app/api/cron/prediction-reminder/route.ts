@@ -18,10 +18,11 @@ export const GET = withApiLogging('cron.prediction-reminder.get', async function
   const now     = new Date();
   const in7Days = addDays(now, 7);
 
-  // Find all scheduled matches in the next 7 days
+  // Find all scheduled matches in the next 7 days that users can predict (reminder-only fixtures have predictionsEnabled=false)
   const upcomingMatches = await MatchRepository.findMany({
     where: {
       status:      'scheduled',
+      predictionsEnabled: true,
       kickoffTime: { gte: now, lte: in7Days },
     },
     include: { league: { select: { name: true } } },

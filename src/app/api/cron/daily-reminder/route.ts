@@ -17,10 +17,11 @@ export const GET = withApiLogging('cron.daily-reminder.get', async function GET(
   const now = new Date();
   const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-  // Scheduled matches kicking off in the next 24 hours
+  // Scheduled matches kicking off in the next 24 hours that users can predict (reminder-only fixtures have predictionsEnabled=false)
   const todayMatches = await MatchRepository.findMany({
     where: {
       status:      'scheduled',
+      predictionsEnabled: true,
       kickoffTime: { gte: now, lte: in24Hours },
     },
     include: { league: { select: { name: true } } },
