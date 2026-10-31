@@ -37,6 +37,7 @@ type LiveGoalMatch = {
 // match detail screen instead of falling back to the Matches tab.
 const NOTIFICATION_TYPES: { value: string; label: string; needsMatchId: boolean }[] = [
   { value: "goal", label: "goal — opens Match details", needsMatchId: true },
+  { value: "goal_disallowed", label: "goal_disallowed — opens Match details", needsMatchId: true },
   { value: "match_reminder", label: "match_reminder — opens Match details", needsMatchId: true },
   { value: "results", label: "results — opens Predictions screen", needsMatchId: false },
   { value: "result_correction", label: "result_correction — opens Predictions screen", needsMatchId: false },

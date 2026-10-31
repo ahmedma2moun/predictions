@@ -22,7 +22,7 @@ enum NotificationRouter {
             return .myScore
         case "season_end":
             return .club
-        case "goal", "match_started", "match_reminder":
+        case "goal", "goal_disallowed", "match_started", "match_reminder":
             return matchId.map { .matchDetail($0) } ?? .matches
         case "new_matches", "prediction_reminder", "daily_reminder":
             return .slip

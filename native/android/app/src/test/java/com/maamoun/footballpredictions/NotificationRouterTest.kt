@@ -17,7 +17,7 @@ class NotificationRouterTest {
     @Test fun seasonEndOpensClub() = assertEquals(NotificationDestination.Club, route(mapOf("type" to "season_end")))
 
     @Test fun matchNotificationsOpenDetailOrFallBack() {
-        for (type in listOf("goal", "match_started", "match_reminder")) {
+        for (type in listOf("goal", "goal_disallowed", "match_started", "match_reminder")) {
             assertEquals(NotificationDestination.MatchDetail("42"), route(mapOf("type" to type, "matchId" to "42")))
             assertEquals(NotificationDestination.Matches, route(mapOf("type" to type)))
             assertEquals(NotificationDestination.Matches, route(mapOf("type" to type, "matchId" to "")))

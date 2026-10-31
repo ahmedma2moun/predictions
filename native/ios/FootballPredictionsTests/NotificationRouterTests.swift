@@ -13,7 +13,7 @@ final class NotificationRouterTests: XCTestCase {
     func testSeasonEndOpensClub() { XCTAssertEqual(route(["type": "season_end"]), .club) }
 
     func testMatchNotificationsOpenDetailOrFallBack() {
-        for type in ["goal", "match_started", "match_reminder"] {
+        for type in ["goal", "goal_disallowed", "match_started", "match_reminder"] {
             XCTAssertEqual(route(["type": type, "matchId": "42"]), .matchDetail("42"))
             XCTAssertEqual(route(["type": type]), .matches)
             XCTAssertEqual(route(["type": type, "matchId": ""]), .matches)

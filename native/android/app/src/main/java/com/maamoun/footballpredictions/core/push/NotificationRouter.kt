@@ -19,7 +19,7 @@ object NotificationRouter {
         return when (data?.get("type")) {
             "results", "result_correction" -> NotificationDestination.MyScore
             "season_end" -> NotificationDestination.Club
-            "goal", "match_started", "match_reminder" ->
+            "goal", "goal_disallowed", "match_started", "match_reminder" ->
                 matchId?.let { NotificationDestination.MatchDetail(it) } ?: NotificationDestination.Matches
             "new_matches", "prediction_reminder", "daily_reminder" -> NotificationDestination.Slip
             else -> NotificationDestination.Matches

@@ -345,8 +345,11 @@ fetchAndInsertMatches() inserts new fixtures
          │  (same CAS claim) → sendPushToUsers() "Kick-off!" to that match's
          │  predictors (data.type = 'match_started')
          ├─ if score advanced → sendPushToUsers() to that match's predictors,
-         │  scorer name/minute pulled from fixture.events when available
+         │  title "GOAL! <team>", body is the score line only
          │  (data.type = 'goal')
+         ├─ if score decreased (goal disallowed, e.g. VAR) → sendPushToUsers()
+         │  "Goal disallowed" with the corrected score line
+         │  (data.type = 'goal_disallowed')
          └─ rearm: LIVE_POLL_INTERVAL_SECONDS (1.5 min), or
                    HALF_TIME_POLL_SECONDS (10 min) during HT
 ```
@@ -355,7 +358,7 @@ The chain's first tick is scheduled `KICKOFF_GRACE_SECONDS` (1 min, config in `s
 
 Each rearm publishes a new QStash message with a deterministic `deduplicationId` derived from the *canonical* schedule tick (not wall-clock time), so a QStash retry of the same invocation can't fork a duplicate parallel chain. A per-match jitter (`externalId % 30` seconds) is applied only to the delivery time, not the canonical schedule, to spread matches that kick off simultaneously across QStash's parallelism pool without the offset compounding over the chain's lifetime. A hard cap (`MAX_CHAIN_HOURS`, config in `src/lib/live-goal-config.ts`) stops the chain if a match never reports `finished`.
 
-The mobile app routes both `goal` and `match_started` push notifications to that match's detail screen (`src/notifications/route-for-notification.ts`).
+The mobile app routes `goal`, `goal_disallowed` and `match_started` push notifications to that match's detail screen (`src/notifications/route-for-notification.ts`).
 
 Admin test hook: `POST /api/admin/live-goals/test` (Admin → Notifications page) publishes one immediate tick for a chosen match, exercising the full pipeline without waiting for kickoff.
 

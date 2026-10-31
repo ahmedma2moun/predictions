@@ -117,8 +117,15 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
 
   const goalDetected = claim.count === 1 && (homeGoals > prevHome || awayGoals > prevAway);
   if (goalDetected) {
-    await notifyGoal(match, fixture, { prevHome, prevAway, homeGoals, awayGoals }).catch(e =>
+    await notifyGoal(match, { prevHome, prevAway, homeGoals, awayGoals }).catch(e =>
       logger.error('[live-goals] notifyGoal failed:', { matchId: match.id, error: e instanceof Error ? e.message : String(e) }),
+    );
+  }
+
+  const goalDisallowed = claim.count === 1 && (homeGoals < prevHome || awayGoals < prevAway);
+  if (goalDisallowed) {
+    await notifyGoalDisallowed(match, { homeGoals, awayGoals }).catch(e =>
+      logger.error('[live-goals] notifyGoalDisallowed failed:', { matchId: match.id, error: e instanceof Error ? e.message : String(e) }),
     );
   }
 
@@ -127,7 +134,7 @@ export async function processLiveGoalTick(externalId: number, tick: number): Pro
   logger.info('[live-goals] tick: live, rearmed', {
     matchId: match.id, externalId, rawStatus,
     score: `${homeGoals}-${awayGoals}`, prevScore: `${prevHome}-${prevAway}`,
-    matchStarted, goalDetected, rearmInSeconds: delaySeconds,
+    matchStarted, goalDetected, goalDisallowed, rearmInSeconds: delaySeconds,
   });
   return { outcome: 'ticked' };
 }
@@ -155,31 +162,41 @@ async function notifyMatchStarted(match: Match): Promise<void> {
 
 async function notifyGoal(
   match: Match,
-  fixture: APIFixture,
   delta: { prevHome: number; prevAway: number; homeGoals: number; awayGoals: number },
 ): Promise<void> {
-  const scoringTeam: 'home' | 'away' = delta.homeGoals > delta.prevHome ? 'home' : 'away';
-  const scorer = fixture.events
-    .filter(e => e.type === 'goal' && e.team === scoringTeam)
-    .sort((a, b) => a.minute - b.minute)
-    .at(-1);
-
-  const predictors = await PredictionRepository.findMany({
-    where: { matchId: match.id },
-    select: { userId: true },
-  });
-  const userIds = [...new Set(predictors.map(p => p.userId))];
+  const userIds = await getPredictorIds(match.id);
   if (userIds.length === 0) return;
 
-  const teamName = scoringTeam === 'home' ? match.homeTeamName : match.awayTeamName;
-  const scoreLine = `${match.homeTeamName} ${delta.homeGoals}-${delta.awayGoals} ${match.awayTeamName}`;
-  const body = scorer ? `${scorer.player} (${scorer.minute}') — ${scoreLine}` : scoreLine;
-
+  const teamName = delta.homeGoals > delta.prevHome ? match.homeTeamName : match.awayTeamName;
   await sendPushToUsers(userIds, {
     title: `GOAL! ${teamName}`,
-    body,
+    body: scoreLine(match, delta.homeGoals, delta.awayGoals),
     data: { type: 'goal', matchId: String(match.id) },
   });
+}
+
+/** Score went down between ticks — VAR (or similar) ruled a goal out. */
+async function notifyGoalDisallowed(
+  match: Match,
+  score: { homeGoals: number; awayGoals: number },
+): Promise<void> {
+  const userIds = await getPredictorIds(match.id);
+  if (userIds.length === 0) return;
+
+  await sendPushToUsers(userIds, {
+    title: 'Goal disallowed',
+    body: scoreLine(match, score.homeGoals, score.awayGoals),
+    data: { type: 'goal_disallowed', matchId: String(match.id) },
+  });
+}
+
+async function getPredictorIds(matchId: number): Promise<number[]> {
+  const predictors = await PredictionRepository.findMany({ where: { matchId }, select: { userId: true } });
+  return [...new Set(predictors.map(p => p.userId))];
+}
+
+function scoreLine(match: Match, home: number, away: number): string {
+  return `${match.homeTeamName} ${home}-${away} ${match.awayTeamName}`;
 }
 
 /**
