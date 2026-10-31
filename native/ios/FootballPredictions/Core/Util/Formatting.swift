@@ -77,6 +77,11 @@ func formatMatchDayHeader(_ date: Date, now: Date = Date()) -> String {
 
 func isMatchLocked(_ kickoff: Date, now: Date = Date()) -> Bool { now >= kickoff }
 
+/// Upcoming matches (scheduled, not yet locked) the signed-in user has not predicted. Drives the Matches tab badge.
+func countMissingPicks(_ matches: [MatchListItem], now: Date = Date()) -> Int {
+    matches.filter { $0.status == .scheduled && $0.prediction == nil && !isMatchLocked($0.kickoffDate, now: now) }.count
+}
+
 func getWinner(home: Int, away: Int) -> PredictedWinner {
     if home > away { return .home }
     if away > home { return .away }

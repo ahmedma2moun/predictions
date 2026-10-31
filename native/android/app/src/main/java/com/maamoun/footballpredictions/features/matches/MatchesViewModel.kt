@@ -5,6 +5,7 @@ import com.maamoun.footballpredictions.app.AppContainer
 import com.maamoun.footballpredictions.core.networking.dto.MatchListItem
 import com.maamoun.footballpredictions.core.networking.dto.MatchStatus
 import com.maamoun.footballpredictions.core.util.RemoteData
+import com.maamoun.footballpredictions.core.util.countMissingPicks
 import com.maamoun.footballpredictions.core.util.formatMatchDayHeader
 import com.maamoun.footballpredictions.core.util.getMatchDayKey
 import com.maamoun.footballpredictions.core.util.isMatchLocked
@@ -47,9 +48,11 @@ class MatchesViewModel(private val app: AppContainer) : ViewModel() {
     suspend fun refresh() = remote.run(isRefresh = true) { fetch() }
 
     private suspend fun fetch(): List<MatchListItem> = coroutineScope {
-        val token = app.token ?: return@coroutineScope emptyList()
+        val token = app.token ?: run { app.setMissingPicks(0); return@coroutineScope emptyList() }
         val scheduled = async { app.api.request<List<MatchListItem>>("/api/mobile/matches?status=scheduled", token = token) }
         val live = async { app.api.request<List<MatchListItem>>("/api/mobile/matches?status=live", token = token) }
-        (live.await() + scheduled.await()).sortedBy { it.kickoffDate }
+        val sorted = (live.await() + scheduled.await()).sortedBy { it.kickoffDate }
+        app.setMissingPicks(countMissingPicks(sorted))
+        sorted
     }
 }

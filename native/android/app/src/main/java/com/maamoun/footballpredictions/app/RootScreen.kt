@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -68,6 +70,7 @@ fun RootScreen(app: AppContainer) {
         val controller = rememberNavController()
         val nav = remember(controller) { AppNav(controller) }
         val start = remember { if (app.auth.token != null) Routes.MATCHES else Routes.LOGIN }
+        val missingPicks by app.missingPicks.collectAsStateCompat()
         val backStack by controller.currentBackStackEntryAsState()
         val route = backStack?.destination?.route
 
@@ -106,7 +109,17 @@ fun RootScreen(app: AppContainer) {
                             NavigationBarItem(
                                 selected = selected,
                                 onClick = { nav.openTab(tab.route) },
-                                icon = { Icon(tab.icon(), contentDescription = null) },
+                                icon = {
+                                    if (tab == AppTab.Matches && missingPicks > 0) {
+                                        BadgedBox(badge = {
+                                            Badge(containerColor = c.destructive, contentColor = androidx.compose.ui.graphics.Color.White) {
+                                                Text(if (missingPicks > 99) "99+" else missingPicks.toString())
+                                            }
+                                        }) { Icon(tab.icon(), contentDescription = null) }
+                                    } else {
+                                        Icon(tab.icon(), contentDescription = null)
+                                    }
+                                },
                                 label = { Text(tab.title, style = appFont(Tokens.FontSize.xs, W.Medium), maxLines = 1) },
                                 alwaysShowLabel = true,
                                 colors = NavigationBarItemDefaults.colors(

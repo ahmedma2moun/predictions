@@ -40,6 +40,15 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(r.user.role, "user")
     }
 
+    func testMissingPicksCount() throws {
+        let items = try decode([MatchListItem].self, "matches-list")
+        // Before any kickoff: live (excluded) and the predicted fixture (excluded) leave the two unpredicted ones.
+        XCTAssertEqual(countMissingPicks(items, now: parseISODate("2026-10-01T00:00:00.000Z")!), 2)
+        // Once a fixture has kicked off it is locked and no longer counts.
+        XCTAssertEqual(countMissingPicks(items, now: parseISODate("2026-10-18T17:00:00.000Z")!), 1)
+        XCTAssertEqual(countMissingPicks(items, now: parseISODate("2026-10-20T00:00:00.000Z")!), 0)
+    }
+
     func testMatchesList() throws {
         let items = try decode([MatchListItem].self, "matches-list")
         XCTAssertEqual(items.count, 4)

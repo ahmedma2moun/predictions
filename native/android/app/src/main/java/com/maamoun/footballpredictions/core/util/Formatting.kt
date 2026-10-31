@@ -1,5 +1,6 @@
 package com.maamoun.footballpredictions.core.util
 
+import com.maamoun.footballpredictions.core.networking.dto.MatchListItem
 import com.maamoun.footballpredictions.core.networking.dto.MatchStatus
 import com.maamoun.footballpredictions.core.networking.dto.PredictedWinner
 import java.time.Instant
@@ -70,6 +71,10 @@ fun formatMatchDayHeader(date: Instant, now: Instant = Instant.now(), zone: Zone
 }
 
 fun isMatchLocked(kickoff: Instant, now: Instant = Instant.now()): Boolean = !now.isBefore(kickoff)
+
+/** Upcoming matches (scheduled, not yet locked) the signed-in user has not predicted. Drives the Matches tab badge. */
+fun countMissingPicks(matches: List<MatchListItem>, now: Instant = Instant.now()): Int =
+    matches.count { it.status == MatchStatus.SCHEDULED && it.prediction == null && !isMatchLocked(it.kickoffDate, now) }
 
 fun getWinner(home: Int, away: Int): PredictedWinner = when {
     home > away -> PredictedWinner.HOME

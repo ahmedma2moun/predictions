@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Six visible tabs; each owns a `NavigationStack` so notification routing can switch tab + push.
+/// Six visible tabs (Matches carries a badge for unpredicted upcoming matches); each owns a `NavigationStack` so notification routing can switch tab + push.
 struct MainTabView: View {
     let app: AppContainer
     @Environment(\.palette) private var c
@@ -11,6 +11,7 @@ struct MainTabView: View {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 TabStack(app: app, tab: tab)
                     .tabItem { Label(tab.title, systemImage: tab.icon) }
+                    .badge(tab == .matches ? app.missingPicks : 0) // 0 hides the badge
                     .tag(tab)
             }
         }

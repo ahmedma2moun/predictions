@@ -33,11 +33,16 @@ class AppContainer(context: Context, storage: SecureStorage = KeystoreSecureStor
     val alerts = AlertCenter()
     val push = PushRegistrar(context, api, storage)
 
+    /** Upcoming matches without a prediction; shown as the Matches tab badge. Set by `MatchesViewModel`. */
+    private val _missingPicks = MutableStateFlow(0)
+    val missingPicks: StateFlow<Int> = _missingPicks.asStateFlow()
+    fun setMissingPicks(count: Int) { _missingPicks.value = count }
+
     /** Notification taps that arrive before sign-in are replayed once a session exists. */
     private val _pending = MutableStateFlow<NotificationDestination?>(null)
     val pendingDestination: StateFlow<NotificationDestination?> = _pending.asStateFlow()
 
-    init { auth.onBeforeSignOut = { jwt -> push.unregister(jwt) } }
+    init { auth.onBeforeSignOut = { jwt -> push.unregister(jwt); setMissingPicks(0) } }
 
     fun postDestination(destination: NotificationDestination) { _pending.value = destination }
     fun consumeDestination() { _pending.value = null }

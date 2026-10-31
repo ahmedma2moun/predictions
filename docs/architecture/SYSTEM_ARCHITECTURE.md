@@ -131,7 +131,7 @@ src/
 ├── components/
 │   ├── KickoffTime.tsx     # Client-side kickoff display with live lock detection
 │   ├── LiveLockIcon.tsx    # Animated lock icon for ongoing matches
-│   ├── Navbar.tsx          # Bottom nav (mobile) / top nav (desktop)
+│   ├── Navbar.tsx          # Bottom nav (mobile) / top nav (desktop); Matches badge = unpredicted upcoming matches (GET /api/matches?status=scheduled, refetched per navigation, hidden for admins)
 │   ├── SessionProvider.tsx # NextAuth client wrapper
 │   └── ui/                 # shadcn/ui primitives
 ├── types/

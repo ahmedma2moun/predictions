@@ -11,6 +11,8 @@ final class AppContainer {
     let router: AppRouter
     let alerts: AlertCenter
     let push: PushRegistrar
+    /// Upcoming matches without a prediction; shown as the Matches tab badge. Set by `MatchesViewModel`.
+    var missingPicks = 0
 
     init(api: ApiClient = ApiClient(), storage: SecureStorage = KeychainStorage()) {
         self.api = api
@@ -20,7 +22,10 @@ final class AppContainer {
         self.alerts = AlertCenter()
         self.push = PushRegistrar(api: api, storage: storage)
         let push = self.push
-        auth.onBeforeSignOut = { jwt in await push.unregister(jwt: jwt) }
+        auth.onBeforeSignOut = { [weak self] jwt in
+            await push.unregister(jwt: jwt)
+            await MainActor.run { self?.missingPicks = 0 }
+        }
     }
 
     /// Bearer token for the signed-in user. Screens are only shown while signed in.

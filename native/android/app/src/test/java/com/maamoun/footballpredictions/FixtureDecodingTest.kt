@@ -6,6 +6,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.serializer
+import com.maamoun.footballpredictions.core.util.countMissingPicks
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -44,6 +45,15 @@ class FixtureDecodingTest {
         val r = decode<LoginResponse>("auth-login")
         assertEquals("7", r.user.id)
         assertEquals("user", r.user.role)
+    }
+
+    @Test fun missingPicksCount() {
+        val items = decode<List<MatchListItem>>("matches-list")
+        // Before any kickoff: live (excluded) and the predicted fixture (excluded) leave the two unpredicted ones.
+        assertEquals(2, countMissingPicks(items, java.time.Instant.parse("2026-10-01T00:00:00Z")))
+        // Once a fixture has kicked off it is locked and no longer counts.
+        assertEquals(1, countMissingPicks(items, java.time.Instant.parse("2026-10-18T17:00:00Z")))
+        assertEquals(0, countMissingPicks(items, java.time.Instant.parse("2026-10-20T00:00:00Z")))
     }
 
     @Test fun matchesList() {

@@ -62,10 +62,12 @@ final class MatchesViewModel {
     }
 
     private func fetch() async throws -> [MatchListItem] {
-        guard let token = app.token else { return [] }
+        guard let token = app.token else { app.missingPicks = 0; return [] }
         async let scheduled: [MatchListItem] = app.api.request("/api/mobile/matches?status=scheduled", token: token)
         async let live: [MatchListItem] = app.api.request("/api/mobile/matches?status=live", token: token)
         let all = try await live + scheduled
-        return all.sorted { $0.kickoffDate < $1.kickoffDate }
+        let sorted = all.sorted { $0.kickoffDate < $1.kickoffDate }
+        app.missingPicks = countMissingPicks(sorted)
+        return sorted
     }
 }

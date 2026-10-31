@@ -49,6 +49,7 @@ The odds UI (`OddsExplainerModal`, `OddsFactors`) is **deferred**: `ODDS_FEATURE
 | Saving a prediction stays on Match detail and shows a 2 s "Saved" toast (no alert, no auto-advance); button flips to "Update Prediction" | ✅ | ✅ |
 | Theme light/dark/system, persisted as `fp_theme_mode`, default dark | ✅ | ✅ |
 | Secure token storage (`fp_token`, `fp_user`) | ✅ Keychain | ✅ Keystore AES-GCM |
+| Matches tab badge: count of upcoming (scheduled, unlocked) matches with no prediction; hidden at 0; computed from the matches list already fetched (no extra request); cleared on sign-out; refreshes whenever Matches refetches | 🟡 `.badge(_:)` | 🟡 `BadgedBox` + `Badge`, `99+` cap |
 | Push: FCM token register/unregister (`POST/DELETE /api/mobile/devices`) | ✅ | ✅ |
 | Push: foreground presentation | ✅ banner+sound | ✅ posted locally on `default` channel |
 | Push: tap routing (foreground / background / cold start) per `NotificationRouter` | 🟡 | 🟡 |

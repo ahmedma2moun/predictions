@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Calendar, TrendingUp, Trophy, Settings, LogOut, Star, Users, Bell } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, isMatchLocked } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -16,10 +17,49 @@ const navItems = [
   { href: "/seasons", label: "Seasons", icon: Star },
 ];
 
+type MatchLite = { status: string; kickoffTime: string; prediction?: unknown | null };
+
+/** Upcoming (scheduled, unlocked) matches the user has not predicted — the Matches tab badge. */
+export function countMissingPicks(matches: MatchLite[]): number {
+  return matches.filter(m => m.status === "scheduled" && !m.prediction && !isMatchLocked(m.kickoffTime)).length;
+}
+
+function useMissingPicks(enabled: boolean, pathname: string) {
+  const [count, setCount] = useState(0);
+  // Refetch on every navigation (mirrors the native apps refetching when Matches regains focus).
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    fetch("/api/matches?status=scheduled")
+      .then(r => (r.ok ? r.json() : []))
+      .then((m: MatchLite[]) => { if (!cancelled) setCount(countMissingPicks(m)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [enabled, pathname]);
+  return enabled ? count : 0;
+}
+
+function Badge({ count, className }: { count: number; className?: string }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      aria-label={`${count} upcoming ${count === 1 ? "match" : "matches"} without a prediction`}
+      className={cn(
+        "min-w-4 h-4 px-1 rounded-full bg-destructive text-white text-[10px] font-bold leading-4 text-center",
+        className,
+      )}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isAdmin = (session?.user as any)?.role === "admin";
+  // Admins have no predictions of their own, so every match would count as missing.
+  const missingPicks = useMissingPicks(!!session && !isAdmin, pathname);
 
   return (
     <>
@@ -46,6 +86,7 @@ export function Navbar() {
             >
               <item.icon className="h-4 w-4" />
               {item.label}
+              {item.href === "/matches" && <Badge count={missingPicks} />}
             </Link>
           ))}
           {isAdmin && (
@@ -112,7 +153,10 @@ export function Navbar() {
                   : "text-muted-foreground"
               )}
             >
-              <item.icon className="h-5 w-5" />
+              <span className="relative">
+                <item.icon className="h-5 w-5" />
+                {item.href === "/matches" && <Badge count={missingPicks} className="absolute -top-1.5 -right-2.5" />}
+              </span>
               {item.label}
             </Link>
           ))}
