@@ -6,6 +6,7 @@ enum NotificationDestination: Equatable {
     case myScore
     case club
     case slip
+    case leaders
     case matchDetail(String)
 }
 
@@ -26,6 +27,8 @@ enum NotificationRouter {
             return matchId.map { .matchDetail($0) } ?? .matches
         case "new_matches", "prediction_reminder", "daily_reminder":
             return .slip
+        case "leaderboard": // widget rank tap
+            return .leaders
         default:
             return .matches
         }

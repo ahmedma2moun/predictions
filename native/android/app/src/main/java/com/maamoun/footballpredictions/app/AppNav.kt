@@ -57,6 +57,7 @@ class AppNav(val controller: NavHostController) {
             NotificationDestination.Matches -> openTab(Routes.MATCHES)
             NotificationDestination.MyScore -> openTab(Routes.MY_SCORE)
             NotificationDestination.Club -> openTab(Routes.CLUB)
+            NotificationDestination.Leaders -> openTab(Routes.LEADERS)
             NotificationDestination.Slip -> { openTab(Routes.MATCHES); openSlip() }
             is NotificationDestination.MatchDetail -> { openTab(Routes.MATCHES); openMatch(destination.id) }
         }

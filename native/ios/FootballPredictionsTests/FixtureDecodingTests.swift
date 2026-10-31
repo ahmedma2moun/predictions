@@ -40,6 +40,39 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(r.user.role, "user")
     }
 
+    func testWidgetNextMatchAndLinks() throws {
+        let items = try decode([MatchListItem].self, "matches-list")
+        // Soonest open scheduled match: skips the live fixture and any already locked.
+        let early = WidgetBridge.nextMatch(from: items, now: parseISODate("2026-10-01T00:00:00.000Z")!)
+        XCTAssertEqual(early?.id, items[1].id)
+        XCTAssertEqual(early?.prediction, "\(items[1].prediction!.homeScore)–\(items[1].prediction!.awayScore)")
+        let later = WidgetBridge.nextMatch(from: items, now: parseISODate("2026-10-17T15:00:00.000Z")!)
+        XCTAssertEqual(later?.id, items[2].id)
+        XCTAssertNil(later?.prediction)
+        XCTAssertNil(WidgetBridge.nextMatch(from: items, now: parseISODate("2026-10-20T00:00:00.000Z")!))
+
+        XCTAssertEqual(WidgetBridge.destination(for: WidgetLink.match("42")), .matchDetail("42"))
+        XCTAssertEqual(WidgetBridge.destination(for: WidgetLink.slip), .slip)
+        XCTAssertEqual(WidgetBridge.destination(for: WidgetLink.leaders), .leaders)
+        XCTAssertEqual(WidgetBridge.destination(for: WidgetLink.matches), .matches)
+        XCTAssertNil(WidgetBridge.destination(for: URL(string: "https://example.com")!))
+    }
+
+    func testWidgetSnapshotRoundTrip() {
+        let defaults = UserDefaults(suiteName: "fp-widget-test")!
+        defaults.removePersistentDomain(forName: "fp-widget-test")
+        XCTAssertEqual(WidgetSnapshot.load(defaults: defaults), .signedOut)
+        var snap = WidgetSnapshot.sample
+        snap.updatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        snap.save(defaults: defaults)
+        let loaded = WidgetSnapshot.load(defaults: defaults)
+        XCTAssertEqual(loaded.rank, 3)
+        XCTAssertEqual(loaded.next?.home, "Arsenal")
+        XCTAssertEqual(loaded.next?.kickoff.timeIntervalSince1970 ?? 0, snap.next!.kickoff.timeIntervalSince1970, accuracy: 1)
+        XCTAssertTrue(loaded.isLocked(snap.next!, at: snap.next!.kickoff))
+        XCTAssertFalse(loaded.isLocked(snap.next!, at: snap.next!.kickoff.addingTimeInterval(-1)))
+    }
+
     func testMissingPicksCount() throws {
         let items = try decode([MatchListItem].self, "matches-list")
         // Before any kickoff: live (excluded) and the predicted fixture (excluded) leave the two unpredicted ones.

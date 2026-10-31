@@ -26,6 +26,8 @@ final class NotificationRouterTests: XCTestCase {
         }
     }
 
+    func testLeaderboardOpensLeaders() { XCTAssertEqual(route(["type": "leaderboard"]), .leaders) }
+
     func testUnknownOrMissingOpensMatches() {
         XCTAssertEqual(route(["type": "wat"]), .matches)
         XCTAssertEqual(route([:]), .matches)

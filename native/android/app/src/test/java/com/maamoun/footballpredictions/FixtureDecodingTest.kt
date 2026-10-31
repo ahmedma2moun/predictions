@@ -7,6 +7,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.serializer
 import com.maamoun.footballpredictions.core.util.countMissingPicks
+import com.maamoun.footballpredictions.widget.WidgetLink
+import com.maamoun.footballpredictions.widget.WidgetSnapshot
+import com.maamoun.footballpredictions.widget.nextWidgetMatch
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -45,6 +48,36 @@ class FixtureDecodingTest {
         val r = decode<LoginResponse>("auth-login")
         assertEquals("7", r.user.id)
         assertEquals("user", r.user.role)
+    }
+
+    @Test fun widgetNextMatchAndLinks() {
+        val items = decode<List<MatchListItem>>("matches-list")
+        // Soonest open scheduled match: skips the live fixture and any already locked.
+        val early = nextWidgetMatch(items, java.time.Instant.parse("2026-10-01T00:00:00Z"))
+        assertEquals(items[1].id, early?.id)
+        assertEquals("${items[1].prediction!!.homeScore}–${items[1].prediction!!.awayScore}", early?.prediction)
+        val later = nextWidgetMatch(items, java.time.Instant.parse("2026-10-17T15:00:00Z"))
+        assertEquals(items[2].id, later?.id)
+        assertNull(later?.prediction)
+        assertNull(nextWidgetMatch(items, java.time.Instant.parse("2026-10-20T00:00:00Z")))
+
+        assertEquals(com.maamoun.footballpredictions.core.push.NotificationDestination.MatchDetail("42"),
+            com.maamoun.footballpredictions.core.push.NotificationRouter.destination(WidgetLink.match("42")))
+        assertEquals(com.maamoun.footballpredictions.core.push.NotificationDestination.Slip,
+            com.maamoun.footballpredictions.core.push.NotificationRouter.destination(WidgetLink.slip))
+        assertEquals(com.maamoun.footballpredictions.core.push.NotificationDestination.Leaders,
+            com.maamoun.footballpredictions.core.push.NotificationRouter.destination(WidgetLink.leaders))
+        assertEquals(com.maamoun.footballpredictions.core.push.NotificationDestination.Matches,
+            com.maamoun.footballpredictions.core.push.NotificationRouter.destination(WidgetLink.matches))
+    }
+
+    @Test fun widgetSnapshotLocking() {
+        val snap = WidgetSnapshot.Sample
+        val kickoff = snap.next!!.kickoff
+        assertTrue(snap.isLocked(snap.next!!, kickoff))
+        assertFalse(snap.isLocked(snap.next!!, kickoff.minusSeconds(1)))
+        val json = kotlinx.serialization.json.Json
+        assertEquals(snap, json.decodeFromString<WidgetSnapshot>(json.encodeToString(WidgetSnapshot.serializer(), snap)))
     }
 
     @Test fun missingPicksCount() {

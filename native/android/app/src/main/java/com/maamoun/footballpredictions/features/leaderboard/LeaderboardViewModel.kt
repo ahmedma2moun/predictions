@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.maamoun.footballpredictions.app.AppContainer
+import com.maamoun.footballpredictions.widget.WidgetBridge
 import com.maamoun.footballpredictions.core.networking.dto.ChampionBonusState
 import com.maamoun.footballpredictions.core.networking.dto.LeaderboardEntry
 import com.maamoun.footballpredictions.core.networking.dto.LeaderboardGroup
@@ -123,7 +124,14 @@ class LeaderboardViewModel(private val app: AppContainer) : ViewModel() {
         var url = "/api/mobile/leaderboard?_=1" + rangeQuery()
         groupId?.let { url += "&groupId=${enc(it)}" }
         selectedLeagues.forEach { url += "&leagueId=${enc(it)}" }
-        return app.api.request(url, token = token)
+        val entries: List<LeaderboardEntry> = app.api.request(url, token = token)
+        // The widget shows the all-time standing, so only the unfiltered all-time board feeds it.
+        if (period == Period.All && selectedLeagues.isEmpty()) {
+            entries.firstOrNull { it.userId == myId }?.let {
+                WidgetBridge.update(app.appContext, it.rank, it.totalPoints, entries.size)
+            }
+        }
+        return entries
     }
 
     private fun collapse() { expandedUserId = null; expandedData = null }

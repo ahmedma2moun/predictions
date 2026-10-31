@@ -192,6 +192,8 @@ Services call repositories (`src/lib/repositories/`), not Prisma directly. Route
 
 The mobile clients are two native codebases under `native/`: `ios/` (SwiftUI, XcodeGen, Firebase Messaging via SPM) and `android/` (Jetpack Compose, Gradle Kotlin DSL, OkHttp + kotlinx.serialization). Both consume the unchanged `/api/mobile/*` routes below, share the bundle ID / package `com.maamoun.footballpredictions`, and are kept equivalent by: mirrored folder/type names, generated design tokens (`native/design-tokens`), shared contract fixtures decoded by both test suites (`native/contract/fixtures`), `native/PARITY.md`, and the `native-checks.yml` CI guard. The legacy Expo app in `mobile/` stays until cutover. Details: `docs/NATIVE_MOBILE_GUIDE.md`.
 
+**Home-screen widgets (native only, no API change):** both apps show a "Next match" widget (next open match + your pick, all-time rank, missing-picks count). The app writes a small `WidgetSnapshot` (iOS: App Group `UserDefaults`; Android: `SharedPreferences`) whenever it loads Matches or the unfiltered all-time Leaderboard and clears it on sign-out; the widget reads only that snapshot and never calls the API. Taps deep-link through the same destination routing as push taps (`NotificationDestination`, now including `Leaders`). Code: `native/ios/FootballPredictionsWidget`, `native/ios/FootballPredictions/{Shared,Core/Widget}`, `native/android/…/widget`. The web has no equivalent (no home-screen widget surface).
+
 ## Mobile API Layer
 
 The mobile app (React Native / Expo) calls a parallel route tree `/api/mobile/*` that uses JWT Bearer authentication instead of NextAuth cookies. Both trees share the same service layer and database.

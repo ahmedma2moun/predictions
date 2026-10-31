@@ -24,6 +24,7 @@ final class AppContainer {
         let push = self.push
         auth.onBeforeSignOut = { [weak self] jwt in
             await push.unregister(jwt: jwt)
+            await MainActor.run { WidgetBridge.clear() }
             await MainActor.run { self?.missingPicks = 0 }
         }
     }

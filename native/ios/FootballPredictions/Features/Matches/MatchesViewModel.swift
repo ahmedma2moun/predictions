@@ -68,6 +68,7 @@ final class MatchesViewModel {
         let all = try await live + scheduled
         let sorted = all.sorted { $0.kickoffDate < $1.kickoffDate }
         app.missingPicks = countMissingPicks(sorted)
+        WidgetBridge.update(matches: sorted)
         return sorted
     }
 }

@@ -115,56 +115,66 @@ else:
     p12, cert_id = create_cert()
 import_p12(p12)
 
-# --- provisioning profile ---------------------------------------------------
-bundle = E["BUNDLE_ID"]
-bid = api("GET", f"/bundleIds?filter[identifier]={bundle}&limit=200")["data"]
-bid = next((b for b in bid if b["attributes"]["identifier"] == bundle), None)
-if not bid:
-    sys.exit(f"::error::Bundle ID {bundle} is not registered in the Apple developer account.")
-
+# --- provisioning profiles --------------------------------------------------
 def profile_info(p):
     raw = base64.b64decode(p["attributes"]["profileContent"])
     decoded = subprocess.run(["security", "cms", "-D"], input=raw, capture_output=True, check=True).stdout
     return raw, plistlib.loads(decoded)
 
 
-def has_push(p):
-    # A profile created before Push Notifications was enabled on the App ID has no aps-environment entitlement.
-    # Exporting with it silently strips the entitlement and the app can never get an APNs token.
-    return "aps-environment" in profile_info(p)[1].get("Entitlements", {})
+def ensure_profile(bundle, required_entitlements, env_prefix):
+    """Reuse or create an App Store profile for `bundle` that carries every entitlement in `required_entitlements`.
+
+    A profile created before a capability (Push Notifications / App Groups) was enabled on the App ID lacks the
+    entitlement; exporting with it silently strips it, so such profiles are skipped and a fresh one is created.
+    """
+    bid = api("GET", f"/bundleIds?filter[identifier]={bundle}&limit=200")["data"]
+    bid = next((b for b in bid if b["attributes"]["identifier"] == bundle), None)
+    if not bid:
+        sys.exit(f"::error::Bundle ID {bundle} is not registered in the Apple developer account.")
+
+    def complete(p):
+        have = profile_info(p)[1].get("Entitlements", {})
+        return all(e in have for e in required_entitlements)
+
+    # This related-resource endpoint rejects filter[...] params, so filter client-side.
+    profiles = api("GET", f"/bundleIds/{bid['id']}/profiles?limit=200")["data"]
+    profile = None
+    for p in profiles:
+        if p["attributes"]["profileType"] != "IOS_APP_STORE" or p["attributes"]["profileState"] != "ACTIVE":
+            continue
+        if not complete(p):
+            print(f"Skipping profile '{p['attributes']['name']}': missing one of {required_entitlements}.")
+            continue
+        certs = api("GET", f"/profiles/{p['id']}/certificates?limit=200")["data"]
+        if any(c["id"] == cert_id for c in certs):
+            profile = p
+            break
+    if profile:
+        print(f"Reusing existing provisioning profile for {bundle}.")
+    else:
+        profile = api("POST", "/profiles", json={"data": {
+            "type": "profiles",
+            "attributes": {"name": f"CI App Store {bundle} {int(time.time())}", "profileType": "IOS_APP_STORE"},
+            "relationships": {
+                "bundleId": {"data": {"type": "bundleIds", "id": bid["id"]}},
+                "certificates": {"data": [{"type": "certificates", "id": cert_id}]}}}})["data"]
+        print(f"Created new provisioning profile for {bundle}.")
+
+    raw, info = profile_info(profile)
+    missing = [e for e in required_entitlements if e not in info.get("Entitlements", {})]
+    if missing:
+        sys.exit(f"::error::Provisioning profile '{info['Name']}' for {bundle} has no {missing} entitlement. Enable the "
+                 f"matching capability on the {bundle} App ID (developer.apple.com > Identifiers; App Groups also needs "
+                 f"the group assigned) and re-run.")
+    dest = os.path.expanduser("~/Library/MobileDevice/Provisioning Profiles")
+    os.makedirs(dest, exist_ok=True)
+    open(f"{dest}/{info['UUID']}.mobileprovision", "wb").write(raw)
+    with open(E["GITHUB_ENV"], "a") as f:
+        f.write(f"{env_prefix}PROFILE_NAME={info['Name']}\n{env_prefix}PROFILE_UUID={info['UUID']}\n")
 
 
-# This related-resource endpoint rejects filter[...] params, so filter client-side.
-profiles = api("GET", f"/bundleIds/{bid['id']}/profiles?limit=200")["data"]
-profile = None
-for p in profiles:
-    if p["attributes"]["profileType"] != "IOS_APP_STORE" or p["attributes"]["profileState"] != "ACTIVE":
-        continue
-    if not has_push(p):
-        print(f"Skipping profile '{p['attributes']['name']}': no aps-environment entitlement (push).")
-        continue
-    certs = api("GET", f"/profiles/{p['id']}/certificates?limit=200")["data"]
-    if any(c["id"] == cert_id for c in certs):
-        profile = p
-        break
-if profile:
-    print("Reusing existing provisioning profile.")
-else:
-    profile = api("POST", "/profiles", json={"data": {
-        "type": "profiles",
-        "attributes": {"name": f"CI App Store {bundle} {int(time.time())}", "profileType": "IOS_APP_STORE"},
-        "relationships": {
-            "bundleId": {"data": {"type": "bundleIds", "id": bid["id"]}},
-            "certificates": {"data": [{"type": "certificates", "id": cert_id}]}}}})["data"]
-    print("Created new provisioning profile.")
-
-raw, info = profile_info(profile)
-if "aps-environment" not in info.get("Entitlements", {}):
-    sys.exit(f"::error::Provisioning profile '{info['Name']}' has no aps-environment entitlement. Enable "
-             f"Push Notifications on the {bundle} App ID (developer.apple.com > Identifiers) and re-run.")
-dest = os.path.expanduser("~/Library/MobileDevice/Provisioning Profiles")
-os.makedirs(dest, exist_ok=True)
-open(f"{dest}/{info['UUID']}.mobileprovision", "wb").write(raw)
-
-with open(E["GITHUB_ENV"], "a") as f:
-    f.write(f"PROFILE_NAME={info['Name']}\nPROFILE_UUID={info['UUID']}\n")
+# App: push + App Group (widget snapshot). Widget extension: App Group only.
+APP_GROUP = "com.apple.security.application-groups"
+ensure_profile(E["BUNDLE_ID"], ["aps-environment", APP_GROUP], "")
+ensure_profile(E["BUNDLE_ID_WIDGET"], [APP_GROUP], "WIDGET_")

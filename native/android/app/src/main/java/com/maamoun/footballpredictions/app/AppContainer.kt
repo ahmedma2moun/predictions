@@ -8,6 +8,7 @@ import com.maamoun.footballpredictions.core.designsystem.ThemeStore
 import com.maamoun.footballpredictions.core.networking.ApiClient
 import com.maamoun.footballpredictions.core.push.NotificationDestination
 import com.maamoun.footballpredictions.core.push.PushRegistrar
+import com.maamoun.footballpredictions.widget.WidgetBridge
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,7 @@ class AlertCenter {
 
 /** Plain composition root — screens/view models receive it through their constructors. */
 class AppContainer(context: Context, storage: SecureStorage = KeystoreSecureStorage(context)) {
+    val appContext: Context = context.applicationContext
     val api = ApiClient()
     val auth = AuthStore(api, storage)
     val theme = ThemeStore(context)
@@ -42,7 +44,7 @@ class AppContainer(context: Context, storage: SecureStorage = KeystoreSecureStor
     private val _pending = MutableStateFlow<NotificationDestination?>(null)
     val pendingDestination: StateFlow<NotificationDestination?> = _pending.asStateFlow()
 
-    init { auth.onBeforeSignOut = { jwt -> push.unregister(jwt); setMissingPicks(0) } }
+    init { auth.onBeforeSignOut = { jwt -> push.unregister(jwt); setMissingPicks(0); WidgetBridge.clear(appContext) } }
 
     fun postDestination(destination: NotificationDestination) { _pending.value = destination }
     fun consumeDestination() { _pending.value = null }

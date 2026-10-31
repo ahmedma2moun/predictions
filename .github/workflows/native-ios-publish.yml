@@ -76,6 +76,7 @@ jobs:
           CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           GH_PAT: ${{ secrets.GH_PAT }}
           BUNDLE_ID: com.maamoun.footballpredictions
+          BUNDLE_ID_WIDGET: com.maamoun.footballpredictions.widget
         run: |
           VENV="$RUNNER_TEMP/signing-venv"
           python3 -m venv "$VENV"
@@ -97,6 +98,7 @@ jobs:
       - name: Generate Xcode project
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PROFILE_NAME_WIDGET: ${{ env.WIDGET_PROFILE_NAME }}
         run: native/ios/generate.sh
 
       - name: Write ExportOptions.plist
@@ -120,6 +122,8 @@ jobs:
               <dict>
                   <key>com.maamoun.footballpredictions</key>
                   <string>${PROFILE_NAME}</string>
+                  <key>com.maamoun.footballpredictions.widget</key>
+                  <string>${WIDGET_PROFILE_NAME}</string>
               </dict>
           </dict>
           </plist>

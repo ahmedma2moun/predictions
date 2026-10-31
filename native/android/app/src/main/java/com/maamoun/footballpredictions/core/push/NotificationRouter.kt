@@ -6,6 +6,7 @@ sealed interface NotificationDestination {
     data object MyScore : NotificationDestination
     data object Club : NotificationDestination
     data object Slip : NotificationDestination
+    data object Leaders : NotificationDestination
     data class MatchDetail(val id: String) : NotificationDestination
 }
 
@@ -22,6 +23,7 @@ object NotificationRouter {
             "goal", "goal_disallowed", "match_started", "match_reminder" ->
                 matchId?.let { NotificationDestination.MatchDetail(it) } ?: NotificationDestination.Matches
             "new_matches", "prediction_reminder", "daily_reminder" -> NotificationDestination.Slip
+            "leaderboard" -> NotificationDestination.Leaders // widget rank tap
             else -> NotificationDestination.Matches
         }
     }

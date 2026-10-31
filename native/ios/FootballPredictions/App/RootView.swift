@@ -47,6 +47,11 @@ struct RootView: View {
                 }
             }
         }
+        .onOpenURL { url in
+            // Widget taps: same handling as a notification tap (queued until a session exists).
+            guard let destination = WidgetBridge.destination(for: url) else { return }
+            if app.auth.token != nil { app.router.open(destination) } else { app.router.pendingDestination = destination }
+        }
         .onChange(of: app.auth.token) { _, token in
             if token == nil { app.router.reset() }
         }

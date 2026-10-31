@@ -93,6 +93,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     // Pinned so lint-vital accepts the ActivityResult APIs used by MainActivity.
     implementation(libs.androidx.fragment)
+    implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.navigation.compose)

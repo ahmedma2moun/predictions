@@ -14,6 +14,8 @@ class NotificationRouterTest {
         assertEquals(NotificationDestination.MyScore, route(mapOf("type" to "result_correction")))
     }
 
+    @Test fun leaderboardOpensLeaders() = assertEquals(NotificationDestination.Leaders, route(mapOf("type" to "leaderboard")))
+
     @Test fun seasonEndOpensClub() = assertEquals(NotificationDestination.Club, route(mapOf("type" to "season_end")))
 
     @Test fun matchNotificationsOpenDetailOrFallBack() {

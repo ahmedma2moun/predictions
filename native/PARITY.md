@@ -25,6 +25,7 @@ verified on a physical device or against the real API yet — that is the remain
 | 10 | Champion (hidden route) | `Features/Champion` | `features/champion` | 🟡 | 🟡 |
 | 11 | Root / auth gate | `App/RootView` | `app/RootScreen` | ✅ | ✅ |
 | 12 | Tab shell | `App/MainTabView` | `app/RootScreen` (NavigationBar) | ✅ | ✅ |
+| 13 | Home-screen widget "Next match" | `FootballPredictionsWidget` (+ `Core/Widget`, `Shared/WidgetSnapshot`) | `widget/NextMatchWidget` (+ `widget/WidgetSnapshot`) | 🟡 | 🟡 |
 | – | Odds explainer modal / odds popovers | – | – | ⏸ | ⏸ |
 
 The odds UI (`OddsExplainerModal`, `OddsFactors`) is **deferred**: `ODDS_FEATURE_ENABLED = false`. The per-match
@@ -53,6 +54,7 @@ The odds UI (`OddsExplainerModal`, `OddsFactors`) is **deferred**: `ODDS_FEATURE
 | Skeleton loading on first load of Matches, Leaders, My Score, Club, Seasons (card/row shaped placeholders with a moving highlight; static under Reduce Motion; announced as "Loading"). Match detail and Champion keep the spinner | 🟡 `LoadingSkeleton` / `SkeletonBox` | 🟡 `LoadingSkeleton` / `SkeletonBox` |
 | Goal haptic: a live poll (card or match detail) whose total goals exceed the previously known score; the first poll without a baseline never fires (`isGoal`) | 🟡 `.sensoryFeedback(.impact(weight: .heavy))` | 🟡 `AppHaptics.goal` (`LONG_PRESS`) |
 | Deadline haptic: an unpredicted match crosses into the last 5 minutes while its countdown is on screen (checked on the 30 s tick; opening inside the window does not fire) (`isInDeadlineWindow`) | 🟡 `.sensoryFeedback(.warning)` | 🟡 `AppHaptics.deadlineWarning` (`REJECT` on API 30+, `LONG_PRESS` below) |
+| Widget data: the app writes a `WidgetSnapshot` (next open match + prediction, missing-picks count, all-time rank) whenever Matches / the unfiltered all-time Leaderboard load; widgets never call the API. Cleared on sign-out. Tap → match detail (or Matches / Slip / Leaders for the empty state, missing-picks link, rank link) via the same destination routing as push taps | 🟡 App Group `UserDefaults` + `WidgetCenter.reloadAllTimelines` + `footballpredictions://` URLs | 🟡 `SharedPreferences` + Glance `updateAll` + intent extras (`type=match_reminder/new_matches/leaderboard`) |
 | Push: FCM token register/unregister (`POST/DELETE /api/mobile/devices`) | ✅ | ✅ |
 | Push: foreground presentation | ✅ banner+sound | ✅ posted locally on `default` channel |
 | Push: tap routing (foreground / background / cold start) per `NotificationRouter` | 🟡 | 🟡 |
@@ -73,6 +75,8 @@ Anything not listed here must match exactly.
 | Score changes | `contentTransition(.numericText)` | `AnimatedContent` |
 | Pull-to-refresh, switches, alerts, share, scoring popover | System `.refreshable`, `Toggle`, `.alert`, `ShareLink`, `.popover` | `PullToRefreshBox`, `Switch`, `AlertDialog`, `ACTION_SEND` chooser, dialog |
 | Keyboard | `scrollDismissesKeyboard`, numeric pad "Done" toolbar on Slip | `imePadding()` |
+| Widget countdown / lock | `Text(kickoff, style: .relative)` ticks live; timeline entry at kickoff flips to "Locked" | Absolute kickoff time + "Locks at kickoff" (a widget redraws about every 30 min, so a countdown would go stale); flips to "Locked" on the next redraw |
+| Widget sizes | `systemSmall`, `systemMedium` (rank + missing picks column) | Responsive: 2×2 shows the match, wide (≥250dp) adds the rank column |
 | Typography scaling | Dynamic Type (capped at accessibility-2) | `sp` + system font scale |
 | Splash | `UILaunchScreen` (colour + image) | `core-splashscreen` API |
 | Launcher icon | Flat 1024 icon | Adaptive icon + themed (monochrome) layer |

@@ -42,9 +42,12 @@ targets:
       path: FootballPredictions/FootballPredictions.entitlements
       properties:
         aps-environment: $(APS_ENVIRONMENT)
+        com.apple.security.application-groups:
+          - group.com.maamoun.footballpredictions
     dependencies:
       - package: Firebase
         product: FirebaseMessaging
+      - target: FootballPredictionsWidget
     info:
       path: FootballPredictions/Info.plist
       properties:
@@ -68,6 +71,10 @@ targets:
           - UIInterfaceOrientationPortrait
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+        CFBundleURLTypes:
+          - CFBundleURLName: com.maamoun.footballpredictions
+            CFBundleURLSchemes:
+              - footballpredictions
         FirebaseAppDelegateProxyEnabled: false
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
@@ -83,6 +90,39 @@ targets:
           CODE_SIGN_IDENTITY: Apple Distribution
           DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
           PROVISIONING_PROFILE_SPECIFIER: ${PROFILE_NAME}
+
+  # Home-screen widget. Reads the snapshot the app writes to the shared App Group (see Shared/WidgetSnapshot.swift).
+  FootballPredictionsWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: FootballPredictionsWidget
+      - path: FootballPredictions/Shared
+      - path: FootballPredictions/Core/DesignSystem/Tokens.swift
+    entitlements:
+      path: FootballPredictionsWidget/FootballPredictionsWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.maamoun.footballpredictions
+    info:
+      path: FootballPredictionsWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Football Predictions
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.maamoun.footballpredictions.widget
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+      configs:
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Apple Distribution
+          DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
+          PROVISIONING_PROFILE_SPECIFIER: ${PROFILE_NAME_WIDGET}
 
   FootballPredictionsTests:
     type: bundle.unit-test

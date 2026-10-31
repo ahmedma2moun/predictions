@@ -66,6 +66,8 @@ final class AppRouter {
             go(.myScore, [])
         case .club:
             go(.club, [])
+        case .leaders:
+            go(.leaders, [])
         case .slip:
             go(.matches, [.slip])
         case .matchDetail(let id):

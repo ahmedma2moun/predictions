@@ -147,7 +147,12 @@ final class LeaderboardViewModel {
         var url = "/api/mobile/leaderboard?_=1" + rangeQuery()
         if let groupId { url += "&groupId=\(encode(groupId))" }
         for id in selectedLeagues { url += "&leagueId=\(encode(id))" }
-        return try await app.api.request(url, token: token)
+        let entries: [LeaderboardEntry] = try await app.api.request(url, token: token)
+        // The widget shows the all-time standing, so only the unfiltered all-time board feeds it.
+        if period == .all, selectedLeagues.isEmpty, let me = entries.first(where: { $0.userId == myId }) {
+            WidgetBridge.update(rank: me.rank, points: me.totalPoints, players: entries.count)
+        }
+        return entries
     }
 
     // MARK: Expansion

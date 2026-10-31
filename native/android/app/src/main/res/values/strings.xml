@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Football Predictions</string>
+    <string name="widget_description">The next match to predict, your rank, and how many picks are missing.</string>
 </resources>
