@@ -72,6 +72,22 @@ fun formatMatchDayHeader(date: Instant, now: Instant = Instant.now(), zone: Zone
 
 fun isMatchLocked(kickoff: Instant, now: Instant = Instant.now()): Boolean = !now.isBefore(kickoff)
 
+/**
+ * A polled score is a goal when it has more total goals than the previously known score.
+ * No baseline (`previous == null`) never counts, so opening a screen mid-match does not buzz.
+ */
+fun isGoal(previous: Pair<Int, Int>?, new: Pair<Int, Int>): Boolean =
+    previous != null && new.first + new.second > previous.first + previous.second
+
+/** Seconds before kickoff at which an unpredicted match starts the deadline warning. */
+const val DEADLINE_WARNING_WINDOW_SECONDS = 5 * 60L
+
+/** True while kickoff is still ahead but within [DEADLINE_WARNING_WINDOW_SECONDS]. */
+fun isInDeadlineWindow(kickoff: Instant, now: Instant = Instant.now()): Boolean {
+    val remaining = java.time.Duration.between(now, kickoff).seconds
+    return remaining > 0 && remaining <= DEADLINE_WARNING_WINDOW_SECONDS
+}
+
 /** Upcoming matches (scheduled, not yet locked) the signed-in user has not predicted. Drives the Matches tab badge. */
 fun countMissingPicks(matches: List<MatchListItem>, now: Instant = Instant.now()): Int =
     matches.count { it.status == MatchStatus.SCHEDULED && it.prediction == null && !isMatchLocked(it.kickoffDate, now) }

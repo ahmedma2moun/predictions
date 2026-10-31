@@ -16,6 +16,8 @@ struct LiveScore: Equatable, Sendable {
 @Observable
 final class LiveScorePoller {
     private(set) var score: LiveScore?
+    /// Incremented when a poll shows more goals than before; views use it as a haptic trigger.
+    private(set) var goalCount = 0
     private let app: AppContainer
     private let match: MatchListItem
     static let interval: Duration = .seconds(60)
@@ -45,6 +47,8 @@ final class LiveScorePoller {
                     )
                     if Task.isCancelled { return }
                     if let home = data.homeScore, let away = data.awayScore {
+                        let previous = displayed.flatMap { s in s.homeScore.flatMap { h in s.awayScore.map { (home: h, away: $0) } } }
+                        if isGoal(previous: previous, new: (home, away)) { goalCount += 1 }
                         score = LiveScore(status: data.status, homeScore: home, awayScore: away, livePoints: data.livePoints)
                     }
                     shouldPoll = data.status == .live || data.status == .scheduled

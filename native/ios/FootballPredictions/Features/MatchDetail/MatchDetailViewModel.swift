@@ -24,6 +24,8 @@ final class MatchDetailViewModel {
     private(set) var saving = false
     private(set) var saveCount = 0
     private(set) var liveScore: ScorePair?
+    /// Incremented when a poll shows more goals than before; the screen uses it as a haptic trigger.
+    private(set) var goalCount = 0
     private(set) var matchEvents: [MatchEvent]?
 
     init(app: AppContainer, matchId: String, tab: AppTab) {
@@ -82,7 +84,12 @@ final class MatchDetailViewModel {
                     "/api/mobile/matches/\(matchId)/live", token: token
                 )
                 if Task.isCancelled { return }
-                if let h = live.homeScore, let a = live.awayScore { liveScore = ScorePair(home: h, away: a) }
+                if let h = live.homeScore, let a = live.awayScore {
+                    let baseline = liveScore.map { (home: $0.home, away: $0.away) }
+                        ?? match.result.map { (home: $0.homeScore, away: $0.awayScore) }
+                    if isGoal(previous: baseline, new: (h, a)) { goalCount += 1 }
+                    liveScore = ScorePair(home: h, away: a)
+                }
                 if let events = live.events, !events.isEmpty { matchEvents = events }
                 guard live.status == .live else { return }
             } catch {

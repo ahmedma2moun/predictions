@@ -18,7 +18,7 @@ struct MyScoreScreen: View {
         VStack(spacing: 0) {
             AppHeader(app: app, title: "My Score", subtitle: "\(vm.totalPoints) pts total")
             if vm.isLoading && vm.predictions.isEmpty && vm.error == nil {
-                CenteredSpinner()
+                LoadingSkeleton(kind: .cards)
             } else {
                 list
             }

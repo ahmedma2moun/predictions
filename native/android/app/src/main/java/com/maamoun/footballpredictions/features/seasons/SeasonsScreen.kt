@@ -41,6 +41,8 @@ import com.maamoun.footballpredictions.app.appViewModel
 import com.maamoun.footballpredictions.app.collectAsStateCompat
 import com.maamoun.footballpredictions.core.designsystem.AppIcon
 import com.maamoun.footballpredictions.core.designsystem.Avatar
+import com.maamoun.footballpredictions.core.designsystem.LoadingSkeleton
+import com.maamoun.footballpredictions.core.designsystem.SkeletonKind
 import com.maamoun.footballpredictions.core.designsystem.CenteredSpinner
 import com.maamoun.footballpredictions.core.designsystem.Hairline
 import com.maamoun.footballpredictions.core.designsystem.Muted
@@ -104,7 +106,7 @@ fun SeasonsScreen(app: AppContainer) {
     Column(Modifier.fillMaxSize().background(c.background)) {
         AppHeader(app, "Seasons")
         if (state.isLoading && data == null) {
-            CenteredSpinner()
+            LoadingSkeleton(SkeletonKind.Cards)
         } else {
             val active = data?.activeSeason
             val ended = data?.endedSeasons ?: emptyList()

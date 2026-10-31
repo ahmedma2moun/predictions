@@ -28,6 +28,8 @@ import com.maamoun.footballpredictions.app.appViewModel
 import com.maamoun.footballpredictions.app.collectAsStateCompat
 import com.maamoun.footballpredictions.core.designsystem.AppButton
 import com.maamoun.footballpredictions.core.designsystem.AppButtonVariant
+import com.maamoun.footballpredictions.core.designsystem.LoadingSkeleton
+import com.maamoun.footballpredictions.core.designsystem.SkeletonKind
 import com.maamoun.footballpredictions.core.designsystem.CenteredSpinner
 import com.maamoun.footballpredictions.core.designsystem.Muted
 import com.maamoun.footballpredictions.core.designsystem.Tokens
@@ -57,7 +59,7 @@ fun MatchesScreen(app: AppContainer, nav: AppNav) {
     Column(Modifier.fillMaxSize().background(c.background)) {
         AppHeader(app, "Matches", vm.subtitle(matches))
         if (state.isLoading && matches.isEmpty() && state.error == null) {
-            CenteredSpinner()
+            LoadingSkeleton(SkeletonKind.Matches)
         } else {
             PullToRefreshBox(
                 isRefreshing = state.isRefreshing,

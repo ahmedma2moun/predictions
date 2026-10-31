@@ -53,6 +53,7 @@ import com.maamoun.footballpredictions.core.networking.dto.Team
 import com.maamoun.footballpredictions.core.util.countdownLabel
 import com.maamoun.footballpredictions.core.util.formatKickoff
 import com.maamoun.footballpredictions.core.util.formatStage
+import com.maamoun.footballpredictions.core.util.isInDeadlineWindow
 import com.maamoun.footballpredictions.core.util.isKnockoutStage
 import com.maamoun.footballpredictions.core.util.isMatchLocked
 import kotlinx.coroutines.delay
@@ -63,6 +64,9 @@ fun MatchCard(app: AppContainer, match: MatchListItem, onClick: () -> Unit) {
     val c = palette
     val poller = remember(match.id, match.status) { LiveScorePoller(app, match) }
     LaunchedEffect(match.id, match.status) { poller.run() }
+    val view = androidx.compose.ui.platform.LocalView.current
+    // Goal in a live match (the counter only moves on a real score increase).
+    LaunchedEffect(poller.goalCount) { if (poller.goalCount > 0) com.maamoun.footballpredictions.core.designsystem.AppHaptics.goal(view) }
 
     val liveScore = poller.displayed
     val locked = isMatchLocked(match.kickoffDate)
@@ -189,20 +193,26 @@ private fun FooterRight(match: MatchListItem, locked: Boolean) {
                 if (match.prediction != null) "Prediction submitted" else "No prediction submitted",
                 color = c.mutedForeground, style = appFont(Tokens.FontSize.xs).copy(fontStyle = FontStyle.Italic),
             )
-        else -> CountdownText(match.kickoffDate)
+        else -> CountdownText(match.kickoffDate, needsPick = match.prediction == null)
     }
 }
 
 /** "2h 5m to predict" — refreshed every 30 s and cleared at kickoff. */
 @Composable
-private fun CountdownText(kickoff: Instant) {
+private fun CountdownText(kickoff: Instant, needsPick: Boolean) {
     val c = palette
+    val view = androidx.compose.ui.platform.LocalView.current
     var label by remember(kickoff) { mutableStateOf(countdownLabel(kickoff)) }
     LaunchedEffect(kickoff) {
         label = countdownLabel(kickoff)
+        // Baseline on appear: opening the list inside the window must not buzz, only crossing it while watching.
+        var inWindow = isInDeadlineWindow(kickoff)
         while (label != null) {
             delay(30_000)
             label = countdownLabel(kickoff)
+            val nowInWindow = isInDeadlineWindow(kickoff)
+            if (nowInWindow && !inWindow && needsPick) com.maamoun.footballpredictions.core.designsystem.AppHaptics.deadlineWarning(view)
+            inWindow = nowInWindow
         }
     }
     label?.let {

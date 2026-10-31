@@ -288,6 +288,101 @@ struct CenteredSpinner: View {
     }
 }
 
+// MARK: - Skeleton loading
+
+/// A placeholder block with a moving highlight. Static when Reduce Motion is on.
+struct SkeletonBox: View {
+    @Environment(\.palette) private var c
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var width: CGFloat? = nil
+    var height: CGFloat
+    var radius: CGFloat = Tokens.Radius.sm
+    @State private var sweep = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: radius)
+            .fill(c.cardElevated)
+            .frame(width: width, height: height)
+            .overlay {
+                if !reduceMotion {
+                    GeometryReader { geo in
+                        LinearGradient(colors: [.clear, c.foreground.opacity(0.10), .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: geo.size.width * 0.6)
+                            .offset(x: sweep ? geo.size.width : -geo.size.width * 0.6)
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: radius))
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.linear(duration: 1.3).repeatForever(autoreverses: false)) { sweep = true }
+            }
+    }
+}
+
+enum SkeletonKind { case matches, rows, cards }
+
+/// Screen-level loading placeholder shaped like the content it stands in for (replaces `CenteredSpinner` on list screens).
+struct LoadingSkeleton: View {
+    @Environment(\.palette) private var c
+    let kind: SkeletonKind
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Tokens.Spacing.md) {
+                switch kind {
+                case .matches:
+                    SkeletonBox(width: 90, height: 12)
+                    ForEach(0..<3, id: \.self) { _ in matchCard }
+                case .rows:
+                    Card(spacing: Tokens.Spacing.md) {
+                        ForEach(0..<7, id: \.self) { _ in row }
+                    }
+                case .cards:
+                    ForEach(0..<3, id: \.self) { _ in card }
+                }
+            }
+            .padding(Tokens.Spacing.lg)
+        }
+        .scrollDisabled(true)
+        .background(c.background)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Loading")
+    }
+
+    private var matchCard: some View {
+        Card(spacing: Tokens.Spacing.md) {
+            SkeletonBox(width: 150, height: 10)
+            HStack {
+                VStack(alignment: .leading, spacing: 6) { SkeletonBox(width: 36, height: 36, radius: Tokens.Radius.pill); SkeletonBox(width: 70, height: 12) }
+                Spacer()
+                SkeletonBox(width: 56, height: 24, radius: Tokens.Radius.md)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 6) { SkeletonBox(width: 36, height: 36, radius: Tokens.Radius.pill); SkeletonBox(width: 70, height: 12) }
+            }
+            SkeletonBox(width: 110, height: 10)
+        }
+    }
+
+    private var row: some View {
+        HStack(spacing: Tokens.Spacing.md) {
+            SkeletonBox(width: 20, height: 14)
+            SkeletonBox(width: 34, height: 34, radius: Tokens.Radius.pill)
+            VStack(alignment: .leading, spacing: 6) { SkeletonBox(width: 110, height: 12); SkeletonBox(width: 150, height: 10) }
+            Spacer()
+            SkeletonBox(width: 44, height: 22, radius: Tokens.Radius.pill)
+        }
+    }
+
+    private var card: some View {
+        Card(spacing: Tokens.Spacing.md) {
+            SkeletonBox(width: 140, height: 16)
+            SkeletonBox(height: 12)
+            SkeletonBox(width: 220, height: 12)
+        }
+    }
+}
+
 struct ErrorCard: View {
     let message: String
     var retry: (() -> Void)?

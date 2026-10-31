@@ -28,6 +28,8 @@ import com.maamoun.footballpredictions.app.AppNav
 import com.maamoun.footballpredictions.app.appViewModel
 import com.maamoun.footballpredictions.app.collectAsStateCompat
 import com.maamoun.footballpredictions.core.designsystem.AppIcon
+import com.maamoun.footballpredictions.core.designsystem.LoadingSkeleton
+import com.maamoun.footballpredictions.core.designsystem.SkeletonKind
 import com.maamoun.footballpredictions.core.designsystem.CenteredSpinner
 import com.maamoun.footballpredictions.core.designsystem.IconButton
 import com.maamoun.footballpredictions.core.designsystem.Muted
@@ -61,7 +63,7 @@ fun MyScoreScreen(app: AppContainer, nav: AppNav) {
     Column(Modifier.fillMaxSize().background(c.background)) {
         AppHeader(app, "My Score", "${vm.totalPoints(predictions)} pts total")
         if (predictionsState.isLoading && predictions.isEmpty() && predictionsState.error == null) {
-            CenteredSpinner()
+            LoadingSkeleton(SkeletonKind.Cards)
         } else {
             PullToRefreshBox(
                 isRefreshing = predictionsState.isRefreshing,

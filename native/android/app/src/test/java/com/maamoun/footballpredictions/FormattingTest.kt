@@ -64,6 +64,23 @@ class FormattingTest {
         assertEquals("2026-10-17", getMatchDayKey(Instant.parse("2026-10-17T23:30:00Z"), zone))
     }
 
+    @Test fun goalDetection() {
+        assertFalse(isGoal(null, 1 to 0))            // no baseline: opening mid-match
+        assertFalse(isGoal(1 to 0, 1 to 0))          // unchanged
+        assertTrue(isGoal(1 to 0, 1 to 1))
+        assertTrue(isGoal(0 to 0, 2 to 0))           // two goals between polls
+        assertFalse(isGoal(2 to 1, 1 to 1))          // VAR disallowed goal: no buzz
+    }
+
+    @Test fun deadlineWindow() {
+        val now = Instant.now()
+        assertFalse(isInDeadlineWindow(now.plusSeconds(301), now))
+        assertTrue(isInDeadlineWindow(now.plusSeconds(300), now))
+        assertTrue(isInDeadlineWindow(now.plusSeconds(1), now))
+        assertFalse(isInDeadlineWindow(now, now))    // kickoff reached: locked
+        assertFalse(isInDeadlineWindow(now.minusSeconds(10), now))
+    }
+
     @Test fun weekBoundsStartOnFriday() {
         val zone = ZoneId.systemDefault()
         for (offset in listOf(-2, 0, 1)) {

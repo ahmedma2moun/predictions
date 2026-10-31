@@ -1,6 +1,7 @@
 package com.maamoun.footballpredictions.features.matches
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.maamoun.footballpredictions.app.AppContainer
@@ -9,6 +10,7 @@ import com.maamoun.footballpredictions.core.networking.ApiError
 import com.maamoun.footballpredictions.core.networking.dto.LiveScoreResponse
 import com.maamoun.footballpredictions.core.networking.dto.MatchListItem
 import com.maamoun.footballpredictions.core.networking.dto.MatchStatus
+import com.maamoun.footballpredictions.core.util.isGoal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -24,6 +26,10 @@ data class LiveScore(val status: MatchStatus, val homeScore: Int?, val awayScore
 class LiveScorePoller(private val app: AppContainer, private val match: MatchListItem) {
     private var score by mutableStateOf<LiveScore?>(null)
 
+    /** Incremented when a poll shows more goals than before; the card uses it as a haptic trigger. */
+    var goalCount by mutableIntStateOf(0)
+        private set
+
     /** Current best-known score: polled value, else the match's own result. */
     val displayed: LiveScore?
         get() = score ?: match.result?.let { LiveScore(match.status, it.homeScore, it.awayScore) }
@@ -36,7 +42,11 @@ class LiveScorePoller(private val app: AppContainer, private val match: MatchLis
             if (AppForeground.isActive) {
                 try {
                     val data: LiveScoreResponse = app.api.request("/api/mobile/matches/${match.id}/live", token = token)
-                    if (data.homeScore != null && data.awayScore != null) score = LiveScore(data.status, data.homeScore, data.awayScore, data.livePoints)
+                    if (data.homeScore != null && data.awayScore != null) {
+                        val previous = displayed?.let { s -> if (s.homeScore != null && s.awayScore != null) s.homeScore to s.awayScore else null }
+                        if (isGoal(previous, data.homeScore to data.awayScore)) goalCount++
+                        score = LiveScore(data.status, data.homeScore, data.awayScore, data.livePoints)
+                    }
                     shouldPoll = data.status == MatchStatus.LIVE || data.status == MatchStatus.SCHEDULED
                 } catch (e: CancellationException) {
                     throw e

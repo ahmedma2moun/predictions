@@ -77,6 +77,22 @@ func formatMatchDayHeader(_ date: Date, now: Date = Date()) -> String {
 
 func isMatchLocked(_ kickoff: Date, now: Date = Date()) -> Bool { now >= kickoff }
 
+/// A polled score is a goal when it has more total goals than the previously known score.
+/// No baseline (`previous == nil`) never counts, so opening a screen mid-match does not buzz.
+func isGoal(previous: (home: Int, away: Int)?, new: (home: Int, away: Int)) -> Bool {
+    guard let previous else { return false }
+    return new.home + new.away > previous.home + previous.away
+}
+
+/// Seconds before kickoff at which an unpredicted match starts the deadline warning.
+let deadlineWarningWindow: TimeInterval = 5 * 60
+
+/// True while kickoff is still ahead but within `deadlineWarningWindow`.
+func isInDeadlineWindow(_ kickoff: Date, now: Date = Date()) -> Bool {
+    let remaining = kickoff.timeIntervalSince(now)
+    return remaining > 0 && remaining <= deadlineWarningWindow
+}
+
 /// Upcoming matches (scheduled, not yet locked) the signed-in user has not predicted. Drives the Matches tab badge.
 func countMissingPicks(_ matches: [MatchListItem], now: Date = Date()) -> Int {
     matches.filter { $0.status == .scheduled && $0.prediction == nil && !isMatchLocked($0.kickoffDate, now: now) }.count

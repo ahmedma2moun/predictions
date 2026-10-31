@@ -16,7 +16,7 @@ struct LeaderboardScreen: View {
         VStack(spacing: 0) {
             AppHeader(app: app, title: "Leaders", subtitle: vm.subtitle)
             if vm.isLoading && vm.entries.isEmpty && vm.error == nil {
-                CenteredSpinner()
+                LoadingSkeleton(kind: .rows)
             } else {
                 list
             }

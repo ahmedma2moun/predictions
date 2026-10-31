@@ -18,7 +18,7 @@ struct ClubScreen: View {
         VStack(spacing: 0) {
             AppHeader(app: app, title: "The Club", subtitle: "A fresh crown every week")
             if vm.isLoading && vm.hub == nil && vm.error == nil {
-                CenteredSpinner()
+                LoadingSkeleton(kind: .cards)
             } else {
                 content
             }

@@ -30,6 +30,8 @@ import com.maamoun.footballpredictions.app.AppHeader
 import com.maamoun.footballpredictions.app.appViewModel
 import com.maamoun.footballpredictions.app.collectAsStateCompat
 import com.maamoun.footballpredictions.core.designsystem.AppIcon
+import com.maamoun.footballpredictions.core.designsystem.LoadingSkeleton
+import com.maamoun.footballpredictions.core.designsystem.SkeletonKind
 import com.maamoun.footballpredictions.core.designsystem.CenteredSpinner
 import com.maamoun.footballpredictions.core.designsystem.Muted
 import com.maamoun.footballpredictions.core.designsystem.Tokens
@@ -56,7 +58,7 @@ fun LeaderboardScreen(app: AppContainer) {
     Column(Modifier.fillMaxSize().background(c.background)) {
         AppHeader(app, "Leaders", vm.subtitle(entries))
         if (loading && entries.isEmpty() && state.error == null) {
-            CenteredSpinner()
+            LoadingSkeleton(SkeletonKind.Rows)
         } else {
             PullToRefreshBox(isRefreshing = state.isRefreshing, onRefresh = { scope.launch { vm.refresh() } }, modifier = Modifier.fillMaxSize()) {
                 LazyColumn(

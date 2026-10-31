@@ -39,6 +39,8 @@ import com.maamoun.footballpredictions.app.collectAsStateCompat
 import com.maamoun.footballpredictions.core.designsystem.AppButton
 import com.maamoun.footballpredictions.core.designsystem.AppButtonVariant
 import com.maamoun.footballpredictions.core.designsystem.Card
+import com.maamoun.footballpredictions.core.designsystem.LoadingSkeleton
+import com.maamoun.footballpredictions.core.designsystem.SkeletonKind
 import com.maamoun.footballpredictions.core.designsystem.CenteredSpinner
 import com.maamoun.footballpredictions.core.designsystem.Divider
 import com.maamoun.footballpredictions.core.designsystem.ErrorCard
@@ -71,7 +73,7 @@ fun ClubScreen(app: AppContainer, nav: AppNav) {
     Column(Modifier.fillMaxSize().background(c.background)) {
         AppHeader(app, "The Club", "A fresh crown every week")
         if (state.isLoading && hub == null && state.error == null) {
-            CenteredSpinner()
+            LoadingSkeleton(SkeletonKind.Cards)
         } else {
             PullToRefreshBox(isRefreshing = state.isRefreshing, onRefresh = { scope.launch { vm.refresh() } }, modifier = Modifier.fillMaxSize()) {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Tokens.Spacing.lg), verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.lg)) {

@@ -37,6 +37,7 @@ struct MatchCard: View {
         .clipShape(RoundedRectangle(cornerRadius: Tokens.Radius.lg))
         .overlay(RoundedRectangle(cornerRadius: Tokens.Radius.lg).stroke(c.border, lineWidth: hairline))
         .task(id: "\(match.id)-\(match.status.rawValue)") { await poller.run() }
+        .sensoryFeedback(.impact(weight: .heavy), trigger: poller.goalCount) // goal in a live match
         .accessibilityElement(children: .combine)
     }
 
@@ -152,7 +153,7 @@ struct MatchCard: View {
             Text(match.prediction != nil ? "Prediction submitted" : "No prediction submitted")
                 .appFont(Tokens.FontSize.xs).italic().foregroundStyle(c.mutedForeground)
         } else {
-            CountdownText(kickoff: match.kickoffDate)
+            CountdownText(kickoff: match.kickoffDate, needsPick: match.prediction == nil)
         }
     }
 }
@@ -184,7 +185,10 @@ private struct TeamSide: View {
 private struct CountdownText: View {
     @Environment(\.palette) private var c
     let kickoff: Date
+    /// Only an unpredicted match warns as the deadline approaches.
+    var needsPick = false
     @State private var label: String?
+    @State private var warnCount = 0
 
     var body: some View {
         Group {
@@ -195,11 +199,17 @@ private struct CountdownText: View {
                 }
             }
         }
+        .sensoryFeedback(.warning, trigger: warnCount)
         .task(id: kickoff) {
             label = countdownLabel(until: kickoff)
+            // Baseline on appear: opening the list inside the window must not buzz, only crossing it while watching.
+            var inWindow = isInDeadlineWindow(kickoff)
             while !Task.isCancelled, label != nil {
                 try? await Task.sleep(for: .seconds(30))
                 label = countdownLabel(until: kickoff)
+                let nowInWindow = isInDeadlineWindow(kickoff)
+                if nowInWindow && !inWindow && needsPick { warnCount += 1 }
+                inWindow = nowInWindow
             }
         }
     }

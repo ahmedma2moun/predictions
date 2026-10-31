@@ -16,7 +16,7 @@ struct MatchesScreen: View {
         VStack(spacing: 0) {
             AppHeader(app: app, title: "Matches", subtitle: vm.subtitle)
             if vm.isLoading && vm.matches.isEmpty && vm.error == nil {
-                CenteredSpinner()
+                LoadingSkeleton(kind: .matches)
             } else {
                 list
             }

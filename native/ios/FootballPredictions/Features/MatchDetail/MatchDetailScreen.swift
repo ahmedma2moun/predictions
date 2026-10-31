@@ -35,6 +35,7 @@ struct MatchDetailScreen: View {
             if let error { app.alerts.show("Failed to load match", message: error) }
         }
         .sensoryFeedback(.success, trigger: vm.saveCount)
+        .sensoryFeedback(.impact(weight: .heavy), trigger: vm.goalCount)
         .overlay(alignment: .bottom) {
             if showSaved {
                 Toast("Saved")

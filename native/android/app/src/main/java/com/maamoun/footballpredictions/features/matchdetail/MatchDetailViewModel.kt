@@ -18,6 +18,7 @@ import com.maamoun.footballpredictions.core.networking.dto.SavePredictionRequest
 import com.maamoun.footballpredictions.core.util.RemoteData
 import com.maamoun.footballpredictions.core.util.formatMatchStatus
 import com.maamoun.footballpredictions.core.util.formatStage
+import com.maamoun.footballpredictions.core.util.isGoal
 import com.maamoun.footballpredictions.core.util.isKnockoutStage
 import com.maamoun.footballpredictions.core.util.isMatchLocked
 import com.maamoun.footballpredictions.features.matches.LiveScorePoller
@@ -40,6 +41,10 @@ class MatchDetailViewModel(private val app: AppContainer, val matchId: String) :
     var saveCount by mutableIntStateOf(0)
         private set
     var liveScore by mutableStateOf<ScorePair?>(null)
+        private set
+
+    /** Incremented when a poll shows more goals than before; the screen uses it as a haptic trigger. */
+    var goalCount by mutableIntStateOf(0)
         private set
     var matchEvents by mutableStateOf<List<MatchEvent>?>(null)
         private set
@@ -89,7 +94,11 @@ class MatchDetailViewModel(private val app: AppContainer, val matchId: String) :
         while (true) {
             try {
                 val live: LiveScoreResponse = app.api.request("/api/mobile/matches/$matchId/live", token = token)
-                if (live.homeScore != null && live.awayScore != null) liveScore = ScorePair(live.homeScore, live.awayScore)
+                if (live.homeScore != null && live.awayScore != null) {
+                    val baseline = liveScore?.let { it.home to it.away } ?: m.result?.let { it.homeScore to it.awayScore }
+                    if (isGoal(baseline, live.homeScore to live.awayScore)) goalCount++
+                    liveScore = ScorePair(live.homeScore, live.awayScore)
+                }
                 if (!live.events.isNullOrEmpty()) matchEvents = live.events
                 if (live.status != MatchStatus.LIVE) return
             } catch (e: CancellationException) {

@@ -50,6 +50,9 @@ The odds UI (`OddsExplainerModal`, `OddsFactors`) is **deferred**: `ODDS_FEATURE
 | Theme light/dark/system, persisted as `fp_theme_mode`, default dark | ✅ | ✅ |
 | Secure token storage (`fp_token`, `fp_user`) | ✅ Keychain | ✅ Keystore AES-GCM |
 | Matches tab badge: count of upcoming (scheduled, unlocked) matches with no prediction; hidden at 0; computed from the matches list already fetched (no extra request); cleared on sign-out; refreshes whenever Matches refetches | 🟡 `.badge(_:)` | 🟡 `BadgedBox` + `Badge`, `99+` cap |
+| Skeleton loading on first load of Matches, Leaders, My Score, Club, Seasons (card/row shaped placeholders with a moving highlight; static under Reduce Motion; announced as "Loading"). Match detail and Champion keep the spinner | 🟡 `LoadingSkeleton` / `SkeletonBox` | 🟡 `LoadingSkeleton` / `SkeletonBox` |
+| Goal haptic: a live poll (card or match detail) whose total goals exceed the previously known score; the first poll without a baseline never fires (`isGoal`) | 🟡 `.sensoryFeedback(.impact(weight: .heavy))` | 🟡 `AppHaptics.goal` (`LONG_PRESS`) |
+| Deadline haptic: an unpredicted match crosses into the last 5 minutes while its countdown is on screen (checked on the 30 s tick; opening inside the window does not fire) (`isInDeadlineWindow`) | 🟡 `.sensoryFeedback(.warning)` | 🟡 `AppHaptics.deadlineWarning` (`REJECT` on API 30+, `LONG_PRESS` below) |
 | Push: FCM token register/unregister (`POST/DELETE /api/mobile/devices`) | ✅ | ✅ |
 | Push: foreground presentation | ✅ banner+sound | ✅ posted locally on `default` channel |
 | Push: tap routing (foreground / background / cold start) per `NotificationRouter` | 🟡 | 🟡 |

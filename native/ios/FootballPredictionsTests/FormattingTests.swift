@@ -59,6 +59,23 @@ final class FormattingTests: XCTestCase {
         XCTAssertEqual(formatMatchDayHeader(now.addingTimeInterval(-86_400), now: now), "Yesterday")
     }
 
+    func testGoalDetection() {
+        XCTAssertFalse(isGoal(previous: nil, new: (1, 0)))            // no baseline: opening mid-match
+        XCTAssertFalse(isGoal(previous: (1, 0), new: (1, 0)))         // unchanged
+        XCTAssertTrue(isGoal(previous: (1, 0), new: (1, 1)))
+        XCTAssertTrue(isGoal(previous: (0, 0), new: (2, 0)))          // two goals between polls
+        XCTAssertFalse(isGoal(previous: (2, 1), new: (1, 1)))         // VAR disallowed goal: no buzz
+    }
+
+    func testDeadlineWindow() {
+        let now = Date()
+        XCTAssertFalse(isInDeadlineWindow(now.addingTimeInterval(301), now: now))
+        XCTAssertTrue(isInDeadlineWindow(now.addingTimeInterval(300), now: now))
+        XCTAssertTrue(isInDeadlineWindow(now.addingTimeInterval(1), now: now))
+        XCTAssertFalse(isInDeadlineWindow(now, now: now))             // kickoff reached: locked
+        XCTAssertFalse(isInDeadlineWindow(now.addingTimeInterval(-10), now: now))
+    }
+
     func testWeekBoundsStartOnFriday() {
         var cal = Calendar.current
         cal.firstWeekday = 1

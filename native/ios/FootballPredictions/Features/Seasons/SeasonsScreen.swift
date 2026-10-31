@@ -14,7 +14,7 @@ struct SeasonsScreen: View {
         VStack(spacing: 0) {
             AppHeader(app: app, title: "Seasons")
             if vm.isLoading && vm.data == nil {
-                CenteredSpinner()
+                LoadingSkeleton(kind: .cards)
             } else {
                 content
             }

@@ -83,6 +83,8 @@ fun MatchDetailScreen(app: AppContainer, nav: AppNav, matchId: String) {
     val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(matchId) { vm.load() }
+    val view = androidx.compose.ui.platform.LocalView.current
+    LaunchedEffect(vm.goalCount) { if (vm.goalCount > 0) com.maamoun.footballpredictions.core.designsystem.AppHaptics.goal(view) }
     LaunchedEffect(match?.id) { if (match != null) vm.pollLive() }
     LaunchedEffect(state.error) { state.error?.let { app.alerts.show("Failed to load match", it) } }
     var showSaved by remember { mutableStateOf(false) }

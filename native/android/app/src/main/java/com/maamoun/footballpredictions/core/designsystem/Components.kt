@@ -28,6 +28,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -226,11 +228,101 @@ fun Avatar(name: String, url: String?, modifier: Modifier = Modifier, size: Dp =
     }
 }
 
+// ── Haptics ──────────────────────────────────────────────────────────────────
+/** Event haptics shared by screens (the iOS equivalents are `.sensoryFeedback` modifiers). */
+object AppHaptics {
+    /** A goal changed a live score: the strongest standard tick. */
+    fun goal(view: android.view.View) {
+        view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+    }
+
+    /** An unpredicted match is within 5 minutes of locking. */
+    fun deadlineWarning(view: android.view.View) {
+        val constant = if (android.os.Build.VERSION.SDK_INT >= 30) android.view.HapticFeedbackConstants.REJECT
+        else android.view.HapticFeedbackConstants.LONG_PRESS
+        view.performHapticFeedback(constant)
+    }
+}
+
 // ── Misc ─────────────────────────────────────────────────────────────────────
 @Composable
 fun CenteredSpinner(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize().background(palette.background), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(color = palette.primary)
+    }
+}
+
+// ── Skeleton loading ─────────────────────────────────────────────────────────
+/** A placeholder block with a moving highlight (the animator-duration scale freezes it when animations are off). */
+@Composable
+fun SkeletonBox(modifier: Modifier = Modifier, width: Dp? = null, height: Dp, radius: Dp = Tokens.Radius.sm) {
+    val c = palette
+    val shift by androidx.compose.animation.core.rememberInfiniteTransition(label = "skeleton").animateFloat(
+        initialValue = -0.6f, targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1300, easing = androidx.compose.animation.core.LinearEasing)),
+        label = "skeleton-shift",
+    )
+    val shape = RoundedCornerShape(radius)
+    androidx.compose.foundation.layout.Box(
+        (if (width != null) modifier.width(width) else modifier.fillMaxWidth()).height(height).clip(shape).background(c.cardElevated)
+            .drawWithContent {
+                drawContent()
+                val w = size.width
+                val start = shift * w
+                drawRect(
+                    brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        colors = listOf(Color.Transparent, c.foreground.copy(alpha = 0.10f), Color.Transparent),
+                        startX = start, endX = start + w * 0.6f,
+                    ),
+                )
+            },
+    )
+}
+
+enum class SkeletonKind { Matches, Rows, Cards }
+
+/** Screen-level loading placeholder shaped like the content it stands in for (replaces `CenteredSpinner` on list screens). */
+@Composable
+fun LoadingSkeleton(kind: SkeletonKind) {
+    val c = palette
+    Column(
+        Modifier.fillMaxSize().background(c.background).padding(Tokens.Spacing.lg)
+            .semantics(mergeDescendants = true) { contentDescription = "Loading" },
+        verticalArrangement = Arrangement.spacedBy(Tokens.Spacing.md),
+    ) {
+        when (kind) {
+            SkeletonKind.Matches -> {
+                SkeletonBox(width = 90.dp, height = 12.dp)
+                repeat(3) {
+                    Card(spacing = Tokens.Spacing.md) {
+                        SkeletonBox(width = 150.dp, height = 10.dp)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { SkeletonBox(width = 36.dp, height = 36.dp, radius = Tokens.Radius.pill); SkeletonBox(width = 70.dp, height = 12.dp) }
+                            SkeletonBox(width = 56.dp, height = 24.dp, radius = Tokens.Radius.md)
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) { SkeletonBox(width = 36.dp, height = 36.dp, radius = Tokens.Radius.pill); SkeletonBox(width = 70.dp, height = 12.dp) }
+                        }
+                        SkeletonBox(width = 110.dp, height = 10.dp)
+                    }
+                }
+            }
+            SkeletonKind.Rows -> Card(spacing = Tokens.Spacing.md) {
+                repeat(7) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Tokens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                        SkeletonBox(width = 20.dp, height = 14.dp)
+                        SkeletonBox(width = 34.dp, height = 34.dp, radius = Tokens.Radius.pill)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) { SkeletonBox(width = 110.dp, height = 12.dp); SkeletonBox(width = 150.dp, height = 10.dp) }
+                        SkeletonBox(width = 44.dp, height = 22.dp, radius = Tokens.Radius.pill)
+                    }
+                }
+            }
+            SkeletonKind.Cards -> repeat(3) {
+                Card(spacing = Tokens.Spacing.md) {
+                    SkeletonBox(width = 140.dp, height = 16.dp)
+                    SkeletonBox(height = 12.dp)
+                    SkeletonBox(width = 220.dp, height = 12.dp)
+                }
+            }
+        }
     }
 }
 
