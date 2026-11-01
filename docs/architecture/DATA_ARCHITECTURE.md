@@ -161,7 +161,7 @@ Teams are shared across leagues via the `TeamLeague` join table (a team can play
 |---|---|---|
 | id | Int | PK autoincrement |
 | name | String | e.g. "General", "Work Friends" |
-| isDefault | Boolean | default false — used for leaderboard default view |
+| isDefault | Boolean | default false — used for leaderboard default view; web + iOS + Android list it first and select it initially |
 
 ### `GroupMember`
 | Field | Type | Constraint | Notes |

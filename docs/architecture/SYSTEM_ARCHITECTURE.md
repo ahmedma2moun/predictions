@@ -13,7 +13,7 @@ src/
 │   │   ├── dashboard/      # Stats + upcoming matches overview
 │   │   ├── matches/        # Match list + [matchId] prediction form
 │   │   ├── predictions/    # User prediction history (tabbed by group)
-│   │   ├── leaderboard/    # Ranked table with period + group filters
+│   │   ├── leaderboard/    # Ranked table with period + group filters (General/default group listed first and selected by default)
 │   │   ├── champion/       # Champion Bonus — pick view (OPEN) / reveal view (LOCKED); hidden from nav, reachable by URL
 │   │   ├── seasons/        # Season list + standings (public read view)
 │   │   └── admin/          # Admin panel

@@ -84,7 +84,8 @@ class LeaderboardViewModel(private val app: AppContainer) : ViewModel() {
         coroutineScope {
             val g = async {
                 runCatching { app.api.request<List<LeaderboardGroup>>("/api/mobile/groups", token = token) }.getOrNull()?.let { data ->
-                    groups = data.filter { !it.isDefault } + data.filter { it.isDefault }
+                    // General (default) group is the main group: listed first and selected by default.
+                    groups = data.filter { it.isDefault } + data.filter { !it.isDefault }
                     groupId = groups.firstOrNull()?.id
                 }
                 groupsReady = true

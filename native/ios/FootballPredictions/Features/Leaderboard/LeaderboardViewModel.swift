@@ -99,7 +99,8 @@ final class LeaderboardViewModel {
 
     private func loadGroups(_ token: String) async {
         if let data: [LeaderboardGroup] = try? await app.api.request("/api/mobile/groups", token: token) {
-            groups = data.filter { !$0.isDefault } + data.filter(\.isDefault)
+            // General (default) group is the main group: listed first and selected by default.
+            groups = data.filter(\.isDefault) + data.filter { !$0.isDefault }
             groupId = groups.first?.id
         }
         groupsReady = true

@@ -99,7 +99,8 @@ export function useLeaderboard() {
     fetch("/api/groups")
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then((data: Group[]) => {
-        const sorted = [...data.filter(g => !g.isDefault), ...data.filter(g => g.isDefault)];
+        // General (default) group is the main group: listed first and selected by default.
+        const sorted = [...data.filter(g => g.isDefault), ...data.filter(g => !g.isDefault)];
         setGroups(sorted);
         if (sorted.length > 0) setGroupId(sorted[0].id);
         setGroupsReady(true);
